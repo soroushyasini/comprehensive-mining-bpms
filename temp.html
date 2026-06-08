@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Tahoma, sans-serif; font-size: 13px; background: #f4f6f9; padding: 14px; }
+
+    .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+    .toolbar-title { font-size: 15px; font-weight: bold; color: #2c3e50; }
+    .count { font-size: 12px; color: #888; margin-right: 8px; font-weight: normal; }
+    .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+    input[type=text], select { padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; font-size: 13px; background: #fff; }
+    input[type=text]:focus, select:focus { outline: none; border-color: #3498db; }
+
+    .btn { padding: 6px 14px; border: none; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 12px; white-space: nowrap; }
+    .btn:hover { opacity: .85; }
+    .btn-new    { background: #27ae60; color: #fff; }
+    .btn-edit   { background: #2980b9; color: #fff; }
+    .btn-delete { background: #e74c3c; color: #fff; }
+    .btn-save   { background: #27ae60; color: #fff; }
+    .btn-cancel { background: #95a5a6; color: #fff; }
+
+    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 6px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+    th { background: #2c3e50; color: #fff; padding: 10px 12px; text-align: right; font-weight: normal; font-size: 12px; }
+    td { padding: 9px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafcff; }
+
+    .badge { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 11px; }
+    .badge-active   { background: #d4edda; color: #155724; }
+    .badge-inactive { background: #f8d7da; color: #721c24; }
+
+    .actions { display: flex; gap: 5px; }
+    .empty { text-align: center; color: #aaa; padding: 28px; }
+
+    /* Modal overlay */
+    .em-modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 9999;
+      justify-content: center;
+      align-items: center;
+    }
+    .em-modal-overlay.open { display: flex; }
+
+    .em-modal {
+      background: #fff;
+      border-radius: 8px;
+      width: 480px;
+      max-width: 95vw;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+      direction: rtl;
+    }
+    .em-modal-header {
+      background: #2c3e50;
+      color: #fff;
+      padding: 14px 18px;
+      border-radius: 8px 8px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+      font-weight: bold;
+    }
+    .em-modal-close { cursor: pointer; font-size: 18px; line-height: 1; background: none; border: none; color: #fff; }
+    .em-modal-body { padding: 20px 18px; }
+    .em-modal-footer { padding: 12px 18px; border-top: 1px solid #eee; display: flex; gap: 8px; justify-content: flex-start; }
+
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; margin-bottom: 5px; font-size: 12px; color: #555; }
+    .form-group input, .form-group select {
+      width: 100%; padding: 8px 10px; border: 1px solid #ccc;
+      border-radius: 4px; font-family: inherit; font-size: 13px;
+    }
+    .form-group input:focus, .form-group select:focus { outline: none; border-color: #3498db; }
+
+    #alertMessage { font-size: 12px; padding: 8px 12px; border-radius: 4px; margin-bottom: 10px; display: none; }
+    #alertMessage.success { background: #d4edda; color: #155724; display: block; }
+    #alertMessage.error   { background: #f8d7da; color: #721c24; display: block; }
+  </style>
+</head>
+<body>
+
+<!-- ── Alert ──────────────────────────────────────────────────────────────── -->
+<div id="alertMessage"></div>
+
+<!-- ── Toolbar ────────────────────────────────────────────────────────────── -->
+<div class="toolbar">
+  <div class="toolbar-title">
+ مدیریت شرکت‌ها
+    <span class="count" id="countBadge"></span>
+  </div>
+  <div class="controls">
+    <select id="filterActive" onchange="applyFilters()">
+      <option value="">همه وضعیت‌ها</option>
+      <option value="1">فعال</option>
+      <option value="0">غیرفعال</option>
+    </select>
+    <select id="filterType" onchange="applyFilters()">
+      <option value="">همه انواع</option>
+      <option value="private_llc">با مسئولیت محدود</option>
+      <option value="private_joint_stock">سهامی خاص</option>
+      <option value="public_joint_stock">سهامی عام</option>
+      <option value="cooperative">تعاونی</option>
+      <option value="other">سایر</option>
+    </select>
+    <input type="text" id="searchInput" placeholder="جستجو: نام · شناسه ملی · ثبت" oninput="applyFilters()" style="width:210px">
+<button type="button" type="button" class="btn btn-new" onclick="openCreateModal()">＋ شرکت جدید</button>  </div>
+</div>
+
+<!-- ── Table ──────────────────────────────────────────────────────────────── -->
+<table>
+  <thead>
+    <tr>
+      <th style="width:36px">#</th>
+      <th>نام شرکت</th>
+      <th>نوع حقوقی</th>
+      <th>شماره ثبت</th>
+      <th>شناسه ملی</th>
+      <th>تلفن</th>
+      <th style="width:80px">وضعیت</th>
+      <th style="width:130px">عملیات</th>
+    </tr>
+  </thead>
+  <tbody id="tableBody">
+    <tr><td colspan="8" class="empty">در حال بارگذاری...</td></tr>
+  </tbody>
+</table>
+
+<!-- ── Create / Edit Modal ────────────────────────────────────────────────── -->
+<div class="em-modal-overlay" id="formModal">
+  <div class="em-modal">
+    <div class="em-modal-header">
+      <span id="modalTitle">شرکت جدید</span>
+      <button  type="button" class="em-modal-close" onclick="closeModal('formModal')">✕</button>
+    </div>
+    <div class="em-modal-body">
+      <input type="hidden" id="editId">
+      <div class="form-group">
+        <label>نام شرکت *</label>
+        <input type="text" id="f_name_fa" placeholder="نام فارسی شرکت">
+      </div>
+      <div class="form-group">
+        <label>نوع حقوقی</label>
+        <select id="f_legal_type">
+          <option value="private_llc">با مسئولیت محدود</option>
+          <option value="private_joint_stock">سهامی خاص</option>
+          <option value="public_joint_stock">سهامی عام</option>
+          <option value="cooperative">تعاونی</option>
+          <option value="other">سایر</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>شماره ثبت</label>
+        <input type="text" id="f_reg_number">
+      </div>
+      <div class="form-group">
+        <label>شناسه ملی</label>
+        <input type="text" id="f_national_id">
+      </div>
+      <div class="form-group">
+        <label>تلفن</label>
+        <input type="text" id="f_phone">
+      </div>
+    </div>
+    <div class="em-modal-footer">
+      <button  type="button" class="btn btn-save"   onclick="saveCompany()"> ذخیره</button>
+      <button  type="button" class="btn btn-cancel" onclick="closeModal('formModal')">انصراف</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Delete Confirm Modal ───────────────────────────────────────────────── -->
+<div class="em-modal-overlay" id="deleteModal">
+  <div class="em-modal">
+    <div class="em-modal-header">
+      <span>تأیید حذف</span>
+      <button type="button" class="em-modal-close" onclick="closeModal('deleteModal')">✕</button>
+    </div>
+    <div class="em-modal-body">
+      <p>آیا از حذف شرکت <strong id="deleteCompanyName"></strong> اطمینان دارید؟</p>
+      <p style="color:#888; font-size:12px; margin-top:8px">این عملیات قابل بازگشت است.</p>
+    </div>
+    <div class="em-modal-footer">
+      <button type="button" class="btn btn-delete" onclick="confirmDelete()">حذف</button>
+      <button type="button" class="btn btn-cancel" onclick="closeModal('deleteModal')">انصراف</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── Config ────────────────────────────────────────────────────────────────
+var API = 'http://bpms.emidco.local/emcore_api/emcore_companies_api.php';
+
+  var ALL_COMPANIES  = [];
+  var deleteTargetId = null;
+
+  var LEGAL_TYPE = {
+    private_llc:         'با مسئولیت محدود',
+    private_joint_stock: 'سهامی خاص',
+    public_joint_stock:  'سهامی عام',
+    cooperative:         'تعاونی',
+    other:               'سایر'
+  };
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  $(document).ready(function () {
+    loadCompanies();
+  });
+
+  // ── Load (AJAX) ───────────────────────────────────────────────────────────
+  function loadCompanies() {
+    $("#tableBody").html('<tr><td colspan="8" class="empty">در حال بارگذاری...</td></tr>');
+    $.post(API, { action: 'list' }, function (res) {
+      if (res.success) {
+        ALL_COMPANIES = res.data;
+        drawTable(ALL_COMPANIES);
+      } else {
+        showAlert('خطا در بارگذاری: ' + res.error, 'error');
+      }
+    }, 'json').fail(function () {
+      showAlert('اتصال به سرور ناموفق بود', 'error');
+    });
+  }
+
+  // ── Draw Table ────────────────────────────────────────────────────────────
+  function drawTable(data) {
+    $("#countBadge").text("(" + data.length + " مورد)");
+
+    if (!data.length) {
+      $("#tableBody").html('<tr><td colspan="8" class="empty">موردی یافت نشد</td></tr>');
+      return;
+    }
+
+    var html = "";
+    $.each(data, function (i, c) {
+      var badge = c.is_active == 1
+        ? '<span class="badge badge-active">فعال</span>'
+        : '<span class="badge badge-inactive">غیرفعال</span>';
+
+      var delBtn = c.is_active == 1
+        ? '<button type="button" class="btn btn-delete" onclick="openDeleteModal(' + c.id + ',\'' + safeStr(c.name_fa) + '\')">حذف</button>'
+        : '';
+
+      html += '<tr>'
+        + '<td>' + (i + 1) + '</td>'
+        + '<td><strong>' + (c.name_fa || '—') + '</strong></td>'
+        + '<td>' + (LEGAL_TYPE[c.legal_type] || c.legal_type || '—') + '</td>'
+        + '<td>' + (c.registration_number || '—') + '</td>'
+        + '<td>' + (c.national_id || '—') + '</td>'
+        + '<td>' + (c.phone || '—') + '</td>'
+        + '<td>' + badge + '</td>'
+        + '<td><div class="actions">'
+        +   '<button type="button" class="btn btn-edit" onclick="openEditModal(' + c.id + ')">ویرایش</button>'
+        +   delBtn
+        + '</div></td>'
+        + '</tr>';
+    });
+
+    $("#tableBody").html(html);
+  }
+
+  // ── Filters ───────────────────────────────────────────────────────────────
+  function applyFilters() {
+    var q      = $("#searchInput").val();
+    var active = $("#filterActive").val();
+    var type   = $("#filterType").val();
+
+    var result = $.grep(ALL_COMPANIES, function (c) {
+      var matchQ = !q
+        || (c.name_fa             && c.name_fa.indexOf(q) >= 0)
+        || (c.national_id         && c.national_id.indexOf(q) >= 0)
+        || (c.registration_number && c.registration_number.indexOf(q) >= 0);
+      var matchA = active === "" || String(c.is_active) === active;
+      var matchT = type   === "" || c.legal_type === type;
+      return matchQ && matchA && matchT;
+    });
+
+    drawTable(result);
+  }
+
+  // ── Modal: Create ─────────────────────────────────────────────────────────
+  function openCreateModal() {
+    $("#modalTitle").text("شرکت جدید");
+    $("#editId").val("");
+    $("#f_name_fa, #f_reg_number, #f_national_id, #f_phone").val("");
+    $("#f_legal_type").val("private_llc");
+    openModal("formModal");
+  }
+
+  // ── Modal: Edit ───────────────────────────────────────────────────────────
+  function openEditModal(id) {
+    $.post(API, { action: 'get', id: id }, function (res) {
+      if (res.success) {
+        var c = res.data;
+        $("#modalTitle").text("ویرایش شرکت");
+        $("#editId").val(c.id);
+        $("#f_name_fa").val(c.name_fa);
+        $("#f_legal_type").val(c.legal_type);
+        $("#f_reg_number").val(c.registration_number);
+        $("#f_national_id").val(c.national_id);
+        $("#f_phone").val(c.phone);
+        openModal("formModal");
+      } else {
+        showAlert('خطا در بارگذاری اطلاعات', 'error');
+      }
+    }, 'json');
+  }
+
+  // ── Save (Create or Update) ───────────────────────────────────────────────
+  function saveCompany() {
+    var name = $("#f_name_fa").val().trim();
+    if (!name) {
+      showAlert('نام شرکت الزامی است', 'error');
+      return;
+    }
+
+    var id     = $("#editId").val();
+    var action = id ? 'update' : 'create';
+
+    var payload = {
+      action:      action,
+      id:          id,
+      name_fa:     name,
+      legal_type:  $("#f_legal_type").val(),
+      reg_number:  $("#f_reg_number").val().trim(),
+      national_id: $("#f_national_id").val().trim(),
+      phone:       $("#f_phone").val().trim()
+    };
+
+    $.post(API, payload, function (res) {
+      if (res.success) {
+        closeModal("formModal");
+        showAlert(action === 'create' ? 'شرکت با موفقیت ثبت شد' : 'اطلاعات ذخیره شد', 'success');
+        loadCompanies();
+      } else {
+        showAlert('خطا: ' + (res.error || 'ناشناخته'), 'error');
+      }
+    }, 'json');
+  }
+
+  // ── Modal: Delete ─────────────────────────────────────────────────────────
+  function openDeleteModal(id, name) {
+    deleteTargetId = id;
+    $("#deleteCompanyName").text(name);
+    openModal("deleteModal");
+  }
+
+  function confirmDelete() {
+    if (!deleteTargetId) return;
+    $.post(API, { action: 'delete', id: deleteTargetId }, function (res) {
+      if (res.success) {
+        closeModal("deleteModal");
+        showAlert('شرکت حذف شد', 'success');
+        loadCompanies();
+      } else {
+        showAlert('خطا در حذف', 'error');
+      }
+    }, 'json');
+  }
+
+  // ── Modal Helpers ─────────────────────────────────────────────────────────
+  function openModal(id)  { $("#" + id).addClass("open"); }
+  function closeModal(id) { $("#" + id).removeClass("open"); }
+
+  // close on overlay click
+  $(".em-modal-overlay").on("click", function (e) {
+    if ($(e.target).hasClass("em-modal-overlay")) {
+      closeModal($(this).attr("id"));
+    }
+  });
+
+  // ── Alert ─────────────────────────────────────────────────────────────────
+  function showAlert(msg, type) {
+    $("#alertMessage")
+      .removeClass("success error")
+      .addClass(type)
+      .text(msg);
+    setTimeout(function () {
+      $("#alertMessage").removeClass("success error").hide();
+    }, 3500);
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function safeStr(s) {
+    return (s || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  }
+</script>
+
+</body>
+</html>
