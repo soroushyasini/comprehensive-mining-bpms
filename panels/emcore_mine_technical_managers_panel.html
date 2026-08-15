@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: Tahoma, 'Segoe UI', sans-serif;
+      font-size: 13px;
+      background: transparent;
+      color: #1a1a1a;
+      margin: 0;
+      padding: 8px;
+    }
+
+    #errorMessage {
+      color: #c0392b;
+      background: #fdecea;
+      border: 1px solid #f5c6cb;
+      border-radius: 4px;
+      padding: 8px 12px;
+      margin-bottom: 10px;
+      display: none;
+    }
+
+    /* ── Toolbar ── */
+    #toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    #searchInput {
+      flex: 1;
+      min-width: 160px;
+      padding: 5px 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 13px;
+      direction: rtl;
+    }
+
+    .btn {
+      padding: 5px 14px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    .btn-primary { background: #1e3a5f; color: #fff; }
+    .btn-primary:hover { background: #15294a; }
+    .btn-warning { background: #d97706; color: #fff; padding: 3px 10px; font-size: 12px; }
+    .btn-warning:hover { background: #b45309; }
+    .btn-danger  { background: #dc2626; color: #fff; padding: 3px 10px; font-size: 12px; }
+    .btn-danger:hover  { background: #b91c1c; }
+
+    /* ── Table ── */
+    #tableContainer { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    thead tr { background: #1e3a5f; color: #fff; }
+    thead th {
+      padding: 8px 10px;
+      text-align: right;
+      font-weight: normal;
+      white-space: nowrap;
+    }
+    tbody tr { border-bottom: 1px solid #e5e7eb; }
+    tbody tr:hover { background: #f0f4ff; }
+    tbody td { padding: 6px 10px; vertical-align: middle; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+    .badge-green  { background: #dcfce7; color: #166534; }
+    .badge-gray   { background: #f3f4f6; color: #374151; }
+    .badge-blue   { background: #dbeafe; color: #1e40af; }
+
+    .linked-person {
+      display: inline-block;
+      background: #ede9fe;
+      color: #5b21b6;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: 11px;
+    }
+
+    .actions { display: flex; gap: 4px; }
+
+    /* ── Modal ── */
+    #modalOverlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 1000;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 30px 10px;
+      overflow-y: auto;
+    }
+    #modalOverlay.open { display: flex; }
+
+    #modal {
+      background: #fff;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 620px;
+      padding: 24px;
+      position: relative;
+    }
+
+    #modal h3 {
+      margin: 0 0 18px;
+      font-size: 15px;
+      color: #1e3a5f;
+      border-bottom: 2px solid #e5e7eb;
+      padding-bottom: 10px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px 16px;
+    }
+    .form-group { display: flex; flex-direction: column; gap: 4px; }
+    .form-group.full { grid-column: 1 / -1; }
+    .form-group label { font-size: 12px; color: #555; }
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      padding: 6px 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 13px;
+      direction: rtl;
+    }
+    .form-group textarea { resize: vertical; min-height: 60px; }
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: #1e3a5f;
+      box-shadow: 0 0 0 2px rgba(30,58,95,0.12);
+    }
+
+    .section-title {
+      grid-column: 1 / -1;
+      font-size: 11px;
+      font-weight: bold;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 6px;
+      border-bottom: 1px solid #f3f4f6;
+      padding-bottom: 4px;
+    }
+
+    .person-hint {
+      font-size: 11px;
+      color: #6b7280;
+      margin-top: 2px;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .toggle-row input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-start;
+      gap: 8px;
+      margin-top: 20px;
+      padding-top: 14px;
+      border-top: 1px solid #e5e7eb;
+    }
+    .btn-close-modal {
+      background: #f3f4f6; color: #374151;
+      padding: 6px 16px; border: none; border-radius: 4px;
+      cursor: pointer; font-family: inherit; font-size: 13px;
+    }
+    .btn-save {
+      background: #1e3a5f; color: #fff;
+      padding: 6px 20px; border: none; border-radius: 4px;
+      cursor: pointer; font-family: inherit; font-size: 13px;
+    }
+    .btn-save:hover { background: #15294a; }
+
+    #modalError {
+      color: #c0392b; font-size: 12px;
+      margin-top: 8px; display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="errorMessage"></div>
+
+  <div id="toolbar">
+    <button  type="button" class="btn btn-primary" onclick="openCreate()">+ افزودن مدیر فنی</button>
+    <input type="text" id="searchInput" placeholder="جستجو در نام، معدن، تلفن..." oninput="filterTable()" />
+  </div>
+
+  <div id="tableContainer"><p>در حال بارگذاری...</p></div>
+
+  <!-- ── Modal ── -->
+  <div id="modalOverlay">
+    <div id="modal">
+      <h3 id="modalTitle">افزودن مدیر فنی</h3>
+      <input type="hidden" id="editId" value="">
+
+      <div class="form-grid">
+
+        <div class="section-title">اطلاعات شخص</div>
+
+        <div class="form-group full">
+          <label>معدن *</label>
+          <select id="f_mine_id"><option value="">-- انتخاب معدن --</option></select>
+        </div>
+
+        <div class="form-group">
+          <label>نام و نام خانوادگی</label>
+          <input type="text" id="f_full_name" />
+        </div>
+
+        <div class="form-group">
+          <label>تلفن</label>
+          <input type="text" id="f_phone" dir="ltr" />
+        </div>
+
+        <div class="form-group">
+          <label>روش ارتباط</label>
+          <select id="f_contact_method">
+            <option value="">-- انتخاب --</option>
+            <option>تلگرام</option>
+            <option>تلفن</option>
+            <option>واتساپ</option>
+            <option>ایمیل</option>
+            <option>حضوری</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>شناسه شخص (person_id)</label>
+          <input type="number" id="f_person_id" placeholder="اختیاری" />
+          <span class="person-hint">در صورت وجود در جدول اشخاص وارد کنید</span>
+        </div>
+
+        <div class="section-title">اطلاعات قرارداد</div>
+
+        <div class="form-group">
+          <label>تاریخ قرارداد (شمسی)</label>
+          <input type="text" id="f_contract_date_fa" placeholder="مثال: ۱۴۰۵/۰۱/۰۱" />
+        </div>
+
+        <div class="form-group">
+          <label>اعتبار قرارداد (شمسی)</label>
+          <input type="text" id="f_contract_validity_fa" placeholder="مثال: ۱۴۰۵/۱۲/۲۹" />
+        </div>
+
+        <div class="form-group">
+          <label>اعتبار قرارداد (میلادی - محاسبه خودکار)</label>
+          <input type="text" id="f_contract_validity_en" placeholder="محاسبه از تاریخ شمسی" dir="ltr" readonly />
+        </div>
+
+        <div class="form-group">
+          <label>مبلغ قرارداد</label>
+          <input type="text" id="f_contract_amount" placeholder="مثال: ماهیانه ۱۲.۰۰۰.۰۰۰" />
+        </div>
+
+        <div class="form-group">
+          <label>برنامه پرداخت</label>
+          <input type="text" id="f_payment_schedule" placeholder="مثال: چک، هر سه ماه" />
+        </div>
+
+        <div class="form-group">
+          <label>وضعیت</label>
+          <div class="toggle-row">
+            <input type="checkbox" id="f_is_current" />
+            <label for="f_is_current" style="color:#1a1a1a;font-size:13px;">قرارداد جاری است</label>
+          </div>
+        </div>
+
+        <div class="form-group full">
+          <label>یادداشت</label>
+          <textarea id="f_notes"></textarea>
+        </div>
+
+      </div>
+
+      <div id="modalError"></div>
+
+      <div class="modal-footer">
+        <button  type="button" class="btn-save" onclick="saveRecord()">ذخیره</button>
+        <button  type="button" class="btn-close-modal" onclick="closeModal()">انصراف</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    var API_URL  = '/emcore_api/emcore_mine_technical_managers.php';
+var EMCORE_CSRF_TOKEN = ''; var EMCORE_PERMISSIONS = {can_create:0,can_read:0,can_update:0,can_delete:0}; jQuery(document).ajaxSend(function (event, xhr) { if (EMCORE_CSRF_TOKEN) xhr.setRequestHeader('X-CSRF-Token', EMCORE_CSRF_TOKEN); }); jQuery(document).ajaxSuccess(function (event, xhr, settings, response) { if (response && response.csrf_token) EMCORE_CSRF_TOKEN = response.csrf_token; if (response && response.permissions) { EMCORE_PERMISSIONS = response.permissions; setTimeout(applyEmcorePermissions, 0); } }); function applyEmcorePermissions() { jQuery('.btn-new, .btn-primary[onclick*="openCreate"]').toggle(Number(EMCORE_PERMISSIONS.can_create) === 1); jQuery('.btn-edit, .btn-warning').toggle(Number(EMCORE_PERMISSIONS.can_update) === 1); jQuery('.btn-delete, .btn-danger').toggle(Number(EMCORE_PERMISSIONS.can_delete) === 1); } jQuery(function () { applyEmcorePermissions(); });
+    var ALL_DATA = [];
+    var MINES    = [];
+
+    // ── Init ────────────────────────────────────────────────────────────────
+    $(document).ready(function () {
+      setTimeout(function () {
+        loadMines(function () {
+          loadData();
+        });
+      }, 500);
+    });
+
+    // ── Load mines dropdown ──────────────────────────────────────────────────
+    function loadMines(callback) {
+      $.post(API_URL, { action: 'mines' }, function (res) {
+        if (res.success) {
+          MINES = res.data;
+          var sel = $('#f_mine_id');
+          sel.find('option:not(:first)').remove();
+          $.each(MINES, function (i, m) {
+            sel.append(jQuery('<option>').val(m.id).text(m.mine_name));
+          });
+        }
+        if (typeof callback === 'function') callback();
+      }, 'json').fail(function () {
+        if (typeof callback === 'function') callback();
+      });
+    }
+
+    function getMineNameById(id) {
+      var found = null;
+      $.each(MINES, function (i, m) {
+        if (String(m.id) === String(id)) { found = m.mine_name; return false; }
+      });
+      return found;
+    }
+
+    // ── Load list ────────────────────────────────────────────────────────────
+    function loadData() {
+      $.post(API_URL, { action: 'list' }, function (res) {
+        if (!res.success) { showError(res.error || 'خطا در بارگذاری'); return; }
+        ALL_DATA = res.data;
+        drawTable(ALL_DATA);
+        hideError();
+      }, 'json').fail(function () {
+        showError('ارتباط با سرور برقرار نشد');
+      });
+    }
+
+    // ── Draw table ───────────────────────────────────────────────────────────
+    function drawTable(data) {
+      if (!data.length) {
+        $('#tableContainer').html('<p style="color:#888;padding:12px">موردی یافت نشد</p>');
+        return;
+      }
+
+      var html = '<table>'
+        + '<thead><tr>'
+        + '<th>#</th>'
+        + '<th>نام</th>'
+        + '<th>معدن</th>'
+        + '<th>تلفن</th>'
+        + '<th>روش ارتباط</th>'
+        + '<th>تاریخ قرارداد</th>'
+        + '<th>اعتبار تا</th>'
+        + '<th>مبلغ</th>'
+        + '<th>جاری</th>'
+        + '<th>عملیات</th>'
+        + '</tr></thead><tbody>';
+
+      $.each(data, function (i, row) {
+        var nameCell = row.full_name ? escapeHtml(row.full_name) : '<span style="color:#aaa">—</span>';
+        if (row.person_id) {
+          nameCell += ' <span class="linked-person" title="person_id: ' + row.person_id + '"> ' + row.person_id + '</span>';
+        }
+
+        html += '<tr>'
+          + '<td>' + row.id + '</td>'
+          + '<td>' + nameCell + '</td>'
+          + '<td>' + (row.mine_name ? escapeHtml(row.mine_name) : '<span style="color:#aaa">—</span>') + '</td>'
+          + '<td dir="ltr" style="text-align:right">' + escapeHtml(row.phone || '—') + '</td>'
+          + '<td>' + badgeContact(row.contact_method) + '</td>'
+          + '<td>' + escapeHtml(row.contract_date_fa || '—') + '</td>'
+          + '<td>' + validityBadge(row.contract_validity_fa, row.contract_validity_en) + '</td>'
+          + '<td style="white-space:nowrap">' + escapeHtml(row.contract_amount || '—') + '</td>'
+          + '<td>' + (row.is_current == 1 ? '<span class="badge badge-green">فعال</span>' : '<span class="badge badge-gray">منقضی</span>') + '</td>'
+          + '<td><div class="actions">'
+          + '<button  type="button" class="btn btn-warning" onclick="openEdit(' + row.id + ')">ویرایش</button>'
+          + '<button  type="button" class="btn btn-danger"  onclick="goDelete(' + row.id + ', \'' + escapeHtml(safeStr(row.full_name || '')) + '\')">حذف</button>'
+          + '</div></td>'
+          + '</tr>';
+      });
+
+      html += '</tbody></table>';
+      $('#tableContainer').html(html);
+    }
+
+    function badgeContact(m) {
+      if (!m) return '—';
+      var color = (m === 'تلگرام') ? 'badge-blue' : 'badge-gray';
+      return '<span class="badge ' + color + '">' + escapeHtml(m) + '</span>';
+    }
+
+    function validityBadge(fa, en) {
+      if (!fa) return '—';
+      // Try to detect if expired based on en date (simple check)
+      var label = escapeHtml(fa);
+      if (en) label += '<br><small style="color:#888;direction:ltr">' + escapeHtml(en) + '</small>';
+      return label;
+    }
+
+    // ── Search ───────────────────────────────────────────────────────────────
+    function filterTable() {
+      var q = ($('#searchInput').val() || '').toLowerCase();
+      if (!q) { drawTable(ALL_DATA); return; }
+      var filtered = ALL_DATA.filter(function (r) {
+        return (r.full_name      || '').toLowerCase().indexOf(q) >= 0
+            || (r.mine_name      || '').toLowerCase().indexOf(q) >= 0
+            || (r.phone          || '').toLowerCase().indexOf(q) >= 0
+            || (r.contact_method || '').toLowerCase().indexOf(q) >= 0
+            || (r.contract_amount|| '').toLowerCase().indexOf(q) >= 0;
+      });
+      drawTable(filtered);
+    }
+
+    // ── Modal ────────────────────────────────────────────────────────────────
+    function openCreate() {
+      $('#modalTitle').text('افزودن مدیر فنی');
+      $('#editId').val('');
+      clearForm();
+      $('#modalOverlay').addClass('open');
+    }
+
+    function openEdit(id) {
+      $.post(API_URL, { action: 'get', id: id }, function (res) {
+        if (!res.success) { showError(res.error); return; }
+        var d = res.data;
+        $('#modalTitle').text('ویرایش مدیر فنی');
+        $('#editId').val(d.id);
+        $('#f_mine_id').val(d.mine_id);
+        $('#f_person_id').val(d.person_id || '');
+        $('#f_full_name').val(d.full_name);
+        $('#f_phone').val(d.phone);
+        $('#f_contact_method').val(d.contact_method);
+        $('#f_contract_date_fa').val(d.contract_date_fa);
+        $('#f_contract_validity_fa').val(d.contract_validity_fa);
+        $('#f_contract_validity_en').val(d.contract_validity_en);
+        $('#f_contract_amount').val(d.contract_amount);
+        $('#f_payment_schedule').val(d.payment_schedule);
+        $('#f_is_current').prop('checked', d.is_current == 1);
+        $('#f_notes').val(d.notes);
+        $('#modalOverlay').addClass('open');
+      }, 'json');
+    }
+
+    function closeModal() {
+      $('#modalOverlay').removeClass('open');
+      $('#modalError').hide().text('');
+    }
+
+    function clearForm() {
+      $('#f_mine_id, #f_contact_method').val('');
+      $('#f_person_id, #f_full_name, #f_phone, #f_contract_date_fa, '
+        + '#f_contract_validity_fa, #f_contract_validity_en, '
+        + '#f_contract_amount, #f_payment_schedule, #f_notes').val('');
+      $('#f_is_current').prop('checked', true);
+    }
+
+    // ── Save ─────────────────────────────────────────────────────────────────
+    function saveRecord() {
+      var id = $('#editId').val();
+
+      if (!$('#f_mine_id').val()) { modalError('معدن را انتخاب کنید'); return; }
+
+      var payload = {
+        action:               id ? 'update' : 'create',
+        id:                   id,
+        mine_id:              $('#f_mine_id').val(),
+        person_id:            $('#f_person_id').val(),
+        full_name:            $('#f_full_name').val(),
+        phone:                $('#f_phone').val(),
+        contact_method:       $('#f_contact_method').val(),
+        contract_date_fa:     $('#f_contract_date_fa').val(),
+        contract_validity_fa: $('#f_contract_validity_fa').val(),
+        contract_amount:      $('#f_contract_amount').val(),
+        payment_schedule:     $('#f_payment_schedule').val(),
+        is_current:           $('#f_is_current').is(':checked') ? 1 : 0,
+        notes:                $('#f_notes').val(),
+      };
+
+      $.post(API_URL, payload, function (res) {
+        if (!res.success) { modalError(res.error || 'خطا'); return; }
+        closeModal();
+        loadData();
+      }, 'json').fail(function () {
+        modalError('ارتباط با سرور برقرار نشد');
+      });
+    }
+
+    // ── Delete ───────────────────────────────────────────────────────────────
+    function goDelete(id, label) {
+      if (!confirm('حذف «' + (label || 'این رکورد') + '»؟')) return;
+      $.post(API_URL, { action: 'delete', id: id }, function (res) {
+        if (!res.success) { showError(res.error || 'خطا در حذف'); return; }
+        loadData();
+      }, 'json');
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+    function showError(msg)  { $('#errorMessage').text(msg).show(); }
+    function hideError()     { $('#errorMessage').hide(); }
+    function modalError(msg) { $('#modalError').text(msg).show(); }
+    function escapeHtml(value) { return $('<div>').text(value == null ? '' : String(value)).html(); }
+    function safeStr(s)      { return (s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
+
+    $('#modalOverlay').on('click', function (e) {
+      if (e.target === this) closeModal();
+    });
+  </script>
+</body>
+</html>

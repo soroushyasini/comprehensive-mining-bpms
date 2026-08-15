@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: Tahoma, 'Segoe UI', sans-serif;
+      font-size: 13px;
+      background: transparent;
+      color: #1a1a1a;
+      margin: 0;
+      padding: 8px;
+    }
+
+    #errorMessage {
+      color: #c0392b;
+      background: #fdecea;
+      border: 1px solid #f5c6cb;
+      border-radius: 4px;
+      padding: 8px 12px;
+      margin-bottom: 10px;
+      display: none;
+    }
+
+    /* ── Toolbar ── */
+    #toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    #searchInput {
+      flex: 1;
+      min-width: 160px;
+      padding: 5px 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 13px;
+      direction: rtl;
+    }
+
+    .btn {
+      padding: 5px 14px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    .btn-primary  { background: #2563eb; color: #fff; }
+    .btn-primary:hover  { background: #1d4ed8; }
+    .btn-warning  { background: #d97706; color: #fff; padding: 3px 10px; font-size: 12px; }
+    .btn-warning:hover  { background: #b45309; }
+    .btn-danger   { background: #dc2626; color: #fff; padding: 3px 10px; font-size: 12px; }
+    .btn-danger:hover   { background: #b91c1c; }
+
+    /* ── Table ── */
+    #tableContainer { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    thead tr { background: #1e3a5f; color: #fff; }
+    thead th {
+      padding: 8px 10px;
+      text-align: right;
+      font-weight: normal;
+      white-space: nowrap;
+    }
+    tbody tr { border-bottom: 1px solid #e5e7eb; }
+    tbody tr:hover { background: #f0f4ff; }
+    tbody td { padding: 6px 10px; vertical-align: middle; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+    .badge-green  { background: #dcfce7; color: #166534; }
+    .badge-yellow { background: #fef9c3; color: #854d0e; }
+    .badge-gray   { background: #f3f4f6; color: #374151; }
+    .badge-red    { background: #fee2e2; color: #991b1b; }
+
+    .actions { display: flex; gap: 4px; }
+
+    /* ── Modal overlay ── */
+    #modalOverlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 1000;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 30px 10px;
+      overflow-y: auto;
+    }
+    #modalOverlay.open { display: flex; }
+
+    #modal {
+      background: #fff;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 680px;
+      padding: 24px;
+      position: relative;
+    }
+
+    #modal h3 {
+      margin: 0 0 18px;
+      font-size: 15px;
+      color: #1e3a5f;
+      border-bottom: 2px solid #e5e7eb;
+      padding-bottom: 10px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px 16px;
+    }
+    .form-group { display: flex; flex-direction: column; gap: 4px; }
+    .form-group.full { grid-column: 1 / -1; }
+    .form-group label { font-size: 12px; color: #555; }
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      padding: 6px 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 13px;
+      direction: rtl;
+    }
+    .form-group textarea { resize: vertical; min-height: 60px; }
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 2px rgba(37,99,235,0.15);
+    }
+
+    .section-title {
+      grid-column: 1 / -1;
+      font-size: 11px;
+      font-weight: bold;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 6px;
+      border-bottom: 1px solid #f3f4f6;
+      padding-bottom: 4px;
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-start;
+      gap: 8px;
+      margin-top: 20px;
+      padding-top: 14px;
+      border-top: 1px solid #e5e7eb;
+    }
+    .btn-close-modal {
+      background: #f3f4f6;
+      color: #374151;
+      padding: 6px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 13px;
+    }
+    .btn-save {
+      background: #2563eb;
+      color: #fff;
+      padding: 6px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 13px;
+    }
+    .btn-save:hover { background: #1d4ed8; }
+
+    #modalError {
+      color: #c0392b;
+      font-size: 12px;
+      margin-top: 8px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="errorMessage"></div>
+
+  <div id="toolbar">
+    <button type="button" class="btn btn-primary" onclick="openCreate()">+ افزودن معدن</button>
+    <input type="text" id="searchInput" placeholder="جستجو در نام معدن، کانی، شرکت..." oninput="filterTable()" />
+  </div>
+
+  <div id="tableContainer"><p>در حال بارگذاری...</p></div>
+
+  <!-- ── Modal ── -->
+  <div id="modalOverlay">
+    <div id="modal">
+      <h3 id="modalTitle">افزودن معدن</h3>
+      <input type="hidden" id="editId" value="">
+
+      <div class="form-grid">
+
+        <div class="section-title">اطلاعات پایه</div>
+
+        <div class="form-group full">
+          <label>شرکت *</label>
+          <select id="f_company_id"><option value="">-- انتخاب شرکت --</option></select>
+        </div>
+
+        <div class="form-group">
+          <label>نام معدن *</label>
+          <input type="text" id="f_mine_name" />
+        </div>
+
+        <div class="form-group">
+          <label>نام مستعار</label>
+          <input type="text" id="f_alias_name" />
+        </div>
+
+        <div class="form-group">
+          <label>نوع کانی *</label>
+          <input type="text" id="f_mineral_type" />
+        </div>
+
+        <div class="form-group">
+          <label>زیرنوع کانسنگ</label>
+          <input type="text" id="f_ore_subtype" />
+        </div>
+
+        <div class="form-group">
+          <label>وضعیت *</label>
+          <select id="f_status">
+            <option value="">-- انتخاب --</option>
+            <option>دارای پروانه بهره برداری</option>
+            <option>در حال تمدید</option>
+            <option>تعیین تکلیف</option>
+            <option>در حال دریافت گواهی کشف</option>
+            <option>منقضی</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>کد کاداستر</label>
+          <input type="text" id="f_cadastre_code" />
+        </div>
+
+        <div class="section-title">اطلاعات پروانه</div>
+
+        <div class="form-group">
+          <label>شماره پروانه</label>
+          <input type="text" id="f_license_number" />
+        </div>
+
+        <div class="form-group">
+          <label>تاریخ صدور پروانه (شمسی)</label>
+          <input type="text" id="f_license_date_fa" placeholder="مثال: ۱۳۹۷/۰۳/۲۹" />
+        </div>
+
+        <div class="form-group">
+          <label>اعتبار پروانه (شمسی)</label>
+          <input type="text" id="f_license_validity_fa" placeholder="مثال: ۱۴۰۷/۰۳/۲۹" />
+        </div>
+
+        <div class="form-group">
+          <label>اعتبار پروانه (میلادی - محاسبه خودکار)</label>
+          <input type="text" id="f_license_validity_en" placeholder="محاسبه از تاریخ شمسی" dir="ltr" readonly />
+        </div>
+
+        <div class="form-group">
+          <label>تاریخ ضمانت‌نامه (شمسی)</label>
+          <input type="text" id="f_guarantee_letter_date_fa" />
+        </div>
+
+        <div class="section-title">ذخیره و استخراج</div>
+
+        <div class="form-group">
+          <label>ذخیره قطعی (تن)</label>
+          <input type="number" id="f_proven_reserve_tons" />
+        </div>
+
+        <div class="form-group">
+          <label>ذخیره احتمالی (تن)</label>
+          <input type="number" id="f_probable_reserve_tons" />
+        </div>
+
+        <div class="form-group">
+          <label>استخراج سالانه (تن)</label>
+          <input type="number" id="f_annual_extraction_tons" />
+        </div>
+
+        <div class="form-group">
+          <label>عیار حد (cutoff)</label>
+          <input type="text" id="f_cutoff_grade" placeholder="مثال: 20%" />
+        </div>
+
+        <div class="form-group">
+          <label>عیار متوسط</label>
+          <input type="text" id="f_average_grade" placeholder="مثال: 53%" />
+        </div>
+
+        <div class="form-group full">
+          <label>یادداشت</label>
+          <textarea id="f_notes"></textarea>
+        </div>
+
+      </div>
+
+      <div id="modalError"></div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-save" onclick="saveRecord()">ذخیره</button>
+        <button type="button" class="btn-close-modal" onclick="closeModal()">انصراف</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    var API_URL   = '/emcore_api/emcore_mines.php';
+var EMCORE_CSRF_TOKEN = ''; var EMCORE_PERMISSIONS = {can_create:0,can_read:0,can_update:0,can_delete:0}; jQuery(document).ajaxSend(function (event, xhr) { if (EMCORE_CSRF_TOKEN) xhr.setRequestHeader('X-CSRF-Token', EMCORE_CSRF_TOKEN); }); jQuery(document).ajaxSuccess(function (event, xhr, settings, response) { if (response && response.csrf_token) EMCORE_CSRF_TOKEN = response.csrf_token; if (response && response.permissions) { EMCORE_PERMISSIONS = response.permissions; setTimeout(applyEmcorePermissions, 0); } }); function applyEmcorePermissions() { jQuery('.btn-new, .btn-primary[onclick*="openCreate"]').toggle(Number(EMCORE_PERMISSIONS.can_create) === 1); jQuery('.btn-edit, .btn-warning').toggle(Number(EMCORE_PERMISSIONS.can_update) === 1); jQuery('.btn-delete, .btn-danger').toggle(Number(EMCORE_PERMISSIONS.can_delete) === 1); } jQuery(function () { applyEmcorePermissions(); });
+    var ALL_DATA  = [];
+    var COMPANIES = [];
+
+    // ── Init ────────────────────────────────────────────────────────────────
+    $(document).ready(function () {
+      setTimeout(function () {
+        loadCompanies(function () {
+          loadData();
+        });
+      }, 500);
+    });
+
+    // ── Load companies (for dropdown) ────────────────────────────────────────
+    function loadCompanies(callback) {
+      $.post(API_URL, { action: 'companies' }, function (res) {
+        if (res.success) {
+          COMPANIES = res.data;
+          var sel = $('#f_company_id');
+          sel.find('option:not(:first)').remove();
+          $.each(COMPANIES, function (i, c) {
+            sel.append(jQuery('<option>').val(c.id).text(c.name_fa));
+          });
+        }
+        if (typeof callback === 'function') callback();
+      }, 'json').fail(function () {
+        if (typeof callback === 'function') callback();
+      });
+    }
+
+    // ── Load list ────────────────────────────────────────────────────────────
+    function loadData() {
+      $.post(API_URL, { action: 'list' }, function (res) {
+        if (!res.success) { showError(res.error || 'خطا در بارگذاری'); return; }
+        ALL_DATA = res.data;
+        drawTable(ALL_DATA);
+        hideError();
+      }, 'json').fail(function () {
+        showError('ارتباط با سرور برقرار نشد');
+      });
+    }
+
+    // ── Draw table ───────────────────────────────────────────────────────────
+    function drawTable(data) {
+      if (!data.length) {
+        $('#tableContainer').html('<p style="color:#888;padding:12px">موردی یافت نشد</p>');
+        return;
+      }
+
+      var html = '<table>'
+        + '<thead><tr>'
+        + '<th>#</th>'
+        + '<th>نام معدن</th>'
+        + '<th>شرکت</th>'
+        + '<th>کانی</th>'
+        + '<th>وضعیت</th>'
+        + '<th>شماره پروانه</th>'
+        + '<th>کد کاداستر</th>'
+        + '<th>استخراج سالانه (تن)</th>'
+        + '<th>عملیات</th>'
+        + '</tr></thead><tbody>';
+
+      $.each(data, function (i, row) {
+        html += '<tr>'
+          + '<td>' + row.id + '</td>'
+          + '<td><strong>' + escapeHtml(row.mine_name || '—') + '</strong>'
+          + (row.alias_name ? '<br><small style="color:#888">' + escapeHtml(row.alias_name) + '</small>' : '')
+          + '</td>'
+          + '<td>' + (row.company_name ? escapeHtml(row.company_name) : '<span style="color:#aaa">—</span>') + '</td>'
+          + '<td>' + escapeHtml(row.mineral_type || '—') + '</td>'
+          + '<td>' + badgeStatus(row.status) + '</td>'
+          + '<td>' + escapeHtml(row.license_number || '—') + '</td>'
+          + '<td>' + escapeHtml(row.cadastre_code || '—') + '</td>'
+          + '<td>' + (row.annual_extraction_tons ? Number(row.annual_extraction_tons).toLocaleString('fa-IR') : '—') + '</td>'
+          + '<td><div class="actions">'
+          + '<button type="button" class="btn btn-warning" onclick="openEdit(' + row.id + ')">ویرایش</button>'
+          + '<button type="button" class="btn btn-danger"  onclick="goDelete(' + row.id + ', \'' + escapeHtml(safeStr(row.mine_name)) + '\')">حذف</button>'
+          + '</div></td>'
+          + '</tr>';
+      });
+
+      html += '</tbody></table>';
+      $('#tableContainer').html(html);
+    }
+
+    function badgeStatus(s) {
+      if (!s) return '<span class="badge badge-gray">—</span>';
+      if (s.indexOf('بهره برداری') >= 0) return '<span class="badge badge-green">' + escapeHtml(s) + '</span>';
+      if (s.indexOf('تمدید') >= 0)       return '<span class="badge badge-yellow">' + escapeHtml(s) + '</span>';
+      if (s.indexOf('تعیین') >= 0)       return '<span class="badge badge-yellow">' + escapeHtml(s) + '</span>';
+      if (s.indexOf('کشف') >= 0)         return '<span class="badge badge-gray">' + escapeHtml(s) + '</span>';
+      return '<span class="badge badge-red">' + escapeHtml(s) + '</span>';
+    }
+
+    // ── Search / filter ──────────────────────────────────────────────────────
+    function filterTable() {
+      var q = ($('#searchInput').val() || '').toLowerCase();
+      if (!q) { drawTable(ALL_DATA); return; }
+      var filtered = ALL_DATA.filter(function (r) {
+        return (r.mine_name     || '').toLowerCase().indexOf(q) >= 0
+            || (r.mineral_type  || '').toLowerCase().indexOf(q) >= 0
+            || (r.company_name  || '').toLowerCase().indexOf(q) >= 0
+            || (r.status        || '').toLowerCase().indexOf(q) >= 0
+            || (r.cadastre_code || '').toLowerCase().indexOf(q) >= 0
+            || (r.license_number|| '').toLowerCase().indexOf(q) >= 0;
+      });
+      drawTable(filtered);
+    }
+
+    // ── Modal open/close ─────────────────────────────────────────────────────
+    function openCreate() {
+      $('#modalTitle').text('افزودن معدن');
+      $('#editId').val('');
+      clearForm();
+      $('#modalOverlay').addClass('open');
+    }
+
+    function openEdit(id) {
+      $.post(API_URL, { action: 'get', id: id }, function (res) {
+        if (!res.success) { showError(res.error); return; }
+        var d = res.data;
+        $('#modalTitle').text('ویرایش معدن');
+        $('#editId').val(d.id);
+        $('#f_company_id').val(d.company_id);
+        $('#f_mine_name').val(d.mine_name);
+        $('#f_alias_name').val(d.alias_name);
+        $('#f_mineral_type').val(d.mineral_type);
+        $('#f_ore_subtype').val(d.ore_subtype);
+        $('#f_status').val(d.status);
+        $('#f_cadastre_code').val(d.cadastre_code);
+        $('#f_license_number').val(d.license_number);
+        $('#f_license_date_fa').val(d.license_date_fa);
+        $('#f_license_validity_fa').val(d.license_validity_fa);
+        $('#f_license_validity_en').val(d.license_validity_en);
+        $('#f_guarantee_letter_date_fa').val(d.guarantee_letter_date_fa);
+        $('#f_proven_reserve_tons').val(d.proven_reserve_tons);
+        $('#f_probable_reserve_tons').val(d.probable_reserve_tons);
+        $('#f_annual_extraction_tons').val(d.annual_extraction_tons);
+        $('#f_cutoff_grade').val(d.cutoff_grade);
+        $('#f_average_grade').val(d.average_grade);
+        $('#f_notes').val(d.notes);
+        $('#modalOverlay').addClass('open');
+      }, 'json');
+    }
+
+    function closeModal() {
+      $('#modalOverlay').removeClass('open');
+      $('#modalError').hide().text('');
+    }
+
+    function clearForm() {
+      $('#f_company_id,#f_status').val('');
+      $('#f_mine_name,#f_alias_name,#f_mineral_type,#f_ore_subtype,#f_cadastre_code,'
+        + '#f_license_number,#f_license_date_fa,#f_license_validity_fa,#f_license_validity_en,'
+        + '#f_guarantee_letter_date_fa,#f_proven_reserve_tons,#f_probable_reserve_tons,'
+        + '#f_annual_extraction_tons,#f_cutoff_grade,#f_average_grade,#f_notes').val('');
+    }
+
+    // ── Save (create / update) ───────────────────────────────────────────────
+    function saveRecord() {
+      var id = $('#editId').val();
+
+      if (!$('#f_company_id').val()) { modalError('شرکت را انتخاب کنید'); return; }
+      if (!$.trim($('#f_mine_name').val())) { modalError('نام معدن الزامی است'); return; }
+      if (!$('#f_status').val()) { modalError('وضعیت را انتخاب کنید'); return; }
+
+      var payload = {
+        action:                   id ? 'update' : 'create',
+        id:                       id,
+        company_id:               $('#f_company_id').val(),
+        mine_name:                $('#f_mine_name').val(),
+        alias_name:               $('#f_alias_name').val(),
+        mineral_type:             $('#f_mineral_type').val(),
+        ore_subtype:              $('#f_ore_subtype').val(),
+        status:                   $('#f_status').val(),
+        cadastre_code:            $('#f_cadastre_code').val(),
+        license_number:           $('#f_license_number').val(),
+        license_date_fa:          $('#f_license_date_fa').val(),
+        license_validity_fa:      $('#f_license_validity_fa').val(),
+        guarantee_letter_date_fa: $('#f_guarantee_letter_date_fa').val(),
+        proven_reserve_tons:      $('#f_proven_reserve_tons').val(),
+        probable_reserve_tons:    $('#f_probable_reserve_tons').val(),
+        annual_extraction_tons:   $('#f_annual_extraction_tons').val(),
+        cutoff_grade:             $('#f_cutoff_grade').val(),
+        average_grade:            $('#f_average_grade').val(),
+        notes:                    $('#f_notes').val(),
+      };
+
+      $.post(API_URL, payload, function (res) {
+        if (!res.success) { modalError(res.error || 'خطا'); return; }
+        closeModal();
+        loadData();
+      }, 'json').fail(function () {
+        modalError('ارتباط با سرور برقرار نشد');
+      });
+    }
+
+    // ── Delete ───────────────────────────────────────────────────────────────
+    function goDelete(id, label) {
+      if (!confirm('حذف معدن «' + label + '»؟')) return;
+      $.post(API_URL, { action: 'delete', id: id }, function (res) {
+        if (!res.success) { showError(res.error || 'خطا در حذف'); return; }
+        loadData();
+      }, 'json');
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+    function showError(msg)  { $('#errorMessage').text(msg).show(); }
+    function hideError()     { $('#errorMessage').hide(); }
+    function modalError(msg) { $('#modalError').text(msg).show(); }
+    function escapeHtml(value) { return $('<div>').text(value == null ? '' : String(value)).html(); }
+    function safeStr(s)      { return (s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
+
+    // Close modal on overlay click
+    $('#modalOverlay').on('click', function (e) {
+      if (e.target === this) closeModal();
+    });
+  </script>
+</body>
+</html>

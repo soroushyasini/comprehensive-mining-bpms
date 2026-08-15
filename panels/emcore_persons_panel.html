@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Tahoma, sans-serif; font-size: 13px; background: #f4f6f9; padding: 14px; }
+
+    /* ── Toolbar ── */
+    .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+    .toolbar-title { font-size: 15px; font-weight: bold; color: #2c3e50; }
+    .count { font-size: 12px; color: #888; margin-right: 8px; }
+    .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    input[type=text], select { padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; font-size: 13px; background: #fff; }
+    input[type=text]:focus, select:focus { outline: none; border-color: #3498db; }
+
+    /* ── Buttons ── */
+    .btn { padding: 6px 14px; border: none; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 12px; white-space: nowrap; }
+    .btn:hover { opacity: .85; }
+    .btn-new    { background: #27ae60; color: #fff; }
+    .btn-view   { background: #8e44ad; color: #fff; }
+    .btn-edit   { background: #2980b9; color: #fff; }
+    .btn-delete { background: #e74c3c; color: #fff; }
+    .btn-save   { background: #27ae60; color: #fff; }
+    .btn-cancel { background: #95a5a6; color: #fff; }
+
+    /* ── Table ── */
+    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 6px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+    th { background: #2c3e50; color: #fff; padding: 10px 12px; text-align: right; font-weight: normal; font-size: 12px; }
+    td { padding: 9px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafcff; }
+    .badge { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 11px; }
+    .badge-active   { background: #d4edda; color: #155724; }
+    .badge-inactive { background: #f8d7da; color: #721c24; }
+    .actions { display: flex; gap: 4px; flex-wrap: wrap; }
+    .empty { text-align: center; color: #aaa; padding: 28px; }
+
+    /* ── Pagination ── */
+    .pagination { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 14px; }
+    .pagination button { padding: 5px 14px; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; font-family: inherit; font-size: 12px; }
+    .pagination button:hover:not(:disabled) { background: #2c3e50; color: #fff; border-color: #2c3e50; }
+    .pagination button:disabled { opacity: .4; cursor: default; }
+    .pagination span { font-size: 12px; color: #666; }
+
+    /* ── Modals ── */
+    .em-modal-overlay { display: none; position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center; }
+    .em-modal-overlay.open { display: flex; }
+    .em-modal { background: #fff; border-radius: 8px; width: 680px; max-width: 96vw; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 8px 32px rgba(0,0,0,0.2); direction: rtl; }
+    .em-modal-header { background: #2c3e50; color: #fff; padding: 14px 18px; border-radius: 8px 8px 0 0; display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: bold; flex-shrink: 0; }
+    .em-modal-close { cursor: pointer; font-size: 18px; background: none; border: none; color: #fff; }
+    .em-modal-body { padding: 18px; overflow-y: auto; flex: 1; }
+    .em-modal-footer { padding: 12px 18px; border-top: 1px solid #eee; display: flex; gap: 8px; flex-shrink: 0; }
+
+    /* ── Form fields ── */
+    .section-title { font-size: 12px; font-weight: bold; color: #2c3e50; border-bottom: 2px solid #2c3e50; padding-bottom: 5px; margin: 16px 0 12px; }
+    .section-title:first-child { margin-top: 0; }
+    .form-row { display: flex; gap: 12px; }
+    .form-row .form-group { flex: 1; }
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; margin-bottom: 4px; font-size: 11px; color: #666; }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 7px 10px; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; font-size: 13px; }
+    .form-group textarea { resize: vertical; min-height: 70px; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #3498db; }
+
+    /* ── View modal ── */
+    .view-row { display: flex; gap: 0; border-bottom: 1px solid #f0f0f0; padding: 7px 0; }
+    .view-label { font-size: 11px; color: #888; width: 130px; flex-shrink: 0; }
+    .view-value { font-size: 13px; color: #333; flex: 1; }
+    .view-empty { color: #bbb; font-style: italic; }
+    .roles-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; }
+    .roles-table th { background: #ecf0f1; padding: 7px 10px; text-align: right; font-weight: bold; }
+    .roles-table td { padding: 7px 10px; border-bottom: 1px solid #f0f0f0; }
+    .role-current { background: #eafaf1; }
+
+    /* ── Alert ── */
+    #alertMessage { font-size: 12px; padding: 8px 12px; border-radius: 4px; margin-bottom: 10px; display: none; }
+    #alertMessage.success { background: #d4edda; color: #155724; display: block; }
+    #alertMessage.error   { background: #f8d7da; color: #721c24; display: block; }
+  </style>
+</head>
+<body>
+
+<div id="alertMessage"></div>
+
+<!-- ── Toolbar ────────────────────────────────────────────────────────────── -->
+<div class="toolbar">
+  <div class="toolbar-title">
+     مدیریت اشخاص
+    <span class="count" id="countBadge"></span>
+  </div>
+  <div class="controls">
+    <select id="filterActive" onchange="applyFilters()">
+      <option value="">همه وضعیت‌ها</option>
+      <option value="1">فعال</option>
+      <option value="0">غیرفعال</option>
+    </select>
+    <input type="text" id="searchInput" placeholder="جستجو: نام · کد ملی · موبایل" oninput="applyFilters()" style="width:220px">
+    <button type="button" class="btn btn-new" onclick="openCreateModal()">＋ شخص جدید</button>
+  </div>
+</div>
+
+<!-- ── Table ──────────────────────────────────────────────────────────────── -->
+<table>
+  <thead>
+    <tr>
+      <th style="width:36px">#</th>
+      <th>نام</th>
+      <th>نام خانوادگی</th>
+      <th>کد ملی</th>
+      <th>موبایل</th>
+      <th>شرکت‌ها</th>
+      <th style="width:70px">وضعیت</th>
+      <th style="width:160px">عملیات</th>
+    </tr>
+  </thead>
+  <tbody id="tableBody">
+    <tr><td colspan="8" class="empty">در حال بارگذاری...</td></tr>
+  </tbody>
+</table>
+
+<!-- ── Pagination ─────────────────────────────────────────────────────────── -->
+<div class="pagination" id="pagination" style="display:none">
+  <button type="button" id="btnPrev" onclick="changePage(currentPage - 1)"> قبلی</button>
+  <span id="pageInfo"></span>
+  <button type="button" id="btnNext" onclick="changePage(currentPage + 1)">بعدی </button>
+</div>
+
+<!-- ── View Modal (مشاهده بیشتر) ─────────────────────────────────────────── -->
+<div class="em-modal-overlay" id="viewModal">
+  <div class="em-modal">
+    <div class="em-modal-header">
+      <span id="viewModalTitle">مشخصات کامل</span>
+      <button type="button" class="em-modal-close" onclick="closeModal('viewModal')">✕</button>
+    </div>
+    <div class="em-modal-body" id="viewModalBody"></div>
+    <div class="em-modal-footer">
+      <button type="button" class="btn btn-edit" onclick="switchToEdit()"> ویرایش</button>
+      <button type="button" class="btn btn-cancel" onclick="closeModal('viewModal')">بستن</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Edit / Create Modal ────────────────────────────────────────────────── -->
+<div class="em-modal-overlay" id="formModal">
+  <div class="em-modal">
+    <div class="em-modal-header">
+      <span id="modalTitle">شخص جدید</span>
+      <button type="button" class="em-modal-close" onclick="closeModal('formModal')">✕</button>
+    </div>
+    <div class="em-modal-body">
+      <input type="hidden" id="editId">
+
+      <div class="section-title">اطلاعات شناسایی</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>نام *</label>
+          <input type="text" id="f_first_name" placeholder="نام">
+        </div>
+        <div class="form-group">
+          <label>نام خانوادگی *</label>
+          <input type="text" id="f_last_name" placeholder="نام خانوادگی">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>نام پدر</label>
+          <input type="text" id="f_father_name">
+        </div>
+        <div class="form-group">
+          <label>کد ملی</label>
+          <input type="text" id="f_national_id" placeholder="۱۰ رقم">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>شماره شناسنامه</label>
+          <input type="text" id="f_id_number">
+        </div>
+        <div class="form-group">
+          <label>تاریخ تولد (شمسی)</label>
+          <input type="text" id="f_birth_date_fa" placeholder="1370/01/01">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>محل تولد</label>
+        <input type="text" id="f_birth_place">
+      </div>
+
+      <div class="section-title">تحصیلات</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>مدرک تحصیلی</label>
+          <select id="f_education_degree">
+            <option value="">انتخاب کنید</option>
+            <option value="زیر دیپلم">زیر دیپلم</option>
+            <option value="دیپلم">دیپلم</option>
+            <option value="فوق دیپلم">فوق دیپلم</option>
+            <option value="لیسانس">لیسانس</option>
+            <option value="فوق لیسانس">فوق لیسانس</option>
+            <option value="دکترا">دکترا</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>رشته تحصیلی</label>
+          <input type="text" id="f_education_field">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>دانشگاه</label>
+        <input type="text" id="f_education_university">
+      </div>
+
+      <div class="section-title">اطلاعات تماس</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>موبایل</label>
+          <input type="text" id="f_phone_mobile" placeholder="09xxxxxxxxx">
+        </div>
+        <div class="form-group">
+          <label>تلفن دوم</label>
+          <input type="text" id="f_phone_secondary">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>آدرس</label>
+        <textarea id="f_address" placeholder="آدرس کامل"></textarea>
+      </div>
+
+      <div class="section-title">یادداشت</div>
+      <div class="form-group">
+        <textarea id="f_notes" placeholder="توضیحات اضافی..."></textarea>
+      </div>
+    </div>
+    <div class="em-modal-footer">
+      <button type="button" class="btn btn-save"   onclick="savePerson()"> ذخیره</button>
+      <button type="button" class="btn btn-cancel" onclick="closeModal('formModal')">انصراف</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Delete Modal ───────────────────────────────────────────────────────── -->
+<div class="em-modal-overlay" id="deleteModal">
+  <div class="em-modal" style="width:420px">
+    <div class="em-modal-header">
+      <span>تأیید حذف</span>
+      <button type="button" class="em-modal-close" onclick="closeModal('deleteModal')">✕</button>
+    </div>
+    <div class="em-modal-body">
+      <p>آیا از حذف <strong id="deletePersonName"></strong> اطمینان دارید؟</p>
+      <p style="color:#888; font-size:12px; margin-top:8px">این عملیات قابل بازگشت است.</p>
+    </div>
+    <div class="em-modal-footer">
+      <button type="button" class="btn btn-delete" onclick="confirmDelete()">حذف</button>
+      <button type="button" class="btn btn-cancel" onclick="closeModal('deleteModal')">انصراف</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  var API            = '/emcore_api/emcore_persons_api.php';
+var EMCORE_CSRF_TOKEN = ''; var EMCORE_PERMISSIONS = {can_create:0,can_read:0,can_update:0,can_delete:0}; jQuery(document).ajaxSend(function (event, xhr) { if (EMCORE_CSRF_TOKEN) xhr.setRequestHeader('X-CSRF-Token', EMCORE_CSRF_TOKEN); }); jQuery(document).ajaxSuccess(function (event, xhr, settings, response) { if (response && response.csrf_token) EMCORE_CSRF_TOKEN = response.csrf_token; if (response && response.permissions) { EMCORE_PERMISSIONS = response.permissions; setTimeout(applyEmcorePermissions, 0); } }); function applyEmcorePermissions() { jQuery('.btn-new, .btn-primary[onclick*="openCreate"]').toggle(Number(EMCORE_PERMISSIONS.can_create) === 1); jQuery('.btn-edit, .btn-warning').toggle(Number(EMCORE_PERMISSIONS.can_update) === 1); jQuery('.btn-delete, .btn-danger').toggle(Number(EMCORE_PERMISSIONS.can_delete) === 1); } jQuery(function () { applyEmcorePermissions(); });
+  var ALL_PERSONS    = [];
+  var currentData    = [];
+  var currentPage    = 1;
+  var PER_PAGE       = 10;
+  var deleteTargetId = null;
+  var viewingId      = null;
+
+  var ROLE_TYPE = {
+    board_chair:      'رئیس هیئت مدیره',
+    board_vice_chair: 'نائب رئیس هیئت مدیره',
+    board_member:     'عضو هیئت مدیره',
+    ceo:              'مدیر عامل',
+    auditor_primary:  'بازرس اصلی',
+    auditor_alternate:'بازرس علی‌البدل',
+    shareholder:      'سهامدار',
+    staff:            'پرسنل'
+  };
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  $(document).ready(function () {
+    loadPersons();
+  });
+
+  // ── Load ──────────────────────────────────────────────────────────────────
+  function loadPersons() {
+    $("#tableBody").html('<tr><td colspan="8" class="empty">در حال بارگذاری...</td></tr>');
+    $.post(API, { action: 'list' }, function (res) {
+      if (res.success) {
+        ALL_PERSONS = res.data;
+        applyFilters();
+      } else {
+        showAlert('خطا: ' + res.error, 'error');
+      }
+    }, 'json').fail(function () {
+      showAlert('اتصال به سرور ناموفق بود', 'error');
+    });
+  }
+
+  // ── Filter + Paginate ─────────────────────────────────────────────────────
+  function applyFilters() {
+    var q      = $("#searchInput").val();
+    var active = $("#filterActive").val();
+
+    currentData = $.grep(ALL_PERSONS, function (p) {
+      var fullName = (p.first_name || '') + ' ' + (p.last_name || '');
+      var matchQ = !q
+        || fullName.indexOf(q) >= 0
+        || (p.national_id  && p.national_id.indexOf(q) >= 0)
+        || (p.phone_mobile && p.phone_mobile.indexOf(q) >= 0)
+        || (p.companies    && p.companies.indexOf(q) >= 0);
+      var matchA = active === "" || String(p.is_active) === active;
+      return matchQ && matchA;
+    });
+
+    currentPage = 1;
+    renderPage();
+  }
+
+  // ── Render current page ───────────────────────────────────────────────────
+  function renderPage() {
+    var total      = currentData.length;
+    var totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
+    var start      = (currentPage - 1) * PER_PAGE;
+    var pageData   = currentData.slice(start, start + PER_PAGE);
+
+    $("#countBadge").text("(" + total + " نفر)");
+
+    if (!total) {
+      $("#tableBody").html('<tr><td colspan="8" class="empty">موردی یافت نشد</td></tr>');
+      $("#pagination").hide();
+      return;
+    }
+
+    var html = "";
+    $.each(pageData, function (i, p) {
+      var badge = p.is_active == 1
+        ? '<span class="badge badge-active">فعال</span>'
+        : '<span class="badge badge-inactive">غیرفعال</span>';
+
+      var delBtn = p.is_active == 1
+        ? '<button type="button" class="btn btn-delete" onclick="openDeleteModal(' + p.id + ',\'' + escapeHtml(safeStr(p.first_name + ' ' + p.last_name)) + '\')">حذف</button>'
+        : '';
+
+      html += '<tr>'
+        + '<td>' + (start + i + 1) + '</td>'
+        + '<td>' + escapeHtml(p.first_name || '—') + '</td>'
+        + '<td><strong>' + escapeHtml(p.last_name || '—') + '</strong></td>'
+        + '<td>' + escapeHtml(p.national_id || '—') + '</td>'
+        + '<td>' + escapeHtml(p.phone_mobile || '—') + '</td>'
+        + '<td style="font-size:11px;color:#555">' + escapeHtml(p.companies || '—') + '</td>'
+        + '<td>' + badge + '</td>'
+        + '<td><div class="actions">'
+        +   '<button type="button" class="btn btn-view"   onclick="openViewModal(' + p.id + ')">مشاهده</button>'
+        +   '<button type="button" class="btn btn-edit"   onclick="openEditModal(' + p.id + ')">ویرایش</button>'
+        +   delBtn
+        + '</div></td>'
+        + '</tr>';
+    });
+    $("#tableBody").html(html);
+
+    // Pagination controls
+    if (totalPages > 1) {
+      $("#pageInfo").text("صفحه " + currentPage + " از " + totalPages);
+      $("#btnPrev").prop("disabled", currentPage === 1);
+      $("#btnNext").prop("disabled", currentPage === totalPages);
+      $("#pagination").show();
+    } else {
+      $("#pagination").hide();
+    }
+  }
+
+  function changePage(page) {
+    var totalPages = Math.ceil(currentData.length / PER_PAGE);
+    if (page < 1 || page > totalPages) return;
+    currentPage = page;
+    renderPage();
+  }
+
+  // ── View Modal ────────────────────────────────────────────────────────────
+  function openViewModal(id) {
+    viewingId = id;
+    $("#viewModalBody").html('<p class="empty">در حال بارگذاری...</p>');
+    openModal("viewModal");
+
+    $.post(API, { action: 'get', id: id }, function (res) {
+      if (!res.success) { showAlert('خطا در بارگذاری', 'error'); return; }
+      var p = res.data;
+      $("#viewModalTitle").text(p.first_name + ' ' + p.last_name);
+
+      function row(label, value) {
+        var v = value ? escapeHtml(value) : '<span class="view-empty">—</span>';
+        return '<div class="view-row"><span class="view-label">' + label + '</span><span class="view-value">' + v + '</span></div>';
+      }
+
+      var html = '';
+
+      html += '<div class="section-title">اطلاعات شناسایی</div>';
+      html += row('نام و نام خانوادگی', p.first_name + ' ' + p.last_name);
+      html += row('نام پدر',            p.father_name);
+      html += row('کد ملی',             p.national_id);
+      html += row('شماره شناسنامه',     p.id_number);
+      html += row('تاریخ تولد',         p.birth_date_fa);
+      html += row('محل تولد',           p.birth_place);
+
+      html += '<div class="section-title">تحصیلات</div>';
+      html += row('مدرک',    p.education_degree);
+      html += row('رشته',    p.education_field);
+      html += row('دانشگاه', p.education_university);
+
+      html += '<div class="section-title">اطلاعات تماس</div>';
+      html += row('موبایل',    p.phone_mobile);
+      html += row('تلفن دوم', p.phone_secondary);
+      html += row('آدرس',     p.address);
+
+      if (p.notes) {
+        html += '<div class="section-title">یادداشت</div>';
+        html += '<p style="font-size:13px;color:#444;line-height:1.7">' + escapeHtml(p.notes) + '</p>';
+      }
+
+      // Roles table
+      html += '<div class="section-title">سمت‌ها و نقش‌ها در شرکت‌ها</div>';
+      if (p.roles && p.roles.length) {
+        html += '<table class="roles-table"><thead><tr><th>شرکت</th><th>سمت</th><th>از تاریخ</th><th>تا تاریخ</th></tr></thead><tbody>';
+        $.each(p.roles, function (i, r) {
+          var cls = r.is_current == 1 ? ' class="role-current"' : '';
+          var roleLabel = ROLE_TYPE[r.role_type] || r.role_type || r.role_title || '—';
+          html += '<tr' + cls + '>'
+            + '<td>' + escapeHtml(r.company_name || '—') + '</td>'
+            + '<td>' + escapeHtml(roleLabel) + (r.is_current == 1 ? ' ✓' : '') + '</td>'
+            + '<td>' + escapeHtml(r.start_date_fa || '—') + '</td>'
+            + '<td>' + escapeHtml(r.end_date_fa || '—') + '</td>'
+            + '</tr>';
+        });
+        html += '</tbody></table>';
+      } else {
+        html += '<p style="color:#aaa;font-size:12px">سمتی ثبت نشده است</p>';
+      }
+
+      $("#viewModalBody").html(html);
+    }, 'json');
+  }
+
+  // Switch from View modal to Edit modal
+  function switchToEdit() {
+    closeModal('viewModal');
+    if (viewingId) openEditModal(viewingId);
+  }
+
+  // ── Create Modal ──────────────────────────────────────────────────────────
+  function openCreateModal() {
+    $("#modalTitle").text("شخص جدید");
+    $("#editId").val("");
+    $("#formModal input[id^='f_'], #formModal textarea[id^='f_']").val("");
+    $("#f_education_degree").val("");
+    openModal("formModal");
+  }
+
+  // ── Edit Modal ────────────────────────────────────────────────────────────
+  function openEditModal(id) {
+    $.post(API, { action: 'get', id: id }, function (res) {
+      if (!res.success) { showAlert('خطا در بارگذاری', 'error'); return; }
+      var p = res.data;
+      $("#modalTitle").text("ویرایش: " + p.first_name + ' ' + p.last_name);
+      $("#editId").val(p.id);
+      $("#f_first_name").val(p.first_name);
+      $("#f_last_name").val(p.last_name);
+      $("#f_father_name").val(p.father_name);
+      $("#f_national_id").val(p.national_id);
+      $("#f_id_number").val(p.id_number);
+      $("#f_birth_date_fa").val(p.birth_date_fa);
+      $("#f_birth_place").val(p.birth_place);
+      $("#f_education_degree").val(p.education_degree);
+      $("#f_education_field").val(p.education_field);
+      $("#f_education_university").val(p.education_university);
+      $("#f_phone_mobile").val(p.phone_mobile);
+      $("#f_phone_secondary").val(p.phone_secondary);
+      $("#f_address").val(p.address);
+      $("#f_notes").val(p.notes);
+      openModal("formModal");
+    }, 'json');
+  }
+
+  // ── Save ──────────────────────────────────────────────────────────────────
+  function savePerson() {
+    var firstName = $("#f_first_name").val().trim();
+    var lastName  = $("#f_last_name").val().trim();
+    if (!firstName || !lastName) {
+      showAlert('نام و نام خانوادگی الزامی است', 'error');
+      return;
+    }
+
+    var id     = $("#editId").val();
+    var action = id ? 'update' : 'create';
+
+    $.post(API, {
+      action:               action,
+      id:                   id,
+      first_name:           firstName,
+      last_name:            lastName,
+      father_name:          $("#f_father_name").val().trim(),
+      national_id:          $("#f_national_id").val().trim(),
+      id_number:            $("#f_id_number").val().trim(),
+      birth_date_fa:        $("#f_birth_date_fa").val().trim(),
+      birth_place:          $("#f_birth_place").val().trim(),
+      education_degree:     $("#f_education_degree").val(),
+      education_field:      $("#f_education_field").val().trim(),
+      education_university: $("#f_education_university").val().trim(),
+      phone_mobile:         $("#f_phone_mobile").val().trim(),
+      phone_secondary:      $("#f_phone_secondary").val().trim(),
+      address:              $("#f_address").val().trim(),
+      notes:                $("#f_notes").val().trim()
+    }, function (res) {
+      if (res.success) {
+        closeModal("formModal");
+        showAlert(action === 'create' ? 'شخص ثبت شد' : 'اطلاعات ذخیره شد', 'success');
+        loadPersons();
+      } else {
+        showAlert('خطا: ' + (res.error || 'ناشناخته'), 'error');
+      }
+    }, 'json');
+  }
+
+  // ── Delete ────────────────────────────────────────────────────────────────
+  function openDeleteModal(id, name) {
+    deleteTargetId = id;
+    $("#deletePersonName").text(name);
+    openModal("deleteModal");
+  }
+
+  function confirmDelete() {
+    if (!deleteTargetId) return;
+    $.post(API, { action: 'delete', id: deleteTargetId }, function (res) {
+      if (res.success) {
+        closeModal("deleteModal");
+        showAlert('شخص حذف شد', 'success');
+        loadPersons();
+      } else {
+        showAlert('خطا در حذف', 'error');
+      }
+    }, 'json');
+  }
+
+  // ── Modal Helpers ─────────────────────────────────────────────────────────
+  function openModal(id)  { $("#" + id).addClass("open"); }
+  function closeModal(id) { $("#" + id).removeClass("open"); }
+
+  $(".em-modal-overlay").on("click", function (e) {
+    if ($(e.target).hasClass("em-modal-overlay")) closeModal($(this).attr("id"));
+  });
+
+  function showAlert(msg, type) {
+    $("#alertMessage").removeClass("success error").addClass(type).text(msg).show();
+    setTimeout(function () { $("#alertMessage").removeClass("success error").hide(); }, 3500);
+  }
+
+    function escapeHtml(value) { return $('<div>').text(value == null ? '' : String(value)).html(); }
+  function safeStr(s) {
+    return (s || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  }
+</script>
+</body>
+</html>

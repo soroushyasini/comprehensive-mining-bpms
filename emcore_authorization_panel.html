@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>دسترسی کاربران EMCORE</title>
+  <style>
+    :root { --navy:#17324d; --blue:#2474a8; --line:#dbe4ec; --bg:#f4f7fa; --ok:#1f8b4c; --danger:#b42318; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:#243442; font-family:Tahoma,Arial,sans-serif; font-size:13px; }
+    .shell { padding:20px; }
+    .header { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:14px; }
+    h1 { margin:0; color:var(--navy); font-size:21px; }
+    .hint { color:#657786; margin-top:6px; }
+    .toolbar { display:flex; gap:8px; align-items:center; }
+    input[type=search] { min-width:240px; padding:9px 11px; border:1px solid var(--line); border-radius:6px; }
+    button { border:0; border-radius:6px; padding:9px 14px; cursor:pointer; font-family:inherit; }
+    .refresh { background:#e7eef5; color:var(--navy); }
+    .save { background:var(--blue); color:white; }
+    button:disabled { opacity:.55; cursor:not-allowed; }
+    .notice { display:none; margin:10px 0; padding:10px 12px; border-radius:6px; }
+    .notice.ok { display:block; color:#145c34; background:#dcf3e5; }
+    .notice.error { display:block; color:#7a271a; background:#fee4e2; }
+    .table-wrap { background:white; border:1px solid var(--line); border-radius:8px; overflow:auto; max-height:72vh; }
+    table { width:100%; border-collapse:separate; border-spacing:0; min-width:1250px; }
+    th, td { padding:10px; border-left:1px solid var(--line); border-bottom:1px solid var(--line); text-align:center; vertical-align:middle; }
+    thead th { position:sticky; top:0; z-index:2; background:var(--navy); color:white; white-space:nowrap; }
+    th.user, td.user { position:sticky; right:0; z-index:1; min-width:230px; text-align:right; background:white; }
+    thead th.user { z-index:3; background:var(--navy); }
+    .username { color:#6b7d8c; direction:ltr; display:inline-block; margin-right:5px; }
+    .perms { display:grid; grid-template-columns:repeat(4,1fr); gap:4px; min-width:155px; }
+    .perm { display:flex; flex-direction:column; align-items:center; gap:3px; font-size:11px; color:#526574; }
+    .perm input { width:17px; height:17px; accent-color:var(--blue); }
+    td.dirty { background:#fff5d6; }
+    tr.hidden { display:none; }
+    .legend { margin-top:10px; color:#657786; }
+    @media (max-width:700px) { .header { align-items:stretch; flex-direction:column; } .toolbar { flex-wrap:wrap; } input[type=search] { min-width:100%; } }
+  </style>
+</head>
+<body>
+<main class="shell">
+  <div class="header">
+    <div>
+      <h1>مدیریت دسترسی کاربران</h1>
+      <div class="hint">دسترسی مستقل ایجاد، مشاهده، ویرایش و حذف برای هر ماژول</div>
+    </div>
+    <div class="toolbar">
+      <input id="search" type="search" placeholder="جستجوی نام یا نام کاربری">
+      <button id="refresh" class="refresh" type="button">بازخوانی</button>
+      <button id="save" class="save" type="button" disabled>ذخیره تغییرات</button>
+    </div>
+  </div>
+  <div id="notice" class="notice" role="status"></div>
+  <div class="table-wrap">
+    <table aria-label="ماتریس دسترسی کاربران">
+      <thead><tr id="headRow"><th class="user">کاربر</th></tr></thead>
+      <tbody id="body"></tbody>
+    </table>
+  </div>
+  <div class="legend">C: ایجاد · R: مشاهده · U: ویرایش · D: حذف نرم</div>
+</main>
+<script>
+(function () {
+  'use strict';
+  var API = window.EMCORE_AUTH_API || '/emcore_api/emcore_authorization_api.php';
+  var csrfToken = '';
+  var currentUserUid = '';
+  var dirty = new Map();
+  var labels = [['can_create','C'],['can_read','R'],['can_update','U'],['can_delete','D']];
+
+  function request(params) {
+    var body = new URLSearchParams(params);
+    return fetch(API, {
+      method: 'POST', credentials: 'same-origin',
+      headers: csrfToken ? {'X-CSRF-Token': csrfToken} : {}, body: body
+    }).then(function (response) {
+      return response.json().catch(function () { throw new Error('پاسخ نامعتبر از سرور'); })
+        .then(function (json) { if (!response.ok || !json.success) throw new Error(json.error || 'خطای سرور'); return json; });
+    });
+  }
+
+  function show(message, type) {
+    var node = document.getElementById('notice');
+    node.textContent = message;
+    node.className = 'notice ' + type;
+  }
+
+  function permissionMap(rows) {
+    var map = new Map();
+    rows.forEach(function (row) { map.set(row.usr_uid + ':' + row.module_key, row); });
+    return map;
+  }
+
+  function render(data) {
+    csrfToken = data.csrf_token;
+    currentUserUid = data.current_user_uid;
+    dirty.clear();
+    document.getElementById('save').disabled = true;
+    var head = document.getElementById('headRow');
+    while (head.children.length > 1) head.removeChild(head.lastChild);
+    data.modules.forEach(function (module) {
+      var th = document.createElement('th');
+      th.textContent = module.name_fa;
+      th.title = module.name_en;
+      head.appendChild(th);
+    });
+
+    var permissions = permissionMap(data.permissions);
+    var body = document.getElementById('body');
+    body.textContent = '';
+    data.users.forEach(function (user) {
+      var tr = document.createElement('tr');
+      tr.dataset.search = [user.USR_FIRSTNAME, user.USR_LASTNAME, user.USR_USERNAME, user.USR_POSITION].join(' ').toLowerCase();
+      var userCell = document.createElement('td');
+      userCell.className = 'user';
+      var name = document.createElement('strong');
+      name.textContent = ((user.USR_FIRSTNAME || '') + ' ' + (user.USR_LASTNAME || '')).trim() || user.USR_USERNAME;
+      var username = document.createElement('span');
+      username.className = 'username';
+      username.textContent = '(' + user.USR_USERNAME + ')';
+      userCell.appendChild(name); userCell.appendChild(username);
+      tr.appendChild(userCell);
+
+      data.modules.forEach(function (module) {
+        var key = user.USR_UID + ':' + module.module_key;
+        var existing = permissions.get(key) || {};
+        var td = document.createElement('td');
+        td.dataset.key = key;
+        var group = document.createElement('div'); group.className = 'perms';
+        labels.forEach(function (item) {
+          var label = document.createElement('label'); label.className = 'perm';
+          var checkbox = document.createElement('input'); checkbox.type = 'checkbox';
+          checkbox.dataset.capability = item[0]; checkbox.checked = Number(existing[item[0]] || 0) === 1;
+          checkbox.addEventListener('change', function () {
+            td.classList.add('dirty');
+            dirty.set(key, {usr_uid:user.USR_UID, module_key:module.module_key, cell:td});
+            document.getElementById('save').disabled = false;
+          });
+          var text = document.createElement('span'); text.textContent = item[1];
+          label.appendChild(checkbox); label.appendChild(text); group.appendChild(label);
+        });
+        td.appendChild(group); tr.appendChild(td);
+      });
+      body.appendChild(tr);
+    });
+  }
+
+  function load() {
+    document.getElementById('refresh').disabled = true;
+    request({action:'list'}).then(function (json) { render(json.data); show('اطلاعات دسترسی بارگذاری شد', 'ok'); })
+      .catch(function (error) { show(error.message, 'error'); })
+      .finally(function () { document.getElementById('refresh').disabled = false; });
+  }
+
+  function values(change) {
+    var result = {action:'save', csrf_token:csrfToken, usr_uid:change.usr_uid, module_key:change.module_key};
+    labels.forEach(function (item) {
+      result[item[0]] = change.cell.querySelector('[data-capability="' + item[0] + '"]').checked ? '1' : '0';
+    });
+    return result;
+  }
+
+  function save() {
+    var changes = Array.from(dirty.values());
+    if (!changes.length) return;
+    if (changes.some(function (c) { return c.usr_uid === currentUserUid && c.module_key === 'authorization' && values(c).can_update === '0'; }) &&
+        !window.confirm('دسترسی مدیریت خودتان تغییر می‌کند. ادامه می‌دهید؟')) return;
+    var button = document.getElementById('save'); button.disabled = true;
+    changes.reduce(function (promise, change) {
+      return promise.then(function () { return request(values(change)).then(function () { change.cell.classList.remove('dirty'); dirty.delete(change.usr_uid + ':' + change.module_key); }); });
+    }, Promise.resolve()).then(function () { show('همه تغییرات ذخیره شد', 'ok'); })
+      .catch(function (error) { show(error.message + ' — تغییرات ذخیره‌نشده زرد باقی مانده‌اند', 'error'); })
+      .finally(function () { button.disabled = dirty.size === 0; });
+  }
+
+  document.getElementById('refresh').addEventListener('click', function () { if (!dirty.size || window.confirm('تغییرات ذخیره‌نشده حذف شوند؟')) load(); });
+  document.getElementById('save').addEventListener('click', save);
+  document.getElementById('search').addEventListener('input', function (event) {
+    var query = event.target.value.trim().toLowerCase();
+    document.querySelectorAll('#body tr').forEach(function (row) { row.classList.toggle('hidden', query && row.dataset.search.indexOf(query) === -1); });
+  });
+  load();
+}());
+</script>
+</body>
+</html>

@@ -193,8 +193,8 @@ Keep visible during development for easy debugging.
 
 $db = new PDO(
     'mysql:host=127.0.0.1;port=3306;dbname=wf_pishro;charset=utf8mb4',
-    'root',
-    'zxc123ASD456'
+    getenv('EMCORE_DB_USER'),
+    getenv('EMCORE_DB_PASSWORD')
 );
 $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
