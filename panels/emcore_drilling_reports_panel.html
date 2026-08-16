@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root {
+      --ink: #17201d;
+      --muted: #68736e;
+      --paper: #f4f1e8;
+      --panel: #fffdf7;
+      --line: #d8d2c4;
+      --coal: #26322e;
+      --ore: #b85d2e;
+      --amber: #dfa936;
+      --green: #467259;
+      --danger: #a63d36;
+      --shadow: 0 18px 45px rgba(26, 35, 31, .16);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 12px;
+      color: var(--ink);
+      font-family: Vazirmatn, IRANSans, Tahoma, sans-serif;
+      font-size: 13px;
+      background:
+        linear-gradient(135deg, rgba(184,93,46,.06) 25%, transparent 25%) 0 0/24px 24px,
+        linear-gradient(315deg, rgba(70,114,89,.06) 25%, transparent 25%) 0 0/24px 24px,
+        var(--paper);
+    }
+
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+
+    .shell {
+      max-width: 1500px;
+      margin: auto;
+      background: rgba(255,253,247,.94);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+
+    .masthead {
+      min-height: 112px;
+      padding: 22px 26px;
+      color: #fff;
+      background:
+        radial-gradient(circle at 12% 120%, rgba(223,169,54,.28), transparent 32%),
+        repeating-linear-gradient(-8deg, transparent 0 19px, rgba(255,255,255,.035) 20px 21px),
+        var(--coal);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .eyebrow { color: #e8c673; font-size: 11px; letter-spacing: 1px; }
+    h1 { margin: 4px 0 5px; font-size: 25px; font-weight: 800; }
+    .masthead p { margin: 0; color: #cdd5d1; }
+
+    .quick-stats { display: flex; gap: 8px; flex-wrap: wrap; }
+    .stat {
+      min-width: 96px;
+      padding: 10px 13px;
+      background: rgba(255,255,255,.08);
+      border-right: 3px solid var(--amber);
+    }
+    .stat strong { display: block; font-size: 18px; }
+    .stat span { color: #cbd4cf; font-size: 10px; }
+
+    .content { padding: 18px; }
+    .notice {
+      display: none;
+      margin-bottom: 12px;
+      padding: 10px 12px;
+      border-right: 4px solid var(--danger);
+      background: #fff0ed;
+      color: #7d2925;
+    }
+
+    .filters {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(125px, 1fr));
+      gap: 9px;
+      margin-bottom: 14px;
+      padding: 13px;
+      border: 1px solid var(--line);
+      background: #f8f6ef;
+    }
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label { color: var(--muted); font-size: 11px; }
+    .field input, .field select, .field textarea {
+      width: 100%;
+      min-height: 36px;
+      padding: 7px 9px;
+      color: var(--ink);
+      background: #fff;
+      border: 1px solid #c9c3b6;
+      border-radius: 2px;
+    }
+    .field textarea { min-height: 72px; resize: vertical; }
+    .field input:focus, .field select:focus, .field textarea:focus {
+      outline: 2px solid rgba(223,169,54,.32);
+      border-color: var(--amber);
+    }
+
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .toolbar-actions { display: flex; gap: 7px; }
+    .btn {
+      min-height: 36px;
+      padding: 7px 14px;
+      border: 1px solid transparent;
+      border-radius: 2px;
+      transition: transform .16s ease, filter .16s ease;
+    }
+    .btn:hover { transform: translateY(-1px); filter: brightness(.96); }
+    .btn-primary { color: #fff; background: var(--ore); }
+    .btn-dark { color: #fff; background: var(--coal); }
+    .btn-light { color: var(--ink); background: #eee9dd; border-color: #d4cec1; }
+    .btn-danger { color: #fff; background: var(--danger); }
+    .btn-small { min-height: 28px; padding: 4px 8px; font-size: 11px; }
+
+    .table-wrap { overflow-x: auto; border: 1px solid var(--line); }
+    table { width: 100%; min-width: 1000px; border-collapse: collapse; }
+    th {
+      padding: 10px 9px;
+      color: #f8f4e9;
+      background: var(--coal);
+      font-weight: 500;
+      text-align: right;
+      white-space: nowrap;
+    }
+    td { padding: 9px; border-bottom: 1px solid #e6e1d6; vertical-align: middle; }
+    tbody tr:nth-child(even) { background: #faf8f2; }
+    tbody tr:hover { background: #fff4df; }
+    .empty { padding: 38px; color: var(--muted); text-align: center; }
+    .number { direction: ltr; text-align: left; font-variant-numeric: tabular-nums; }
+    .badge { display: inline-block; padding: 3px 8px; border-radius: 99px; font-size: 10px; }
+    .badge-drilling { background: #e2f1e7; color: #28583b; }
+    .badge-partial { background: #fff0c7; color: #765616; }
+    .badge-none { background: #f9dcd7; color: #8a302a; }
+    .row-actions { display: flex; gap: 5px; white-space: nowrap; }
+
+    .pager {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      padding: 22px 10px;
+      overflow-y: auto;
+      background: rgba(18,25,22,.72);
+    }
+    .overlay.open { display: block; }
+    .modal {
+      width: min(1100px, 100%);
+      margin: auto;
+      background: var(--panel);
+      border-top: 6px solid var(--ore);
+      box-shadow: 0 24px 70px rgba(0,0,0,.35);
+      animation: rise .2s ease-out;
+    }
+    @keyframes rise { from { transform: translateY(14px); opacity: 0; } }
+    .modal-head {
+      padding: 18px 22px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+    }
+    .modal-head h2 { margin: 0; font-size: 18px; }
+    .modal-body { padding: 18px 22px; }
+    .section {
+      margin-bottom: 15px;
+      padding: 13px;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+    .section h3 {
+      margin: -13px -13px 13px;
+      padding: 8px 13px;
+      color: #fff;
+      background: #46544e;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .span-2 { grid-column: span 2; }
+    .span-4 { grid-column: 1 / -1; }
+    .calculated {
+      min-height: 36px;
+      padding: 8px 10px;
+      color: #fff;
+      background: var(--green);
+      direction: ltr;
+      text-align: center;
+    }
+
+    .state-options, .stop-options { display: flex; gap: 8px; flex-wrap: wrap; }
+    .choice {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 7px 9px;
+      border: 1px solid #d2ccbf;
+      background: #faf8f2;
+    }
+
+    .checklist { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; }
+    .check-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 7px;
+      padding: 8px;
+      border-right: 3px solid #dbd3c2;
+      background: #f8f6ef;
+    }
+
+    .crew-list { display: flex; flex-direction: column; gap: 7px; }
+    .crew-row {
+      display: grid;
+      grid-template-columns: 1fr 1.4fr 1.4fr auto;
+      gap: 7px;
+      align-items: end;
+      padding: 8px;
+      background: #f7f4ec;
+      border: 1px solid #ded8ca;
+    }
+    .crew-row select, .crew-row input { width: 100%; min-height: 34px; border: 1px solid #c9c3b6; padding: 6px; }
+
+    .modal-error { display: none; margin: 10px 0; padding: 9px; background: #fff0ed; color: #842e28; }
+    .modal-foot {
+      display: flex;
+      justify-content: flex-start;
+      gap: 8px;
+      padding: 14px 22px;
+      border-top: 1px solid var(--line);
+      background: #f4f0e6;
+    }
+
+    @media (max-width: 1000px) {
+      .filters { grid-template-columns: repeat(3, 1fr); }
+      .grid { grid-template-columns: repeat(2, 1fr); }
+      .span-4 { grid-column: 1 / -1; }
+      .masthead { align-items: flex-start; flex-direction: column; }
+    }
+    @media (max-width: 620px) {
+      body { padding: 0; }
+      .filters, .grid, .checklist { grid-template-columns: 1fr; }
+      .span-2, .span-4 { grid-column: auto; }
+      .crew-row { grid-template-columns: 1fr; }
+      .content, .modal-body { padding: 10px; }
+    }
+  </style>
+</head>
+<body>
+<div class="shell">
+  <header class="masthead">
+    <div>
+      <div class="eyebrow">EMCORE / DRILLING OPERATIONS</div>
+      <h1>دفتر گزارش روزانه حفاری</h1>
+      <p>ثبت یکپارچه عملیات، شیفت، دستگاه، گمانه و نیروی انسانی</p>
+    </div>
+    <div class="quick-stats">
+      <div class="stat"><strong id="statTotal">—</strong><span>گزارش فیلترشده</span></div>
+      <div class="stat"><strong id="statPage">—</strong><span>صفحه جاری</span></div>
+    </div>
+  </header>
+
+  <main class="content">
+    <div id="notice" class="notice"></div>
+
+    <div class="filters">
+      <div class="field"><label>معدن</label><select id="qMine"></select></div>
+      <div class="field"><label>گمانه</label><select id="qBorehole"></select></div>
+      <div class="field"><label>دستگاه</label><select id="qRig"></select></div>
+      <div class="field"><label>شیفت</label><select id="qShift"><option value="">همه</option><option value="DAY">روز</option><option value="NIGHT">شب</option></select></div>
+      <div class="field"><label>از تاریخ شمسی</label><input id="qFrom" placeholder="1405/01/01"></div>
+      <div class="field"><label>تا تاریخ شمسی</label><input id="qTo" placeholder="1405/12/29"></div>
+      <div class="field span-2"><label>جستجو</label><input id="qSearch" placeholder="شماره گزارش یا شرح عملیات"></div>
+    </div>
+
+    <div class="toolbar">
+      <div class="toolbar-actions">
+        <button id="addBtn" class="btn btn-primary" type="button">+ گزارش جدید</button>
+        <button id="searchBtn" class="btn btn-dark" type="button">اعمال فیلتر</button>
+        <button id="resetBtn" class="btn btn-light" type="button">پاک‌کردن فیلتر</button>
+      </div>
+      <small id="resultLabel"></small>
+    </div>
+
+    <div class="table-wrap"><div id="tableHost" class="empty">در حال دریافت اطلاعات…</div></div>
+    <div class="pager">
+      <button id="prevBtn" class="btn btn-light" type="button">صفحه قبل</button>
+      <span id="pageLabel">—</span>
+      <button id="nextBtn" class="btn btn-light" type="button">صفحه بعد</button>
+    </div>
+  </main>
+</div>
+
+<div id="overlay" class="overlay" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="modalTitle">گزارش جدید حفاری</h2>
+      <button id="closeTop" class="btn btn-light btn-small" type="button">بستن</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editId">
+
+      <section class="section">
+        <h3>هویت گزارش</h3>
+        <div class="grid">
+          <div class="field"><label>معدن *</label><select id="fMine"></select></div>
+          <div class="field"><label>گمانه *</label><select id="fBorehole"></select></div>
+          <div class="field"><label>دستگاه حفاری *</label><select id="fRig"></select></div>
+          <div class="field"><label>شیفت *</label><select id="fShift"><option value="DAY">روز</option><option value="NIGHT">شب</option></select></div>
+          <div class="field"><label>تاریخ شمسی *</label><input id="fDate" placeholder="1405/01/01"></div>
+          <div class="field"><label>ساعت شروع</label><input id="fStartTime" placeholder="07:00"></div>
+          <div class="field"><label>ساعت پایان</label><input id="fEndTime" placeholder="19:00"></div>
+          <div class="field"><label>ساعت کارکرد دستگاه</label><input id="fRigHours" type="number" min="0" step="0.01"></div>
+          <div class="field span-2"><label>شماره فرم قدیمی</label><input id="fLegacySerial"></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h3>عملکرد حفاری</h3>
+        <div class="grid">
+          <div class="field"><label>عمق شروع *</label><input id="fDepthStart" type="number" min="0" step="0.01"></div>
+          <div class="field"><label>عمق پایان *</label><input id="fDepthEnd" type="number" min="0" step="0.01"></div>
+          <div class="field"><label>میزان حفاری محاسبه‌شده</label><div id="depthAmount" class="calculated">0.00 متر</div></div>
+          <div class="field"><label>وضعیت عملیات *</label><select id="fState"><option value="drilling">حفاری انجام شد</option><option value="partially_stopped">حفاری با توقف</option><option value="no_drilling">بدون حفاری</option></select></div>
+          <div class="field"><label>شروع کورباکس</label><input id="fCoreStart" type="number" step="1"></div>
+          <div class="field"><label>پایان کورباکس</label><input id="fCoreEnd" type="number" step="1"></div>
+          <div id="stopCauseField" class="field span-2"><label>علت توقف / عدم حفاری *</label><input id="fStopCauses" placeholder="آب، سوخت، تعمیرات، جابجایی، سایر"></div>
+          <div id="stopDurationField" class="field"><label>مدت توقف (ساعت) *</label><input id="fStopDuration" type="number" min="0" max="12" step="0.25"></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h3>مصالح مصرفی</h3>
+        <div class="grid">
+          <div class="field"><label>آب</label><input id="fWater" type="number" min="0" step="0.001"></div>
+          <div class="field"><label>گازوئیل</label><input id="fDiesel" type="number" min="0" step="0.001"></div>
+          <div class="field"><label>روغن</label><input id="fOil" type="number" min="0" step="0.001"></div>
+          <div class="field"><label>سوپرمیکس</label><input id="fSupermix" type="number" min="0" step="0.001"></div>
+          <div class="field"><label>بنتونیت</label><input id="fBentonite" type="number" min="0" step="0.001"></div>
+          <div class="field"><label>سودا</label><input id="fSoda" type="number" min="0" step="0.001"></div>
+          <div class="field"><label>سیمان</label><input id="fCement" type="number" min="0" step="0.001"></div>
+          <div class="field"><label>پک LV</label><input id="fLvPack"></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h3>پرسنل شیفت</h3>
+        <div id="crewList" class="crew-list"></div>
+        <button id="addCrewBtn" class="btn btn-light btn-small" type="button">+ افزودن نفر</button>
+      </section>
+
+      <section class="section">
+        <h3>چک‌لیست ایمنی و نگهداری</h3>
+        <div id="checklist" class="checklist"></div>
+        <div class="field" style="margin-top:10px"><label>توضیحات چک‌لیست</label><textarea id="fChecklistNotes"></textarea></div>
+      </section>
+
+      <section class="section">
+        <h3>شرح و تبادل تجهیزات</h3>
+        <div class="grid">
+          <div class="field span-2"><label>لوازم ورودی</label><textarea id="fIncoming"></textarea></div>
+          <div class="field span-2"><label>لوازم خروجی</label><textarea id="fOutgoing"></textarea></div>
+          <div class="field span-4"><label>شرح عملیات حفاری</label><textarea id="fDescription"></textarea></div>
+          <div class="field span-4"><label>ایرادات و پیشنهادات</label><textarea id="fIssues"></textarea></div>
+        </div>
+      </section>
+
+      <div id="modalError" class="modal-error"></div>
+    </div>
+    <div class="modal-foot">
+      <button id="saveBtn" class="btn btn-primary" type="button">ثبت گزارش</button>
+      <button id="cancelBtn" class="btn btn-light" type="button">انصراف</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function ($) {
+  'use strict';
+
+  var API = '/emcore_api/emcore_drilling_reports.php';
+  var csrfToken = '';
+  var permissions = { can_create: 0, can_read: 0, can_update: 0, can_delete: 0 };
+  var lookups = { mines: [], boreholes: [], rigs: [], persons: [], checklist: [] };
+  var page = 1;
+  var pageSize = 100;
+  var total = 0;
+
+  var roles = [
+    ['supervisor', 'سرپرست'], ['guard', 'نگهبان'], ['geologist', 'زمین‌شناس'],
+    ['driver', 'راننده'], ['head_driller', 'سرحفار'], ['driller', 'حفار'],
+    ['worker', 'کارگر'], ['assistant_driller', 'کمک‌حفار'],
+    ['additional_worker', 'نیروی کمکی'], ['additional_assistant', 'کمک‌حفار کمکی']
+  ];
+
+  function api(action, data) {
+    data = data || {};
+    data.action = action;
+    return $.ajax({
+      url: API,
+      method: 'POST',
+      dataType: 'json',
+      data: data,
+      headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {}
+    });
+  }
+
+  function errorText(xhr) {
+    if (xhr && xhr.responseJSON && xhr.responseJSON.error) return xhr.responseJSON.error;
+    if (xhr && xhr.status === 401) return 'نشست کاربری پایان یافته است. دوباره وارد سامانه شوید.';
+    if (xhr && xhr.status === 403) return 'دسترسی لازم برای این عملیات وجود ندارد.';
+    return 'ارتباط با سرویس گزارش حفاری ناموفق بود.';
+  }
+
+  function showNotice(text) { $('#notice').text(text).show(); }
+  function hideNotice() { $('#notice').hide().text(''); }
+  function option(select, value, label) { select.append($('<option>').val(value).text(label)); }
+  function number(value) { return value === null || value === '' ? '—' : Number(value).toLocaleString('fa-IR', { maximumFractionDigits: 2 }); }
+  function stateLabel(value) { return value === 'no_drilling' ? 'بدون حفاری' : value === 'partially_stopped' ? 'با توقف' : 'حفاری'; }
+  function stateClass(value) { return value === 'no_drilling' ? 'badge-none' : value === 'partially_stopped' ? 'badge-partial' : 'badge-drilling'; }
+  function shiftLabel(value) { return value === 'NIGHT' ? 'شب' : 'روز'; }
+
+  function fillMineSelect(select, blankLabel) {
+    select.empty();
+    if (blankLabel !== null) option(select, '', blankLabel);
+    $.each(lookups.mines, function (_, item) { option(select, item.id, item.mine_name); });
+  }
+
+  function fillRigSelect(select, blankLabel) {
+    select.empty();
+    if (blankLabel !== null) option(select, '', blankLabel);
+    $.each(lookups.rigs, function (_, item) {
+      option(select, item.id, item.serial_number + (item.display_name ? ' — ' + item.display_name : ''));
+    });
+  }
+
+  function fillBoreholes(select, mineId, blankLabel, selected) {
+    select.empty();
+    if (blankLabel !== null) option(select, '', blankLabel);
+    $.each(lookups.boreholes, function (_, item) {
+      if (!mineId || String(item.mine_id) === String(mineId)) option(select, item.id, item.borehole_code);
+    });
+    if (selected) select.val(String(selected));
+  }
+
+  function loadLookups() {
+    return api('lookups').done(function (response) {
+      lookups = response.data;
+      csrfToken = response.csrf_token;
+      permissions = response.permissions || permissions;
+      fillMineSelect($('#qMine'), 'همه معادن');
+      fillMineSelect($('#fMine'), 'انتخاب معدن');
+      fillRigSelect($('#qRig'), 'همه دستگاه‌ها');
+      fillRigSelect($('#fRig'), 'انتخاب دستگاه');
+      fillBoreholes($('#qBorehole'), '', 'همه گمانه‌ها');
+      fillBoreholes($('#fBorehole'), '', 'انتخاب گمانه');
+      renderChecklist();
+      $('#addBtn').toggle(Number(permissions.can_create) === 1);
+    }).fail(function (xhr) {
+      showNotice(errorText(xhr));
+    });
+  }
+
+  function filters() {
+    return {
+      mine_id: $('#qMine').val(), borehole_id: $('#qBorehole').val(), rig_id: $('#qRig').val(),
+      shift: $('#qShift').val(), date_from_fa: $.trim($('#qFrom').val()),
+      date_to_fa: $.trim($('#qTo').val()), search: $.trim($('#qSearch').val()),
+      page: page, page_size: pageSize
+    };
+  }
+
+  function loadReports() {
+    hideNotice();
+    $('#tableHost').addClass('empty').text('در حال دریافت اطلاعات…');
+    api('list', filters()).done(function (response) {
+      csrfToken = response.csrf_token || csrfToken;
+      permissions = response.permissions || permissions;
+      total = Number(response.pagination.total || 0);
+      renderTable(response.data || []);
+      var maxPage = Math.max(1, Math.ceil(total / pageSize));
+      $('#statTotal').text(total.toLocaleString('fa-IR'));
+      $('#statPage').text(page.toLocaleString('fa-IR'));
+      $('#resultLabel').text(total.toLocaleString('fa-IR') + ' گزارش');
+      $('#pageLabel').text('صفحه ' + page.toLocaleString('fa-IR') + ' از ' + maxPage.toLocaleString('fa-IR'));
+      $('#prevBtn').prop('disabled', page <= 1);
+      $('#nextBtn').prop('disabled', page >= maxPage);
+    }).fail(function (xhr) {
+      $('#tableHost').addClass('empty').text('اطلاعات قابل نمایش نیست.');
+      showNotice(errorText(xhr));
+    });
+  }
+
+  function renderTable(rows) {
+    var host = $('#tableHost').removeClass('empty').empty();
+    if (!rows.length) { host.addClass('empty').text('گزارشی با این فیلتر پیدا نشد.'); return; }
+    var table = $('<table>');
+    var header = $('<tr>');
+    $.each(['شماره', 'تاریخ', 'شیفت', 'معدن', 'گمانه', 'دستگاه', 'عمق شروع', 'عمق پایان', 'حفاری', 'وضعیت', 'پرسنل', 'عملیات'], function (_, label) {
+      header.append($('<th>').text(label));
+    });
+    table.append($('<thead>').append(header));
+    var body = $('<tbody>');
+    $.each(rows, function (_, row) {
+      var tr = $('<tr>');
+      tr.append($('<td>').attr('dir', 'ltr').text(row.report_number || ('#' + row.id)));
+      tr.append($('<td>').attr('dir', 'ltr').text(row.report_date_fa));
+      tr.append($('<td>').text(shiftLabel(row.shift)));
+      tr.append($('<td>').text(row.mine_name));
+      tr.append($('<td>').attr('dir', 'ltr').text(row.borehole_code));
+      tr.append($('<td>').attr('dir', 'ltr').text(row.rig_serial));
+      tr.append($('<td>').addClass('number').text(number(row.drill_start_depth)));
+      tr.append($('<td>').addClass('number').text(number(row.drill_end_depth)));
+      tr.append($('<td>').addClass('number').text(number(row.drill_amount)));
+      tr.append($('<td>').append($('<span>').addClass('badge ' + stateClass(row.operation_state)).text(stateLabel(row.operation_state))));
+      tr.append($('<td>').text(Number(row.crew_count || 0).toLocaleString('fa-IR')));
+      var actions = $('<div>').addClass('row-actions');
+      if (Number(permissions.can_update) === 1) actions.append($('<button>').addClass('btn btn-light btn-small').text('ویرایش').on('click', function () { openEdit(row.id); }));
+      if (Number(permissions.can_delete) === 1) actions.append($('<button>').addClass('btn btn-danger btn-small').text('حذف').on('click', function () { removeReport(row.id, row.report_number); }));
+      tr.append($('<td>').append(actions));
+      body.append(tr);
+    });
+    table.append(body); host.append(table);
+  }
+
+  function renderChecklist() {
+    var host = $('#checklist').empty();
+    $.each(lookups.checklist, function (_, item) {
+      var id = 'check_' + item.item_key;
+      var input = $('<input>').attr({ type: 'checkbox', id: id, 'data-key': item.item_key });
+      host.append($('<label>').addClass('check-item').attr('for', id).append(input).append($('<span>').text(item.item_order + '. ' + item.label_fa)));
+    });
+  }
+
+  function addCrewRow(data) {
+    data = data || {};
+    var row = $('<div>').addClass('crew-row');
+    var role = $('<select>').addClass('crew-role');
+    $.each(roles, function (_, item) { option(role, item[0], item[1]); });
+    role.val(data.role_key || 'worker');
+    var person = $('<select>').addClass('crew-person'); option(person, '', 'نیروی موقت / ورود دستی');
+    $.each(lookups.persons, function (_, item) { option(person, item.id, $.trim(item.first_name + ' ' + item.last_name)); });
+    person.val(data.person_id ? String(data.person_id) : '');
+    var name = $('<input>').addClass('crew-name').attr('placeholder', 'نام و نام خانوادگی').val(data.worker_name_snapshot || '');
+    person.on('change', function () {
+      if ($(this).val()) name.val($(this).find('option:selected').text());
+    });
+    var remove = $('<button>').attr('type', 'button').addClass('btn btn-danger btn-small').text('حذف').on('click', function () { row.remove(); });
+    row.append($('<div>').append($('<label>').text('سمت')).append(role));
+    row.append($('<div>').append($('<label>').text('شخص ثبت‌شده')).append(person));
+    row.append($('<div>').append($('<label>').text('نام ثبت‌شده در گزارش')).append(name));
+    row.append(remove);
+    $('#crewList').append(row);
+  }
+
+  function resetForm() {
+    $('#editId').val('');
+    $('#fMine,#fBorehole,#fRig').val('');
+    $('#fShift').val('DAY'); $('#fDate,#fRigHours,#fLegacySerial,#fCoreStart,#fCoreEnd,#fStopCauses,#fStopDuration,#fLvPack').val('');
+    $('#fStartTime').val('07:00'); $('#fEndTime').val('19:00');
+    $('#fDepthStart,#fDepthEnd,#fWater,#fDiesel,#fOil,#fSupermix,#fBentonite,#fSoda,#fCement').val('0');
+    $('#fState').val('drilling');
+    $('#fIncoming,#fOutgoing,#fChecklistNotes,#fDescription,#fIssues').val('');
+    $('#crewList').empty();
+    $('#checklist input').prop('checked', true);
+    $('#modalError').hide().text('');
+    updateState(); updateDepth();
+  }
+
+  function openCreate() {
+    resetForm(); $('#modalTitle').text('گزارش جدید حفاری'); $('#overlay').addClass('open');
+  }
+
+  function openEdit(id) {
+    resetForm();
+    api('get', { id: id }).done(function (response) {
+      var r = response.data;
+      $('#editId').val(r.id); $('#modalTitle').text('ویرایش ' + (r.report_number || 'گزارش حفاری'));
+      $('#fMine').val(String(r.mine_id)); fillBoreholes($('#fBorehole'), r.mine_id, 'انتخاب گمانه', r.borehole_id);
+      $('#fRig').val(String(r.rig_id)); $('#fShift').val(r.shift); $('#fDate').val(r.report_date_fa);
+      $('#fStartTime').val((r.start_time || '').substring(0, 5)); $('#fEndTime').val((r.end_time || '').substring(0, 5));
+      $('#fRigHours').val(r.rig_hours); $('#fLegacySerial').val(r.legacy_form_serial);
+      $('#fDepthStart').val(r.drill_start_depth); $('#fDepthEnd').val(r.drill_end_depth);
+      $('#fCoreStart').val(r.corebox_start); $('#fCoreEnd').val(r.corebox_end); $('#fState').val(r.operation_state);
+      $('#fStopCauses').val(r.stop_causes); $('#fStopDuration').val(r.stop_duration_hours);
+      $('#fWater').val(r.water_amount); $('#fDiesel').val(r.diesel_amount); $('#fOil').val(r.oil_amount);
+      $('#fSupermix').val(r.supermix_amount); $('#fBentonite').val(r.bentonite_amount); $('#fSoda').val(r.soda_amount);
+      $('#fCement').val(r.cement_amount); $('#fLvPack').val(r.lv_pack);
+      $('#fIncoming').val(r.incoming_equipment); $('#fOutgoing').val(r.outgoing_equipment);
+      $('#fChecklistNotes').val(r.checklist_notes); $('#fDescription').val(r.operation_description); $('#fIssues').val(r.issues_suggestions);
+      $('#crewList').empty(); $.each(r.crew || [], function (_, item) { addCrewRow(item); });
+      $('#checklist input').prop('checked', false);
+      $.each(r.checklist || [], function (_, item) { if (Number(item.is_checked) === 1) $('#check_' + item.item_key).prop('checked', true); });
+      updateState(); updateDepth(); $('#overlay').addClass('open');
+    }).fail(function (xhr) { showNotice(errorText(xhr)); });
+  }
+
+  function closeModal() { $('#overlay').removeClass('open'); }
+  function updateDepth() {
+    var start = Number($('#fDepthStart').val() || 0), end = Number($('#fDepthEnd').val() || 0);
+    $('#depthAmount').text(Math.max(0, end - start).toFixed(2) + ' متر');
+  }
+  function updateState() {
+    var state = $('#fState').val();
+    $('#stopCauseField').toggle(state !== 'drilling');
+    $('#stopDurationField').toggle(state === 'partially_stopped');
+    if (state === 'drilling') $('#fStopCauses,#fStopDuration').val('');
+    if (state === 'no_drilling') { $('#fDepthEnd').val($('#fDepthStart').val()); $('#fStopDuration').val(''); updateDepth(); }
+  }
+
+  function collectCrew() {
+    var rows = [];
+    $('#crewList .crew-row').each(function () {
+      var row = $(this), name = $.trim(row.find('.crew-name').val());
+      if (name) rows.push({ role_key: row.find('.crew-role').val(), person_id: row.find('.crew-person').val() || null, worker_name_snapshot: name });
+    });
+    return rows;
+  }
+
+  function value(id) { return $.trim($(id).val()); }
+  function formData() {
+    var checked = [];
+    $('#checklist input:checked').each(function () { checked.push($(this).data('key')); });
+    return {
+      id: $('#editId').val(), borehole_id: $('#fBorehole').val(), rig_id: $('#fRig').val(),
+      report_date_fa: value('#fDate'), shift: $('#fShift').val(), start_time: value('#fStartTime'), end_time: value('#fEndTime'),
+      rig_hours: value('#fRigHours'), legacy_form_serial: value('#fLegacySerial'), drill_start_depth: value('#fDepthStart'),
+      drill_end_depth: value('#fDepthEnd'), corebox_start: value('#fCoreStart'), corebox_end: value('#fCoreEnd'),
+      operation_state: $('#fState').val(), stop_causes: value('#fStopCauses'), stop_duration_hours: value('#fStopDuration'),
+      water_amount: value('#fWater'), diesel_amount: value('#fDiesel'), oil_amount: value('#fOil'),
+      supermix_amount: value('#fSupermix'), bentonite_amount: value('#fBentonite'), soda_amount: value('#fSoda'),
+      cement_amount: value('#fCement'), lv_pack: value('#fLvPack'), incoming_equipment: value('#fIncoming'),
+      outgoing_equipment: value('#fOutgoing'), checklist_notes: value('#fChecklistNotes'),
+      operation_description: value('#fDescription'), issues_suggestions: value('#fIssues'),
+      crew_json: JSON.stringify(collectCrew()), checklist_json: JSON.stringify(checked)
+    };
+  }
+
+  function saveReport() {
+    var data = formData(), action = data.id ? 'update' : 'create';
+    $('#modalError').hide(); $('#saveBtn').prop('disabled', true).text('در حال ثبت…');
+    api(action, data).done(function () { closeModal(); loadReports(); }).fail(function (xhr) {
+      $('#modalError').text(errorText(xhr)).show();
+    }).always(function () { $('#saveBtn').prop('disabled', false).text('ثبت گزارش'); });
+  }
+
+  function removeReport(id, numberText) {
+    if (!window.confirm('گزارش ' + (numberText || id) + ' با حفظ سابقه ممیزی غیرفعال شود؟')) return;
+    api('delete', { id: id }).done(loadReports).fail(function (xhr) { showNotice(errorText(xhr)); });
+  }
+
+  $('#qMine').on('change', function () { fillBoreholes($('#qBorehole'), $(this).val(), 'همه گمانه‌ها'); });
+  $('#fMine').on('change', function () { fillBoreholes($('#fBorehole'), $(this).val(), 'انتخاب گمانه'); });
+  $('#fShift').on('change', function () { if ($(this).val() === 'DAY') { $('#fStartTime').val('07:00'); $('#fEndTime').val('19:00'); } else { $('#fStartTime').val('19:00'); $('#fEndTime').val('07:00'); } });
+  $('#fDepthStart,#fDepthEnd').on('input', function () { if ($('#fState').val() === 'no_drilling') $('#fDepthEnd').val($('#fDepthStart').val()); updateDepth(); });
+  $('#fState').on('change', updateState);
+  $('#addCrewBtn').on('click', function () { addCrewRow(); });
+  $('#addBtn').on('click', openCreate); $('#saveBtn').on('click', saveReport);
+  $('#closeTop,#cancelBtn').on('click', closeModal);
+  $('#searchBtn').on('click', function () { page = 1; loadReports(); });
+  $('#resetBtn').on('click', function () { $('#qMine,#qBorehole,#qRig,#qShift,#qFrom,#qTo,#qSearch').val(''); fillBoreholes($('#qBorehole'), '', 'همه گمانه‌ها'); page = 1; loadReports(); });
+  $('#prevBtn').on('click', function () { if (page > 1) { page--; loadReports(); } });
+  $('#nextBtn').on('click', function () { if (page * pageSize < total) { page++; loadReports(); } });
+  $('#overlay').on('click', function (event) { if (event.target === this) closeModal(); });
+
+  loadLookups().done(loadReports);
+})(jQuery);
+</script>
+</body>
+</html>

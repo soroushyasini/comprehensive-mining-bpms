@@ -1,6 +1,6 @@
 # EMCORE security and feature roadmap
 
-Last updated: 2026-08-09
+Last updated: 2026-08-16
 
 ## Objective
 
@@ -64,11 +64,13 @@ Status: **implementation started — append-only audit logging added**
 
 Status: **partially implemented**
 
-Current module note: secured company, person, mine, and mine-technical-manager APIs and panels are now implemented; mine deployment testing is pending.
+Current module note: secured company, person, mine, mine-technical-manager, and daily-drilling modules are implemented. The drilling module includes lossless legacy staging/import tooling; production migration and acceptance are pending.
 
 Suggested order: companies, persons, company-person relations, mines, mine technical managers, memberships, internet services, attachments, tokens/email accounts after secrets-policy approval, then unified expiry alerts.
 
 A module is complete only with a migration, authorization registration, validated API, safe panel, tests, audit logging, and operator documentation.
+
+Drilling deployment is governed by `docs/DRILLING_DEPLOYMENT.md`. The source contains 2,035 authoritative report rows; imports preserve every legacy ID and never deduplicate same-context reports.
 
 ## Authorization design
 
