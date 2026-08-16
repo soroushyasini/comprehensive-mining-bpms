@@ -31,7 +31,99 @@ Keep the existing shared API files (`_bootstrap.php`, `_audit.php`, and `_module
 
 Do not use a CSV that has been opened and re-saved with a different delimiter or character encoding. The importer requires a UTF-8, comma-delimited CSV with the original 45 columns.
 
-## 3. Set deployment paths
+## Windows CMD deployment for the current installation
+
+This is the authoritative command profile for the current Windows server. Run it
+from Command Prompt (`cmd.exe`), not PowerShell. The later Unix examples remain
+only as equivalents for other installations.
+
+```bat
+cd /d C:\pmlearning\comprehensive-mining-bpms
+set "EMCORE_RELEASE=C:\pmlearning\comprehensive-mining-bpms"
+set "PM_EMCORE_API=C:\pmlearning\bpms\workflow\public_html\emcore_api"
+set "LEGACY_EXPORTS=C:\pmlearning\drilling-import"
+set "BACKUP_ROOT=C:\pmlearning\backups\emcore-drilling-before-966228f"
+set "PM_DATABASE=wf_pishro"
+```
+
+Confirm `PM_DATABASE` against the `dbname` value in
+`%PM_EMCORE_API%\emcore_config.php`; change it if necessary. Put clean copies of
+`emidco_db_projects.sql`, `emidco_db_gamaneh.sql`, and
+`prc_db_gozaresh_ruzane_copy2.csv` in `%LEGACY_EXPORTS%`.
+
+Verify the release and live helpers:
+
+```bat
+if not exist "%EMCORE_RELEASE%\emcore_api\emcore_drilling_reports.php" echo ERROR: release API missing
+if not exist "%PM_EMCORE_API%\_bootstrap.php" echo ERROR: live bootstrap missing
+if not exist "%PM_EMCORE_API%\_audit.php" echo ERROR: live audit helper missing
+if not exist "%PM_EMCORE_API%\_module_permissions.php" echo ERROR: live permission helper missing
+if not exist "%PM_EMCORE_API%\emcore_config.php" echo ERROR: live configuration missing
+if not exist "%LEGACY_EXPORTS%\prc_db_gozaresh_ruzane_copy2.csv" echo ERROR: report CSV missing
+```
+
+Back up the live API and database before changing either. Use an approved backup
+account; `-p` prompts for its password.
+
+```bat
+mkdir "%BACKUP_ROOT%"
+robocopy "%PM_EMCORE_API%" "%BACKUP_ROOT%\emcore_api" /E /COPY:DAT /R:1 /W:1
+mysqldump -u YOUR_BACKUP_USER -p --single-transaction --routines --triggers "%PM_DATABASE%" > "%BACKUP_ROOT%\emcore-before-drilling.sql"
+```
+
+The three syntax checks have already passed for release `966228f`. They can be
+repeated without loading the unrelated GD and OCI8 configuration:
+
+```bat
+php -n -l "%EMCORE_RELEASE%\emcore_api\emcore_drilling_reports.php"
+php -n -l "%EMCORE_RELEASE%\tools\import_legacy_drilling_masters.php"
+php -n -l "%EMCORE_RELEASE%\tools\import_legacy_drilling.php"
+```
+
+Apply the migrations in order to the ProcessMaker database:
+
+```bat
+mysql -u YOUR_DEPLOY_USER -p "%PM_DATABASE%" < "%EMCORE_RELEASE%\database\migrations\003_emcore_drilling_operations.sql"
+mysql -u YOUR_DEPLOY_USER -p "%PM_DATABASE%" < "%EMCORE_RELEASE%\database\migrations\004_emcore_drilling_legacy_staging.sql"
+```
+
+Deploy only the endpoint, preserving the existing live helpers and
+`emcore_config.php`, then compare the copied file:
+
+```bat
+copy /Y "%EMCORE_RELEASE%\emcore_api\emcore_drilling_reports.php" "%PM_EMCORE_API%\emcore_drilling_reports.php"
+fc /B "%EMCORE_RELEASE%\emcore_api\emcore_drilling_reports.php" "%PM_EMCORE_API%\emcore_drilling_reports.php"
+```
+
+The CLI importers read `emcore_api\emcore_config.php` from the release checkout.
+Copy the existing live configuration there only when the ignored release copy is
+missing. It contains a secret and must remain restricted to administrators.
+
+```bat
+if not exist "%EMCORE_RELEASE%\emcore_api\emcore_config.php" copy "%PM_EMCORE_API%\emcore_config.php" "%EMCORE_RELEASE%\emcore_api\emcore_config.php"
+```
+
+Run both dry runs and review their totals before allowing writes:
+
+```bat
+php "%EMCORE_RELEASE%\tools\import_legacy_drilling_masters.php" "%LEGACY_EXPORTS%\emidco_db_projects.sql" "%LEGACY_EXPORTS%\emidco_db_gamaneh.sql"
+php "%EMCORE_RELEASE%\tools\import_legacy_drilling.php" "%LEGACY_EXPORTS%\prc_db_gozaresh_ruzane_copy2.csv" --create-boreholes
+```
+
+After the dry-run output matches the acceptance targets in sections 8 and 9,
+commit the imports with an active ProcessMaker user that has drilling create
+permission:
+
+```bat
+php "%EMCORE_RELEASE%\tools\import_legacy_drilling_masters.php" "%LEGACY_EXPORTS%\emidco_db_projects.sql" "%LEGACY_EXPORTS%\emidco_db_gamaneh.sql" --commit --actor-usr-uid=YOUR_32_CHARACTER_USR_UID
+php "%EMCORE_RELEASE%\tools\import_legacy_drilling.php" "%LEGACY_EXPORTS%\prc_db_gozaresh_ruzane_copy2.csv" --create-boreholes --commit --actor-usr-uid=YOUR_32_CHARACTER_USR_UID
+```
+
+The panel HTML is not copied into `%PM_EMCORE_API%`. Paste the complete contents
+of `panels\emcore_drilling_reports_panel.html` into a ProcessMaker Panel
+WebControl as described in section 12.
+
+## 3. Unix/Linux reference paths
 
 The examples use shell variables only to keep commands readable. Replace the values with verified, explicit server paths:
 
