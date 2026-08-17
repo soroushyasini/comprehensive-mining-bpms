@@ -28,6 +28,41 @@ function drilling_import_has_flag($flag)
     return in_array($flag, $argv, true);
 }
 
+function drilling_import_open_csv($csvPath)
+{
+    $handle = fopen($csvPath, 'rb');
+    if ($handle === false) {
+        throw new RuntimeException('Unable to open legacy CSV.');
+    }
+
+    // A BOM before the opening quote prevents fgetcsv() from recognizing the
+    // export's outer quoted field. Consume it before parsing, not afterward.
+    $prefix = fread($handle, 3);
+    if ($prefix !== "\xEF\xBB\xBF") {
+        rewind($handle);
+    }
+    return $handle;
+}
+
+function drilling_import_read_csv_row($handle)
+{
+    $values = fgetcsv($handle);
+    if ($values === false) {
+        return false;
+    }
+
+    // Some ProcessMaker exports encode each complete CSV record as one outer
+    // quoted field: "id,""Projects"",...". Decode that wrapper, while still
+    // accepting an ordinary CSV export without changing its values.
+    if (count($values) === 1) {
+        $nestedValues = str_getcsv($values[0]);
+        if (count($nestedValues) > 1) {
+            return $nestedValues;
+        }
+    }
+    return $values;
+}
+
 function drilling_import_normalize_text($value)
 {
     $value = str_replace(['ي', 'ك', "\xE2\x80\x8C"], ['ی', 'ک', ' '], trim((string)$value));
@@ -206,22 +241,37 @@ foreach ($db->query('SELECT id, mine_id, borehole_code FROM emcore_boreholes WHE
     $boreholes[$borehole['mine_id'] . ':' . drilling_import_normalize_text($borehole['borehole_code'])] = (int)$borehole['id'];
 }
 
-$handle = fopen($csvPath, 'rb');
-if ($handle === false) {
-    throw new RuntimeException('Unable to open legacy CSV.');
-}
-$headers = fgetcsv($handle);
+$handle = drilling_import_open_csv($csvPath);
+$headers = drilling_import_read_csv_row($handle);
 if (!$headers) {
     throw new RuntimeException('Legacy CSV is empty.');
 }
-$headers[0] = preg_replace('/^\xEF\xBB\xBF/', '', $headers[0]);
-$requiredHeaders = [
-    'id', 'Projects', 'Gamane_name', 'dastgah_name', 'shift', 'form_date',
-    'drill_start_flt', 'drill_end_flt', 'drill_amount', 'insert_date',
+$expectedHeaders = [
+    'id', 'Projects', 'form_serial_number_str', 'Gamane_name', 'dastgah_name',
+    'shift', 'form_date', 'dastgah_saat', 'start_our_str', 'end_our_str',
+    'drill_start_flt', 'drill_end_flt', 'drill_amount', 'corebox_start_int',
+    'corebox_end_int', 'corebox_amount', 'water_flt', 'gaso_flt', 'oil_flt',
+    'supermix_flt', 'bentonite_flt', 'sarparast', 'negahban', 'zaminshenas',
+    'driver', 'sar_haffar', 'haffar', 'kargar', 'komak_haffar', 'aux_kargar',
+    'aux_komak_haffar', 'list_vorudi', 'list_khruji', 'text_checkbox_tozihat',
+    'text_sharh_haffari', 'check_1_6_checkgroup', 'check_7_14_checkgroup',
+    'insert_date', 'soda_flt', 'cement_flt', 'is_stopped', 'stop_causes',
+    'stop_time', 'pack_lv', 'iradat',
 ];
-foreach ($requiredHeaders as $requiredHeader) {
-    if (!in_array($requiredHeader, $headers, true)) {
-        throw new RuntimeException('Missing legacy CSV column: ' . $requiredHeader);
+if ($headers !== $expectedHeaders) {
+    if (count($headers) !== count($expectedHeaders)) {
+        throw new RuntimeException(
+            'Legacy CSV header mismatch: expected ' . count($expectedHeaders)
+            . ' columns, parsed ' . count($headers) . '.'
+        );
+    }
+    foreach ($expectedHeaders as $index => $expectedHeader) {
+        if ($headers[$index] !== $expectedHeader) {
+            throw new RuntimeException(
+                'Legacy CSV header mismatch at column ' . ($index + 1)
+                . ': expected ' . $expectedHeader . ', parsed ' . $headers[$index] . '.'
+            );
+        }
     }
 }
 
@@ -258,7 +308,7 @@ $checklistKeyByNumber = [
     14 => 'wireline_bearing_greased',
 ];
 
-while (($values = fgetcsv($handle)) !== false) {
+while (($values = drilling_import_read_csv_row($handle)) !== false) {
     if (count($values) === 1 && trim((string)$values[0]) === '') {
         continue;
     }
