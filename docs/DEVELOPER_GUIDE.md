@@ -145,7 +145,7 @@ Do not duplicate database credentials, session logic, or JSON error handling in 
 | `audit_log` | `emcore_audit_log`; `emcore_audit_log_api.php` | Read API; dedicated panel pending | Implemented and tested |
 | `companies` | `emcore_companies`; `emcore_companies_api.php` | `panels/emcore_companies_panel.html` | Implemented |
 | `persons` | `emcore_persons`; `emcore_persons_api.php` | `panels/emcore_persons_panel.html` | Implemented |
-| `mines` | `emcore_mines`; `emcore_mines.php` | `panels/emcore_mines_panel.html` | Implemented; deployment verification tracked in roadmap |
+| `mines` | `emcore_mines`; `emcore_mines.php` | `panels/emcore_mines_panel.html` | Implemented; supports owned, contractor, and personnel-related mines plus soft merge lineage |
 | `mine_technical_managers` | `emcore_mine_technical_managers`; `emcore_mine_technical_managers.php` | `panels/emcore_mine_technical_managers_panel.html` | Implemented |
 | `drilling_daily_reports` | `emcore_drilling_reports` plus borehole/rig/crew/checklist tables; `emcore_drilling_reports.php` | `panels/emcore_drilling_reports_panel.html` | Implemented; server lint, migration, import, and acceptance pending |
 | `company_persons` | `emcore_company_persons` | Pending | Domain/schema defined |
@@ -345,7 +345,7 @@ Before implementing delete, choose and document a dependency policy:
 - retain children but hide the parent; or
 - explicitly cascade soft deletion.
 
-Do not silently orphan records. The mines API currently blocks deletion when a technical-manager record exists.
+Do not silently orphan records. The mines API blocks deletion when technical-manager, borehole, or merge-lineage dependencies exist. Duplicate mines are merged by reassigning foreign keys, setting `merged_into_id`, and soft-retiring the duplicate; never hard-delete a referenced mine.
 
 ### 9.3 Dates
 

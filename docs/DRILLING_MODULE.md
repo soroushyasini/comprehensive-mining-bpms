@@ -19,7 +19,7 @@ emcore_drilling_rigs ──────────┘
 emcore_drilling_checklist_items ┘
 ```
 
-- Each legacy “project” is a mine and maps to `emcore_mines`.
+- Each legacy “project” maps to an `emcore_mines` record. Historical contractor/personnel-related projects remain explicit records and carry `relationship_type` metadata.
 - A borehole belongs to one mine.
 - Rigs are independent assets and can move between mines.
 - A report references one borehole and one rig.
@@ -101,7 +101,7 @@ List filters:
 
 | Legacy source | EMCORE destination |
 |---|---|
-| `emidco_db_projects` | Existing `emcore_mines` IDs, matched by reviewed mine/alias name |
+| `emidco_db_projects` | Reviewed `emcore_mines` records/aliases created or normalized by migration `005` |
 | `emidco_db_gamaneh` | `emcore_boreholes` |
 | `dastgah_name` | `emcore_drilling_rigs.serial_number` |
 | `prc_db_gozaresh_ruzane_copy2.id` | `legacy_id` and staging `source_legacy_id` |
@@ -153,9 +153,9 @@ Historical depth/corebox/consumable values are preserved. The importer does not 
 
 ## Definition of done for deployment
 
-- Migrations `003` and `004` apply successfully.
+- Migrations `003`, `004`, and `005` apply successfully.
 - PHP lint passes on the ProcessMaker-compatible server runtime.
-- All six mines map and all 170 master boreholes are accounted for.
+- All six projects map and all 170 master boreholes are accounted for: `زبرکوه`; `تنگل` via alias of `تنگل نورا`; `تپه سیاه` via alias of merged `تپه سیاه شمالی`; and explicit historical records for `راه چمن`, `میامی`, and `کلاته برق`.
 - Report dry run reads exactly 2,035 rows with zero CSV parse errors.
 - Every parseable source ID exists in staging after commit.
 - Canonical imports contain no repeated non-null `legacy_id`.

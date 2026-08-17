@@ -8,8 +8,11 @@ Deploy these files from the same Git revision:
 
 - `database/migrations/003_emcore_drilling_operations.sql`
 - `database/migrations/004_emcore_drilling_legacy_staging.sql`
+- `database/migrations/005_emcore_mine_relationships_and_legacy_mapping.sql`
 - `emcore_api/emcore_drilling_reports.php`
+- `emcore_api/emcore_mines.php`
 - `panels/emcore_drilling_reports_panel.html`
+- `panels/emcore_mines_panel.html`
 - `tools/import_legacy_drilling_masters.php`
 - `tools/import_legacy_drilling.php`
 
@@ -21,7 +24,7 @@ Keep the existing shared API files (`_bootstrap.php`, `_audit.php`, and `_module
 - PHP CLI using the same PHP major/minor version as the ProcessMaker server.
 - PHP extensions: PDO MySQL, JSON, mbstring, and session support.
 - Existing EMCORE migrations `001` and `002` already applied.
-- Existing `emcore_mines` records for the six legacy project/mine names.
+- Reviewed mine IDs `3`, `8`, `9`, and `10`, company `معدن کاران مس میامی`, and person `سید محمدداود فیض‌آبادی` must match the preflight documented in migration `005`. The migration creates the remaining historical mine mappings.
 - The database function `shamsi_slash_to_gregorian_date` installed and tested.
 - A ProcessMaker user with active `authorization` administration access. After migration `003`, that user receives full initial access to `drilling_daily_reports`.
 - Clean exports of:
@@ -40,9 +43,10 @@ only as equivalents for other installations.
 ```bat
 cd /d C:\pmlearning\comprehensive-mining-bpms
 set "EMCORE_RELEASE=C:\pmlearning\comprehensive-mining-bpms"
+set "MYSQL_BIN=C:\pmlearning\mysql\bin"
 set "PM_EMCORE_API=C:\pmlearning\bpms\workflow\public_html\emcore_api"
 set "LEGACY_EXPORTS=C:\pmlearning\drilling-import"
-set "BACKUP_ROOT=C:\pmlearning\backups\emcore-drilling-before-966228f"
+set "BACKUP_ROOT=C:\pmlearning\backups\emcore-drilling-before-005"
 set "PM_DATABASE=wf_pishro"
 ```
 
@@ -68,14 +72,15 @@ account; `-p` prompts for its password.
 ```bat
 mkdir "%BACKUP_ROOT%"
 robocopy "%PM_EMCORE_API%" "%BACKUP_ROOT%\emcore_api" /E /COPY:DAT /R:1 /W:1
-mysqldump -u YOUR_BACKUP_USER -p --single-transaction --routines --triggers "%PM_DATABASE%" > "%BACKUP_ROOT%\emcore-before-drilling.sql"
+"%MYSQL_BIN%\mysqldump.exe" -u YOUR_BACKUP_USER -p --single-transaction --routines --triggers "%PM_DATABASE%" > "%BACKUP_ROOT%\emcore-before-drilling.sql"
 ```
 
-The three syntax checks have already passed for release `966228f`. They can be
+Run all four syntax checks on the exact release being deployed. They can be
 repeated without loading the unrelated GD and OCI8 configuration:
 
 ```bat
 php -n -l "%EMCORE_RELEASE%\emcore_api\emcore_drilling_reports.php"
+php -n -l "%EMCORE_RELEASE%\emcore_api\emcore_mines.php"
 php -n -l "%EMCORE_RELEASE%\tools\import_legacy_drilling_masters.php"
 php -n -l "%EMCORE_RELEASE%\tools\import_legacy_drilling.php"
 ```
@@ -83,16 +88,19 @@ php -n -l "%EMCORE_RELEASE%\tools\import_legacy_drilling.php"
 Apply the migrations in order to the ProcessMaker database:
 
 ```bat
-mysql -u YOUR_DEPLOY_USER -p "%PM_DATABASE%" < "%EMCORE_RELEASE%\database\migrations\003_emcore_drilling_operations.sql"
-mysql -u YOUR_DEPLOY_USER -p "%PM_DATABASE%" < "%EMCORE_RELEASE%\database\migrations\004_emcore_drilling_legacy_staging.sql"
+"%MYSQL_BIN%\mysql.exe" -u YOUR_DEPLOY_USER -p "%PM_DATABASE%" < "%EMCORE_RELEASE%\database\migrations\003_emcore_drilling_operations.sql"
+"%MYSQL_BIN%\mysql.exe" -u YOUR_DEPLOY_USER -p "%PM_DATABASE%" < "%EMCORE_RELEASE%\database\migrations\004_emcore_drilling_legacy_staging.sql"
+"%MYSQL_BIN%\mysql.exe" -u YOUR_DEPLOY_USER -p "%PM_DATABASE%" < "%EMCORE_RELEASE%\database\migrations\005_emcore_mine_relationships_and_legacy_mapping.sql"
 ```
 
-Deploy only the endpoint, preserving the existing live helpers and
-`emcore_config.php`, then compare the copied file:
+Deploy both updated endpoints, preserving the existing live helpers and
+`emcore_config.php`, then compare the copied files:
 
 ```bat
 copy /Y "%EMCORE_RELEASE%\emcore_api\emcore_drilling_reports.php" "%PM_EMCORE_API%\emcore_drilling_reports.php"
+copy /Y "%EMCORE_RELEASE%\emcore_api\emcore_mines.php" "%PM_EMCORE_API%\emcore_mines.php"
 fc /B "%EMCORE_RELEASE%\emcore_api\emcore_drilling_reports.php" "%PM_EMCORE_API%\emcore_drilling_reports.php"
+fc /B "%EMCORE_RELEASE%\emcore_api\emcore_mines.php" "%PM_EMCORE_API%\emcore_mines.php"
 ```
 
 The CLI importers read `emcore_api\emcore_config.php` from the release checkout.
@@ -119,9 +127,10 @@ php "%EMCORE_RELEASE%\tools\import_legacy_drilling_masters.php" "%LEGACY_EXPORTS
 php "%EMCORE_RELEASE%\tools\import_legacy_drilling.php" "%LEGACY_EXPORTS%\prc_db_gozaresh_ruzane_copy2.csv" --create-boreholes --commit --actor-usr-uid=YOUR_32_CHARACTER_USR_UID
 ```
 
-The panel HTML is not copied into `%PM_EMCORE_API%`. Paste the complete contents
-of `panels\emcore_drilling_reports_panel.html` into a ProcessMaker Panel
-WebControl as described in section 12.
+Panel HTML is not copied into `%PM_EMCORE_API%`. Paste the complete contents of
+`panels\emcore_mines_panel.html` into the mines Panel WebControl and
+`panels\emcore_drilling_reports_panel.html` into the drilling Panel WebControl
+as described in section 12.
 
 ## 3. Unix/Linux reference paths
 
@@ -160,6 +169,7 @@ This must pass using the production-compatible PHP CLI before files become reach
 
 ```bash
 php -l "$EMCORE_RELEASE/emcore_api/emcore_drilling_reports.php"
+php -l "$EMCORE_RELEASE/emcore_api/emcore_mines.php"
 php -l "$EMCORE_RELEASE/tools/import_legacy_drilling_masters.php"
 php -l "$EMCORE_RELEASE/tools/import_legacy_drilling.php"
 ```
@@ -176,9 +186,12 @@ mysql --defaults-extra-file=/secure/mysql-deploy.cnf "$PM_DATABASE" \
 
 mysql --defaults-extra-file=/secure/mysql-deploy.cnf "$PM_DATABASE" \
   < "$EMCORE_RELEASE/database/migrations/004_emcore_drilling_legacy_staging.sql"
+
+mysql --defaults-extra-file=/secure/mysql-deploy.cnf "$PM_DATABASE" \
+  < "$EMCORE_RELEASE/database/migrations/005_emcore_mine_relationships_and_legacy_mapping.sql"
 ```
 
-Both migrations are rerunnable. Verify the foundation:
+All three migrations are rerunnable. Verify the foundation:
 
 ```sql
 SELECT module_key, is_active
@@ -194,16 +207,20 @@ FROM emcore_drilling_checklist_items
 WHERE is_active = 1;
 ```
 
-Expected: one active module, rigs `1030`, `1031`, and `1036`, and 14 checklist items.
+Expected: one active module, rigs `1030`, `1031`, and `1036`, and 14 checklist items. Also verify migration `005`: mine ID `8` is named `تپه سیاه شمالی` with alias `تپه سیاه` and both ore subtypes; ID `9` is soft-retired into ID `8`; `تنگل نورا` has alias `تنگل`; and active records exist for `راه چمن`, `میامی`, and `کلاته برق`.
 
 ## 7. Deploy the API without replacing local secrets
 
-Copy only the versioned endpoint. Preserve the existing ignored `emcore_config.php`:
+Copy the two versioned endpoints. Preserve the existing ignored `emcore_config.php`:
 
 ```bash
 install -m 0640 \
   "$EMCORE_RELEASE/emcore_api/emcore_drilling_reports.php" \
   "$PM_PUBLIC/emcore_api/emcore_drilling_reports.php"
+
+install -m 0640 \
+  "$EMCORE_RELEASE/emcore_api/emcore_mines.php" \
+  "$PM_PUBLIC/emcore_api/emcore_mines.php"
 ```
 
 If shared helpers in production are older than the release, deploy the reviewed helper files from the same revision before the endpoint. Never overwrite `emcore_config.php` with the example configuration.
@@ -307,10 +324,11 @@ In ProcessMaker Designer:
 
 1. Back up/export the existing daily drilling Dynaform.
 2. Create a new Dynaform or a dedicated Panel WebControl for the EMCORE drilling module.
-3. Replace the panel content with the complete contents of `panels/emcore_drilling_reports_panel.html`.
-4. Ensure the panel and `/emcore_api/emcore_drilling_reports.php` are served from the same origin so the ProcessMaker session cookie is sent.
-5. Save and force-refresh the browser to bypass cached Dynaform content.
-6. Keep the classic form available read-only during the acceptance period; do not remove it on first deployment.
+3. Replace the drilling panel content with `panels/emcore_drilling_reports_panel.html`.
+4. Replace the existing mines panel content with `panels/emcore_mines_panel.html` so relationship fields and filtering match migration `005`.
+5. Ensure the panel and `/emcore_api/emcore_drilling_reports.php` are served from the same origin so the ProcessMaker session cookie is sent.
+6. Save and force-refresh the browser to bypass cached Dynaform content.
+7. Keep the classic form available read-only during the acceptance period; do not remove it on first deployment.
 
 ## 13. Acceptance tests
 
@@ -328,6 +346,9 @@ Perform these tests in the deployed browser session:
 10. Missing/invalid CSRF returns `403`.
 11. Create/update/delete operations produce `emcore_audit_log` entries.
 12. Soft-deleted reports disappear from normal lists but retain audit history.
+13. The mines relationship filter separates owned, contractor, and personnel-related records.
+14. Only one active `تپه سیاه شمالی` row is visible, with alias `تپه سیاه` and ore subtype `سولفیدی، اکسیدی`.
+15. `راه چمن`, `میامی`, and `کلاته برق` show the reviewed company/person relationship.
 
 ## 14. Rollback
 

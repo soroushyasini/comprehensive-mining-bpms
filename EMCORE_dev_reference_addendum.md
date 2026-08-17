@@ -13,7 +13,10 @@
 ```sql
 CREATE TABLE emcore_mines (
     id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
-    company_id INT UNSIGNED NOT NULL,
+    company_id INT UNSIGNED DEFAULT NULL,
+    relationship_type VARCHAR(32) NOT NULL DEFAULT 'owned',
+    related_person_id INT UNSIGNED DEFAULT NULL,
+    merged_into_id INT UNSIGNED DEFAULT NULL,
     mine_name VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
     mineral_type VARCHAR(100) COLLATE utf8mb4_unicode_ci,
     status VARCHAR(100) COLLATE utf8mb4_unicode_ci,
@@ -35,13 +38,17 @@ CREATE TABLE emcore_mines (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at DATETIME DEFAULT NULL,
     KEY idx_company_id (company_id),
-    FOREIGN KEY (company_id) REFERENCES emcore_companies(id)
+    FOREIGN KEY (company_id) REFERENCES emcore_companies(id),
+    FOREIGN KEY (related_person_id) REFERENCES emcore_persons(id),
+    FOREIGN KEY (merged_into_id) REFERENCES emcore_mines(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 #### Notes
+- `relationship_type` distinguishes `owned`, `contractor`, and `personnel_related` records. Company is required for owned/contractor mines; person is required for personnel-related mines.
+- `merged_into_id` records soft-merge lineage; foreign keys move to the canonical mine before the duplicate is soft-retired.
 - `license_validity_fa` is the source field; `license_validity_en` is derived (see §C) and used for all expiry calculations.
-- `ore_subtype` handles licenses covering multiple ore types under one `license_number`/`cadastre_code` (e.g. تپه سیاه شمالی has separate سولفیدی/اکسیدی rows sharing the same license).
+- `ore_subtype` stores multiple ore types on one mine record when the license and cadastre are shared (e.g. merged `تپه سیاه شمالی` stores `سولفیدی، اکسیدی`).
 - `alias_name` stores an informal/alternate name for the mine (e.g. "توسعه" aliased as "چاه یابو").
 - `_` / `؟` / blank source values → stored as `NULL`.
 

@@ -44,6 +44,17 @@
       direction: rtl;
     }
 
+    #relationshipFilter {
+      min-width: 170px;
+      padding: 5px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      background: #fff;
+      color: #334155;
+      font-family: inherit;
+      font-size: 12px;
+    }
+
     .btn {
       padding: 5px 14px;
       border: none;
@@ -90,6 +101,10 @@
     .badge-yellow { background: #fef9c3; color: #854d0e; }
     .badge-gray   { background: #f3f4f6; color: #374151; }
     .badge-red    { background: #fee2e2; color: #991b1b; }
+    .badge-blue   { background: #dbeafe; color: #1e40af; }
+    .badge-orange { background: #ffedd5; color: #9a3412; }
+    .badge-teal   { background: #ccfbf1; color: #115e59; }
+    .party-name   { display: block; margin-top: 3px; color: #475569; font-size: 11px; }
 
     .actions { display: flex; gap: 4px; }
 
@@ -207,7 +222,13 @@
 
   <div id="toolbar">
     <button type="button" class="btn btn-primary" onclick="openCreate()">+ افزودن معدن</button>
-    <input type="text" id="searchInput" placeholder="جستجو در نام معدن، کانی، شرکت..." oninput="filterTable()" />
+    <select id="relationshipFilter" onchange="filterTable()" aria-label="فیلتر نوع رابطه">
+      <option value="">همه روابط</option>
+      <option value="owned">معادن مجموعه</option>
+      <option value="contractor">پروژه پیمانکاری</option>
+      <option value="personnel_related">مرتبط با پرسنل</option>
+    </select>
+    <input type="text" id="searchInput" placeholder="جستجو در نام معدن، کانی یا طرف مرتبط..." oninput="filterTable()" />
   </div>
 
   <div id="tableContainer"><p>در حال بارگذاری...</p></div>
@@ -222,9 +243,23 @@
 
         <div class="section-title">اطلاعات پایه</div>
 
-        <div class="form-group full">
-          <label>شرکت *</label>
+        <div class="form-group">
+          <label>نوع رابطه *</label>
+          <select id="f_relationship_type" onchange="toggleRelationshipFields()">
+            <option value="owned">معدن مجموعه</option>
+            <option value="contractor">پروژه پیمانکاری</option>
+            <option value="personnel_related">مرتبط با پرسنل</option>
+          </select>
+        </div>
+
+        <div class="form-group" id="companyField">
+          <label id="companyFieldLabel">شرکت *</label>
           <select id="f_company_id"><option value="">-- انتخاب شرکت --</option></select>
+        </div>
+
+        <div class="form-group full" id="personField" style="display:none">
+          <label>شخص مرتبط *</label>
+          <select id="f_related_person_id"><option value="">-- انتخاب شخص --</option></select>
         </div>
 
         <div class="form-group">
@@ -256,6 +291,7 @@
             <option>تعیین تکلیف</option>
             <option>در حال دریافت گواهی کشف</option>
             <option>منقضی</option>
+            <option>فاقد اطلاعات</option>
           </select>
         </div>
 
@@ -339,12 +375,20 @@
 var EMCORE_CSRF_TOKEN = ''; var EMCORE_PERMISSIONS = {can_create:0,can_read:0,can_update:0,can_delete:0}; jQuery(document).ajaxSend(function (event, xhr) { if (EMCORE_CSRF_TOKEN) xhr.setRequestHeader('X-CSRF-Token', EMCORE_CSRF_TOKEN); }); jQuery(document).ajaxSuccess(function (event, xhr, settings, response) { if (response && response.csrf_token) EMCORE_CSRF_TOKEN = response.csrf_token; if (response && response.permissions) { EMCORE_PERMISSIONS = response.permissions; setTimeout(applyEmcorePermissions, 0); } }); function applyEmcorePermissions() { jQuery('.btn-new, .btn-primary[onclick*="openCreate"]').toggle(Number(EMCORE_PERMISSIONS.can_create) === 1); jQuery('.btn-edit, .btn-warning').toggle(Number(EMCORE_PERMISSIONS.can_update) === 1); jQuery('.btn-delete, .btn-danger').toggle(Number(EMCORE_PERMISSIONS.can_delete) === 1); } jQuery(function () { applyEmcorePermissions(); });
     var ALL_DATA  = [];
     var COMPANIES = [];
+    var PERSONS   = [];
+    var RELATIONSHIP_LABELS = {
+      owned: 'معدن مجموعه',
+      contractor: 'پروژه پیمانکاری',
+      personnel_related: 'مرتبط با پرسنل'
+    };
 
     // ── Init ────────────────────────────────────────────────────────────────
     $(document).ready(function () {
       setTimeout(function () {
         loadCompanies(function () {
-          loadData();
+          loadPersons(function () {
+            loadData();
+          });
         });
       }, 500);
     });
@@ -358,6 +402,24 @@ var EMCORE_CSRF_TOKEN = ''; var EMCORE_PERMISSIONS = {can_create:0,can_read:0,ca
           sel.find('option:not(:first)').remove();
           $.each(COMPANIES, function (i, c) {
             sel.append(jQuery('<option>').val(c.id).text(c.name_fa));
+          });
+        }
+        if (typeof callback === 'function') callback();
+      }, 'json').fail(function () {
+        if (typeof callback === 'function') callback();
+      });
+    }
+
+    // ── Load persons (for personnel-related mines) ───────────────────────────
+    function loadPersons(callback) {
+      $.post(API_URL, { action: 'persons' }, function (res) {
+        if (res.success) {
+          PERSONS = res.data;
+          var sel = $('#f_related_person_id');
+          sel.find('option:not(:first)').remove();
+          $.each(PERSONS, function (i, p) {
+            var label = $.trim((p.first_name || '') + ' ' + (p.last_name || ''));
+            sel.append(jQuery('<option>').val(p.id).text(label));
           });
         }
         if (typeof callback === 'function') callback();
@@ -389,7 +451,7 @@ var EMCORE_CSRF_TOKEN = ''; var EMCORE_PERMISSIONS = {can_create:0,can_read:0,ca
         + '<thead><tr>'
         + '<th>#</th>'
         + '<th>نام معدن</th>'
-        + '<th>شرکت</th>'
+        + '<th>رابطه و طرف مرتبط</th>'
         + '<th>کانی</th>'
         + '<th>وضعیت</th>'
         + '<th>شماره پروانه</th>'
@@ -404,7 +466,9 @@ var EMCORE_CSRF_TOKEN = ''; var EMCORE_PERMISSIONS = {can_create:0,can_read:0,ca
           + '<td><strong>' + escapeHtml(row.mine_name || '—') + '</strong>'
           + (row.alias_name ? '<br><small style="color:#888">' + escapeHtml(row.alias_name) + '</small>' : '')
           + '</td>'
-          + '<td>' + (row.company_name ? escapeHtml(row.company_name) : '<span style="color:#aaa">—</span>') + '</td>'
+          + '<td>' + badgeRelationship(row.relationship_type)
+          + '<span class="party-name">' + escapeHtml(row.relationship_type === 'personnel_related'
+              ? (row.related_person_name || '—') : (row.company_name || '—')) + '</span></td>'
           + '<td>' + escapeHtml(row.mineral_type || '—') + '</td>'
           + '<td>' + badgeStatus(row.status) + '</td>'
           + '<td>' + escapeHtml(row.license_number || '—') + '</td>'
@@ -421,6 +485,13 @@ var EMCORE_CSRF_TOKEN = ''; var EMCORE_PERMISSIONS = {can_create:0,can_read:0,ca
       $('#tableContainer').html(html);
     }
 
+    function badgeRelationship(type) {
+      var label = RELATIONSHIP_LABELS[type] || type || '—';
+      var css = type === 'owned' ? 'badge-blue'
+        : (type === 'contractor' ? 'badge-orange' : 'badge-teal');
+      return '<span class="badge ' + css + '">' + escapeHtml(label) + '</span>';
+    }
+
     function badgeStatus(s) {
       if (!s) return '<span class="badge badge-gray">—</span>';
       if (s.indexOf('بهره برداری') >= 0) return '<span class="badge badge-green">' + escapeHtml(s) + '</span>';
@@ -433,14 +504,19 @@ var EMCORE_CSRF_TOKEN = ''; var EMCORE_PERMISSIONS = {can_create:0,can_read:0,ca
     // ── Search / filter ──────────────────────────────────────────────────────
     function filterTable() {
       var q = ($('#searchInput').val() || '').toLowerCase();
-      if (!q) { drawTable(ALL_DATA); return; }
+      var relationship = $('#relationshipFilter').val();
       var filtered = ALL_DATA.filter(function (r) {
-        return (r.mine_name     || '').toLowerCase().indexOf(q) >= 0
-            || (r.mineral_type  || '').toLowerCase().indexOf(q) >= 0
-            || (r.company_name  || '').toLowerCase().indexOf(q) >= 0
-            || (r.status        || '').toLowerCase().indexOf(q) >= 0
-            || (r.cadastre_code || '').toLowerCase().indexOf(q) >= 0
-            || (r.license_number|| '').toLowerCase().indexOf(q) >= 0;
+        if (relationship && r.relationship_type !== relationship) return false;
+        if (!q) return true;
+        return (r.mine_name          || '').toLowerCase().indexOf(q) >= 0
+            || (r.mineral_type       || '').toLowerCase().indexOf(q) >= 0
+            || (r.ore_subtype        || '').toLowerCase().indexOf(q) >= 0
+            || (r.company_name       || '').toLowerCase().indexOf(q) >= 0
+            || (r.related_person_name|| '').toLowerCase().indexOf(q) >= 0
+            || (RELATIONSHIP_LABELS[r.relationship_type] || '').toLowerCase().indexOf(q) >= 0
+            || (r.status             || '').toLowerCase().indexOf(q) >= 0
+            || (r.cadastre_code      || '').toLowerCase().indexOf(q) >= 0
+            || (r.license_number     || '').toLowerCase().indexOf(q) >= 0;
       });
       drawTable(filtered);
     }
@@ -459,7 +535,10 @@ var EMCORE_CSRF_TOKEN = ''; var EMCORE_PERMISSIONS = {can_create:0,can_read:0,ca
         var d = res.data;
         $('#modalTitle').text('ویرایش معدن');
         $('#editId').val(d.id);
+        $('#f_relationship_type').val(d.relationship_type || 'owned');
         $('#f_company_id').val(d.company_id);
+        $('#f_related_person_id').val(d.related_person_id);
+        toggleRelationshipFields();
         $('#f_mine_name').val(d.mine_name);
         $('#f_alias_name').val(d.alias_name);
         $('#f_mineral_type').val(d.mineral_type);
@@ -487,25 +566,48 @@ var EMCORE_CSRF_TOKEN = ''; var EMCORE_PERMISSIONS = {can_create:0,can_read:0,ca
     }
 
     function clearForm() {
-      $('#f_company_id,#f_status').val('');
+      $('#f_company_id,#f_related_person_id,#f_status').val('');
+      $('#f_relationship_type').val('owned');
       $('#f_mine_name,#f_alias_name,#f_mineral_type,#f_ore_subtype,#f_cadastre_code,'
         + '#f_license_number,#f_license_date_fa,#f_license_validity_fa,#f_license_validity_en,'
         + '#f_guarantee_letter_date_fa,#f_proven_reserve_tons,#f_probable_reserve_tons,'
         + '#f_annual_extraction_tons,#f_cutoff_grade,#f_average_grade,#f_notes').val('');
+      toggleRelationshipFields();
+    }
+
+    function toggleRelationshipFields() {
+      var type = $('#f_relationship_type').val();
+      var personRelated = type === 'personnel_related';
+      $('#personField').toggle(personRelated);
+      $('#companyField').toggle(!personRelated);
+      $('#companyFieldLabel').text(type === 'contractor' ? 'شرکت طرف قرارداد *' : 'شرکت *');
+      if (personRelated) {
+        $('#f_company_id').val('');
+      } else {
+        $('#f_related_person_id').val('');
+      }
     }
 
     // ── Save (create / update) ───────────────────────────────────────────────
     function saveRecord() {
       var id = $('#editId').val();
 
-      if (!$('#f_company_id').val()) { modalError('شرکت را انتخاب کنید'); return; }
+      var relationshipType = $('#f_relationship_type').val();
+      if (relationshipType === 'personnel_related' && !$('#f_related_person_id').val()) {
+        modalError('شخص مرتبط را انتخاب کنید'); return;
+      }
+      if (relationshipType !== 'personnel_related' && !$('#f_company_id').val()) {
+        modalError('شرکت را انتخاب کنید'); return;
+      }
       if (!$.trim($('#f_mine_name').val())) { modalError('نام معدن الزامی است'); return; }
       if (!$('#f_status').val()) { modalError('وضعیت را انتخاب کنید'); return; }
 
       var payload = {
         action:                   id ? 'update' : 'create',
         id:                       id,
+        relationship_type:       relationshipType,
         company_id:               $('#f_company_id').val(),
+        related_person_id:        $('#f_related_person_id').val(),
         mine_name:                $('#f_mine_name').val(),
         alias_name:               $('#f_alias_name').val(),
         mineral_type:             $('#f_mineral_type').val(),

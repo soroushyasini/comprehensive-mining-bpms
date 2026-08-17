@@ -64,7 +64,7 @@ Status: **implementation started — append-only audit logging added**
 
 Status: **partially implemented**
 
-Current module note: secured company, person, mine, mine-technical-manager, and daily-drilling modules are implemented. The drilling module includes lossless legacy staging/import tooling; production migration and acceptance are pending.
+Current module note: secured company, person, mine, mine-technical-manager, and daily-drilling modules are implemented. Mines support owned, contractor, and personnel-related scopes plus merge lineage. The drilling module includes lossless legacy staging/import tooling; production migration and acceptance are pending.
 
 Suggested order: companies, persons, company-person relations, mines, mine technical managers, memberships, internet services, attachments, tokens/email accounts after secrets-policy approval, then unified expiry alerts.
 

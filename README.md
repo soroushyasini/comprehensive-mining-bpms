@@ -23,6 +23,7 @@ ProcessMaker provides authentication, sessions, Dynaforms, and routed workflows.
 - Transactional before/after audit logging
 - Soft-delete and Jalali/Gregorian date conventions
 - Secured company, person, mine, and mine-technical-manager modules
+- Mine relationship scopes (owned, contractor, personnel-related) and auditable soft-merge lineage
 - Daily drilling operations with boreholes, movable rigs, crew, checklist, lossless legacy staging, and secured reports
 
 For setup, module development, security invariants, deployment order, troubleshooting, and the definition of done, read `docs/DEVELOPER_GUIDE.md` before making changes.
