@@ -73,17 +73,9 @@ BEGIN
                 CHECK (relationship_type IN ('owned', 'contractor', 'personnel_related'));
     END IF;
 
-    IF NOT EXISTS (
-        SELECT 1 FROM information_schema.TABLE_CONSTRAINTS
-        WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = 'emcore_mines'
-          AND CONSTRAINT_NAME = 'chk_emcore_mines_related_party'
-    ) THEN
-        ALTER TABLE emcore_mines
-            ADD CONSTRAINT chk_emcore_mines_related_party CHECK (
-                (relationship_type IN ('owned', 'contractor') AND company_id IS NOT NULL)
-                OR (relationship_type = 'personnel_related' AND related_person_id IS NOT NULL)
-            );
-    END IF;
+    -- MySQL 8.0 rejects a cross-column CHECK on related_person_id because that
+    -- column uses a cascading foreign key. The mines API enforces the related
+    -- company/person invariant on every create and update.
 END$$
 DELIMITER ;
 CALL emcore_apply_mine_relationship_schema();

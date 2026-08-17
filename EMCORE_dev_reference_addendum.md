@@ -45,7 +45,7 @@ CREATE TABLE emcore_mines (
 ```
 
 #### Notes
-- `relationship_type` distinguishes `owned`, `contractor`, and `personnel_related` records. Company is required for owned/contractor mines; person is required for personnel-related mines.
+- `relationship_type` distinguishes `owned`, `contractor`, and `personnel_related` records. The API requires a company for owned/contractor mines and a person for personnel-related mines; MySQL foreign keys preserve referential integrity.
 - `merged_into_id` records soft-merge lineage; foreign keys move to the canonical mine before the duplicate is soft-retired.
 - `license_validity_fa` is the source field; `license_validity_en` is derived (see §C) and used for all expiry calculations.
 - `ore_subtype` stores multiple ore types on one mine record when the license and cadastre are shared (e.g. merged `تپه سیاه شمالی` stores `سولفیدی، اکسیدی`).
