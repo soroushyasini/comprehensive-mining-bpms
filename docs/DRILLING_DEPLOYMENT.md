@@ -33,6 +33,7 @@ Keep the existing shared API files (`_bootstrap.php`, `_audit.php`, and `_module
   - `prc_db_gozaresh_ruzane_copy2.csv`
 
 Do not use a CSV that has been opened and re-saved with a different delimiter or character encoding. The importer requires a UTF-8, comma-delimited CSV with the original 45 columns.
+The reader supports the supplied outer-quoted ProcessMaker/Navicat export and preserves multiline text fields while reconstructing the original 2,035 logical records.
 
 ## Windows CMD deployment for the current installation
 
@@ -264,7 +265,7 @@ For the reviewed source, the acceptance targets are:
 - `source_rows = 2035`
 - `parse_errors = 0`
 - no deduplication count or winner selection
-- project value `1` normalized to `راه چمن`
+- legacy project values `1`–`6` resolved through the reviewed mine-name/alias mapping
 - `stop_time = 99` mapped to `no_drilling`
 - incomplete-key rows reported under `needs_review`
 

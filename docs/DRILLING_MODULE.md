@@ -105,7 +105,7 @@ List filters:
 | `emidco_db_gamaneh` | `emcore_boreholes` |
 | `dastgah_name` | `emcore_drilling_rigs.serial_number` |
 | `prc_db_gozaresh_ruzane_copy2.id` | `legacy_id` and staging `source_legacy_id` |
-| Project value `1` | Normalized to mine name `راه چمن` |
+| Project values `1`–`6` | Reviewed map: `راه چمن`, `تپه سیاه`, `میامی`, `زبرکوه`, `تنگل`, `کلاته برق` |
 | Personnel text columns | Crew child rows with temporary name snapshots |
 | Checklist strings | Stable checklist response rows |
 | `stop_time = 99` | `operation_state = no_drilling`, duration `NULL` |

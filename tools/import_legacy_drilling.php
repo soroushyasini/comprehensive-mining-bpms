@@ -35,32 +35,57 @@ function drilling_import_open_csv($csvPath)
         throw new RuntimeException('Unable to open legacy CSV.');
     }
 
-    // A BOM before the opening quote prevents fgetcsv() from recognizing the
-    // export's outer quoted field. Consume it before parsing, not afterward.
+    // Consume the UTF-8 BOM before detecting the export format.
     $prefix = fread($handle, 3);
     if ($prefix !== "\xEF\xBB\xBF") {
         rewind($handle);
     }
-    return $handle;
+    $dataStart = ftell($handle);
+    $firstLine = fgets($handle);
+    $nested = $firstLine !== false && strpos($firstLine, '"id,""Projects""') === 0;
+    fseek($handle, $dataStart);
+
+    return [
+        'handle' => $handle,
+        'nested' => $nested,
+        'pending_line' => null,
+    ];
 }
 
-function drilling_import_read_csv_row($handle)
+function drilling_import_read_csv_row(&$source)
 {
-    $values = fgetcsv($handle);
-    if ($values === false) {
+    if (!$source['nested']) {
+        return fgetcsv($source['handle']);
+    }
+
+    if ($source['pending_line'] !== null) {
+        $record = $source['pending_line'];
+        $source['pending_line'] = null;
+    } else {
+        $record = fgets($source['handle']);
+    }
+    if ($record === false) {
         return false;
     }
 
-    // Some ProcessMaker exports encode each complete CSV record as one outer
-    // quoted field: "id,""Projects"",...". Decode that wrapper, while still
-    // accepting an ordinary CSV export without changing its values.
-    if (count($values) === 1) {
-        $nestedValues = str_getcsv($values[0]);
-        if (count($nestedValues) > 1) {
-            return $nestedValues;
+    // The supplied ProcessMaker/Navicat export wraps each original CSV record
+    // in another quoted field, but preserves raw newlines inside text columns.
+    // A new report is identified by its positive numeric legacy ID at column 1.
+    while (($line = fgets($source['handle'])) !== false) {
+        if (preg_match('/^"[0-9]+,""/', $line)) {
+            $source['pending_line'] = $line;
+            break;
         }
+        $record .= $line;
     }
-    return $values;
+
+    $record = rtrim($record, "\r\n");
+    if (strlen($record) < 2 || $record[0] !== '"' || substr($record, -1) !== '"') {
+        return [$record];
+    }
+
+    $innerRecord = substr($record, 1, -1);
+    return str_getcsv(str_replace('""', '"', $innerRecord));
 }
 
 function drilling_import_normalize_text($value)
@@ -232,6 +257,14 @@ foreach ($db->query('SELECT id, mine_name, alias_name FROM emcore_mines WHERE de
         $mines[drilling_import_normalize_text($mine['alias_name'])] = (int)$mine['id'];
     }
 }
+$legacyProjectNames = [
+    '1' => 'راه چمن',
+    '2' => 'تپه سیاه',
+    '3' => 'میامی',
+    '4' => 'زبرکوه',
+    '5' => 'تنگل',
+    '6' => 'کلاته برق',
+];
 $rigs = [];
 foreach ($db->query('SELECT id, serial_number FROM emcore_drilling_rigs WHERE deleted_at IS NULL')->fetchAll() as $rig) {
     $rigs[drilling_import_normalize_text($rig['serial_number'])] = (int)$rig['id'];
@@ -326,10 +359,10 @@ while (($values = drilling_import_read_csv_row($handle)) !== false) {
     if ($legacyId === null) {
         $errors[] = 'id:invalid';
     }
-    $mineName = drilling_import_normalize_text($row['Projects']);
-    if ($mineName === '1') {
-        $mineName = 'راه چمن';
-    }
+    $projectValue = drilling_import_normalize_text($row['Projects']);
+    $mineName = isset($legacyProjectNames[$projectValue])
+        ? $legacyProjectNames[$projectValue]
+        : $projectValue;
     $mineId = isset($mines[$mineName]) ? $mines[$mineName] : null;
     if ($mineId === null) {
         $errors[] = 'mine:not_mapped';
@@ -582,7 +615,7 @@ while (($values = drilling_import_read_csv_row($handle)) !== false) {
         }
     }
 }
-fclose($handle);
+fclose($handle['handle']);
 
 $result = [
     'mode' => $commit ? 'commit' : 'dry-run',
