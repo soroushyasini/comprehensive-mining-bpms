@@ -30,10 +30,9 @@ Keep the existing shared API files (`_bootstrap.php`, `_audit.php`, and `_module
 - Clean exports of:
   - `emidco_db_projects.sql`
   - `emidco_db_gamaneh.sql`
-  - `prc_db_gozaresh_ruzane_copy2.csv`
+- The authoritative `prc_db_gozaresh_ruzane_copy2` table in the same database, verified as 2,035 unique IDs with clean UTF-8 Persian data.
 
-Do not use a CSV that has been opened and re-saved with a different delimiter or character encoding. The importer requires a UTF-8, comma-delimited CSV with the original 45 columns.
-The reader supports the supplied outer-quoted ProcessMaker/Navicat export and preserves multiline text fields while reconstructing the original 2,029 logical records.
+CSV input remains available only for recovery and diagnostics. Production migration reads the source table directly to avoid export quoting, multiline, row-loss, and character-encoding defects.
 
 ## Windows CMD deployment for the current installation
 
@@ -53,8 +52,7 @@ set "PM_DATABASE=wf_pishro"
 
 Confirm `PM_DATABASE` against the `dbname` value in
 `%PM_EMCORE_API%\emcore_config.php`; change it if necessary. Put clean copies of
-`emidco_db_projects.sql`, `emidco_db_gamaneh.sql`, and
-`prc_db_gozaresh_ruzane_copy2.csv` in `%LEGACY_EXPORTS%`.
+`emidco_db_projects.sql` and `emidco_db_gamaneh.sql` in `%LEGACY_EXPORTS%`.
 
 Verify the release and live helpers:
 
@@ -64,7 +62,6 @@ if not exist "%PM_EMCORE_API%\_bootstrap.php" echo ERROR: live bootstrap missing
 if not exist "%PM_EMCORE_API%\_audit.php" echo ERROR: live audit helper missing
 if not exist "%PM_EMCORE_API%\_module_permissions.php" echo ERROR: live permission helper missing
 if not exist "%PM_EMCORE_API%\emcore_config.php" echo ERROR: live configuration missing
-if not exist "%LEGACY_EXPORTS%\prc_db_gozaresh_ruzane_copy2.csv" echo ERROR: report CSV missing
 ```
 
 Back up the live API and database before changing either. Use an approved backup
@@ -116,7 +113,7 @@ Run both dry runs and review their totals before allowing writes:
 
 ```bat
 php "%EMCORE_RELEASE%\tools\import_legacy_drilling_masters.php" "%LEGACY_EXPORTS%\emidco_db_projects.sql" "%LEGACY_EXPORTS%\emidco_db_gamaneh.sql"
-php "%EMCORE_RELEASE%\tools\import_legacy_drilling.php" "%LEGACY_EXPORTS%\prc_db_gozaresh_ruzane_copy2.csv" --create-boreholes
+php "%EMCORE_RELEASE%\tools\import_legacy_drilling.php" --source-table=prc_db_gozaresh_ruzane_copy2 --create-boreholes
 ```
 
 After the dry-run output matches the acceptance targets in sections 8 and 9,
@@ -125,7 +122,7 @@ permission:
 
 ```bat
 php "%EMCORE_RELEASE%\tools\import_legacy_drilling_masters.php" "%LEGACY_EXPORTS%\emidco_db_projects.sql" "%LEGACY_EXPORTS%\emidco_db_gamaneh.sql" --commit --actor-usr-uid=YOUR_32_CHARACTER_USR_UID
-php "%EMCORE_RELEASE%\tools\import_legacy_drilling.php" "%LEGACY_EXPORTS%\prc_db_gozaresh_ruzane_copy2.csv" --create-boreholes --commit --actor-usr-uid=YOUR_32_CHARACTER_USR_UID
+php "%EMCORE_RELEASE%\tools\import_legacy_drilling.php" --source-table=prc_db_gozaresh_ruzane_copy2 --create-boreholes --commit --actor-usr-uid=YOUR_32_CHARACTER_USR_UID
 ```
 
 Panel HTML is not copied into `%PM_EMCORE_API%`. Paste the complete contents of
@@ -149,7 +146,6 @@ Confirm them before copying or executing anything:
 ```bash
 test -f "$EMCORE_RELEASE/emcore_api/emcore_drilling_reports.php"
 test -d "$PM_PUBLIC/emcore_api"
-test -f "$LEGACY_EXPORTS/prc_db_gozaresh_ruzane_copy2.csv"
 ```
 
 ## 4. Back up before mutation
@@ -250,21 +246,21 @@ php "$EMCORE_RELEASE/tools/import_legacy_drilling_masters.php" \
 
 Rerunning is safe: existing mine/borehole pairs are reported as existing rather than duplicated.
 
-## 9. Dry-run the 2,029 daily reports
+## 9. Dry-run the 2,035 daily reports
 
 Use `--create-boreholes` because the full report source contains two borehole codes not present in the 170-row legacy master. The dry run simulates their creation but writes nothing:
 
 ```bash
 php "$EMCORE_RELEASE/tools/import_legacy_drilling.php" \
-  "$LEGACY_EXPORTS/prc_db_gozaresh_ruzane_copy2.csv" \
+  --source-table=prc_db_gozaresh_ruzane_copy2 \
   --create-boreholes
 ```
 
 For the reviewed source, the acceptance targets are:
 
-- `source_rows = 2029`
+- `source_rows = 2035`
 - `parse_errors = 0`
-- `csv_rows_repaired = 66` for the known unquoted checklist selections
+- `csv_rows_repaired = 0` because authoritative table mode bypasses CSV repair
 - no deduplication count or winner selection
 - legacy project values `1`–`6` resolved through the reviewed mine-name/alias mapping
 - `stop_time = 99` mapped to `no_drilling`
@@ -278,7 +274,7 @@ Only after the dry-run output is reviewed:
 
 ```bash
 php "$EMCORE_RELEASE/tools/import_legacy_drilling.php" \
-  "$LEGACY_EXPORTS/prc_db_gozaresh_ruzane_copy2.csv" \
+  --source-table=prc_db_gozaresh_ruzane_copy2 \
   --create-boreholes \
   --commit \
   --actor-usr-uid=YOUR_32_CHARACTER_USR_UID

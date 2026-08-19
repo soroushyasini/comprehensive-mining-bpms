@@ -1,10 +1,11 @@
 <?php
 
-// Dry-run-first importer for prc_db_gozaresh_ruzane_copy2 CSV exports.
+// Dry-run-first importer for legacy drilling reports. The allowlisted MySQL
+// source table is authoritative; CSV remains supported for recovery/diagnosis.
 // Usage:
+//   php tools/import_legacy_drilling.php --source-table=prc_db_gozaresh_ruzane_copy2
 //   php tools/import_legacy_drilling.php /path/to/report.csv
-//   php tools/import_legacy_drilling.php /path/to/report.csv --commit \
-//       --actor-usr-uid=00000000000000000000000000000001 --create-boreholes
+// Add --commit --actor-usr-uid=<USR_UID> --create-boreholes only after dry-run acceptance.
 
 if (PHP_SAPI !== 'cli') {
     fwrite(STDERR, "This importer is CLI-only.\n");
@@ -86,6 +87,15 @@ function drilling_import_read_csv_row(&$source)
 
     $innerRecord = substr($record, 1, -1);
     return str_getcsv(str_replace('""', '"', $innerRecord));
+}
+
+function drilling_import_read_source_row(&$source)
+{
+    if ($source['type'] === 'table') {
+        $row = $source['statement']->fetch(PDO::FETCH_ASSOC);
+        return $row === false ? false : array_values($row);
+    }
+    return drilling_import_read_csv_row($source['csv']);
 }
 
 function drilling_import_repair_mojibake($value)
@@ -251,11 +261,22 @@ function drilling_import_upsert_stage($db, $batchId, $legacyId, $row, $mineName,
     ]);
 }
 
+$sourceTable = (string)drilling_import_option('--source-table');
 $csvPath = isset($argv[1]) && strpos($argv[1], '--') !== 0 ? $argv[1] : '';
-if ($csvPath === '' || !is_file($csvPath) || !is_readable($csvPath)) {
-    fwrite(STDERR, "Provide a readable legacy CSV path as the first argument.\n");
+if ($sourceTable !== '' && $sourceTable !== 'prc_db_gozaresh_ruzane_copy2') {
+    fwrite(STDERR, "Only --source-table=prc_db_gozaresh_ruzane_copy2 is allowed.\n");
     exit(2);
 }
+if ($sourceTable !== '' && $csvPath !== '') {
+    fwrite(STDERR, "Choose either a CSV path or --source-table, not both.\n");
+    exit(2);
+}
+if ($sourceTable === '' && ($csvPath === '' || !is_file($csvPath) || !is_readable($csvPath))) {
+    fwrite(STDERR, "Provide a readable legacy CSV path or --source-table=prc_db_gozaresh_ruzane_copy2.\n");
+    exit(2);
+}
+$sourceType = $sourceTable !== '' ? 'table' : 'csv';
+$sourceName = $sourceTable !== '' ? $sourceTable : basename($csvPath);
 
 $commit = drilling_import_has_flag('--commit');
 $createBoreholes = drilling_import_has_flag('--create-boreholes');
@@ -323,11 +344,6 @@ foreach ($db->query('SELECT id, mine_id, borehole_code FROM emcore_boreholes WHE
     $boreholes[$borehole['mine_id'] . ':' . drilling_import_normalize_text($borehole['borehole_code'])] = (int)$borehole['id'];
 }
 
-$handle = drilling_import_open_csv($csvPath);
-$headers = drilling_import_read_csv_row($handle);
-if (!$headers) {
-    throw new RuntimeException('Legacy CSV is empty.');
-}
 $expectedHeaders = [
     'id', 'Projects', 'form_serial_number_str', 'Gamane_name', 'dastgah_name',
     'shift', 'form_date', 'dastgah_saat', 'start_our_str', 'end_our_str',
@@ -340,21 +356,36 @@ $expectedHeaders = [
     'insert_date', 'soda_flt', 'cement_flt', 'is_stopped', 'stop_causes',
     'stop_time', 'pack_lv', 'iradat',
 ];
-if ($headers !== $expectedHeaders) {
-    if (count($headers) !== count($expectedHeaders)) {
-        throw new RuntimeException(
-            'Legacy CSV header mismatch: expected ' . count($expectedHeaders)
-            . ' columns, parsed ' . count($headers) . '.'
-        );
+if ($sourceType === 'table') {
+    $columnSql = '`' . implode('`,`', $expectedHeaders) . '`';
+    $statement = $db->query(
+        'SELECT ' . $columnSql . ' FROM `prc_db_gozaresh_ruzane_copy2` ORDER BY `id`'
+    );
+    $source = ['type' => 'table', 'statement' => $statement];
+    $headers = $expectedHeaders;
+} else {
+    $csvSource = drilling_import_open_csv($csvPath);
+    $headers = drilling_import_read_csv_row($csvSource);
+    if (!$headers) {
+        throw new RuntimeException('Legacy CSV is empty.');
     }
-    foreach ($expectedHeaders as $index => $expectedHeader) {
-        if ($headers[$index] !== $expectedHeader) {
+    if ($headers !== $expectedHeaders) {
+        if (count($headers) !== count($expectedHeaders)) {
             throw new RuntimeException(
-                'Legacy CSV header mismatch at column ' . ($index + 1)
-                . ': expected ' . $expectedHeader . ', parsed ' . $headers[$index] . '.'
+                'Legacy CSV header mismatch: expected ' . count($expectedHeaders)
+                . ' columns, parsed ' . count($headers) . '.'
             );
         }
+        foreach ($expectedHeaders as $index => $expectedHeader) {
+            if ($headers[$index] !== $expectedHeader) {
+                throw new RuntimeException(
+                    'Legacy CSV header mismatch at column ' . ($index + 1)
+                    . ': expected ' . $expectedHeader . ', parsed ' . $headers[$index] . '.'
+                );
+            }
+        }
     }
+    $source = ['type' => 'csv', 'csv' => $csvSource];
 }
 
 $batchId = bin2hex(random_bytes(16));
@@ -391,7 +422,7 @@ $checklistKeyByNumber = [
     14 => 'wireline_bearing_greased',
 ];
 
-while (($values = drilling_import_read_csv_row($handle)) !== false) {
+while (($values = drilling_import_read_source_row($source)) !== false) {
     if (count($values) === 1 && trim((string)$values[0]) === '') {
         continue;
     }
@@ -561,7 +592,7 @@ while (($values = drilling_import_read_csv_row($handle)) !== false) {
                     'borehole_code' => $boreholeCode,
                 ]),
                 ':metadata' => drilling_import_json([
-                    'source' => basename($csvPath),
+                    'source' => $sourceName,
                     'batch_id' => $batchId,
                     'legacy_id' => $legacyId,
                 ]),
@@ -692,7 +723,7 @@ while (($values = drilling_import_read_csv_row($handle)) !== false) {
                 'legacy_id' => $legacyId,
                 'report_number' => $reportNumber,
             ]),
-            ':metadata' => drilling_import_json(['source' => basename($csvPath), 'batch_id' => $batchId]),
+            ':metadata' => drilling_import_json(['source' => $sourceName, 'batch_id' => $batchId]),
         ]);
         $db->commit();
         if ($boreholeWasCreated) {
@@ -714,10 +745,14 @@ while (($values = drilling_import_read_csv_row($handle)) !== false) {
         }
     }
 }
-fclose($handle['handle']);
+if ($sourceType === 'csv') {
+    fclose($source['csv']['handle']);
+}
 
 $result = [
     'mode' => $commit ? 'commit' : 'dry-run',
+    'source_type' => $sourceType,
+    'source' => $sourceName,
     'batch_id' => $batchId,
     'create_boreholes' => $createBoreholes,
     'stats' => $stats,

@@ -70,7 +70,7 @@ Suggested order: companies, persons, company-person relations, mines, mine techn
 
 A module is complete only with a migration, authorization registration, validated API, safe panel, tests, audit logging, and operator documentation.
 
-Drilling deployment is governed by `docs/DRILLING_DEPLOYMENT.md`. The source contains 2,029 authoritative report rows; imports preserve every legacy ID and never deduplicate same-context reports.
+Drilling deployment is governed by `docs/DRILLING_DEPLOYMENT.md`. The source contains 2,035 authoritative report rows; imports preserve every legacy ID and never deduplicate same-context reports.
 
 ## Authorization design
 
