@@ -4,7 +4,7 @@
 
 The daily drilling module replaces the classic ProcessMaker JSON/Dynaform CRUD screen with an EMCORE API and same-origin Panel WebControl. ProcessMaker remains the session identity provider; EMCORE owns the operational data, permissions, validation, and audit history.
 
-The legacy source reviewed for the migration contains 2,035 authoritative rows. Records are never deduplicated merely because they share a mine, borehole, date, and shift.
+The legacy source reviewed for the migration contains 2,029 authoritative rows. Records are never deduplicated merely because they share a mine, borehole, date, and shift.
 
 ## Domain hierarchy
 
@@ -124,7 +124,7 @@ source CSV
 
 `tools/import_legacy_drilling_masters.php` imports the six project mappings and all 170 supplied borehole masters. It is dry-run by default and requires an active, permitted ProcessMaker actor for `--commit`.
 
-`tools/import_legacy_drilling.php` imports the 2,035 report source. It is also dry-run by default, is idempotent by `legacy_id`, writes one audit entry per canonical report, and never selects a “winner” among same-context records.
+`tools/import_legacy_drilling.php` imports the 2,029 report source. It is also dry-run by default, is idempotent by `legacy_id`, writes one audit entry per canonical report, and never selects a “winner” among same-context records.
 
 See `DRILLING_DEPLOYMENT.md` for exact command order, acceptance targets, permission profiles, and rollback.
 
@@ -156,7 +156,8 @@ Historical depth/corebox/consumable values are preserved. The importer does not 
 - Migrations `003`, `004`, and `005` apply successfully.
 - PHP lint passes on the ProcessMaker-compatible server runtime.
 - All six projects map and all 170 master boreholes are accounted for: `زبرکوه`; `تنگل` via alias of `تنگل نورا`; `تپه سیاه` via alias of merged `تپه سیاه شمالی`; and explicit historical records for `راه چمن`, `میامی`, and `کلاته برق`.
-- Report dry run reads exactly 2,035 rows with zero CSV parse errors.
+- Report dry run reads exactly 2,029 rows with zero CSV parse errors.
+- The importer deterministically reconstructs the 66 known checklist-quoting rows and reports `csv_rows_repaired = 66`.
 - Every parseable source ID exists in staging after commit.
 - Canonical imports contain no repeated non-null `legacy_id`.
 - Same-context reports remain separate records.

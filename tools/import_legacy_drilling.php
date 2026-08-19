@@ -88,9 +88,58 @@ function drilling_import_read_csv_row(&$source)
     return str_getcsv(str_replace('""', '"', $innerRecord));
 }
 
+function drilling_import_repair_mojibake($value)
+{
+    $value = (string)$value;
+    if ($value === '' || !preg_match('/[ÂÃØÙÚÛâ]/u', $value) || !function_exists('iconv')) {
+        return $value;
+    }
+
+    // The export contains UTF-8 bytes that were decoded as Windows-1252 and
+    // then encoded as UTF-8 again. Converting the visible mojibake characters
+    // back to Windows-1252 bytes restores the original valid UTF-8 Persian.
+    $repaired = @iconv('UTF-8', 'Windows-1252', $value);
+    return $repaired !== false && preg_match('//u', $repaired) ? $repaired : $value;
+}
+
+function drilling_import_repair_columns($values, &$wasRepaired)
+{
+    $wasRepaired = false;
+    if (count($values) === 45) {
+        return $values;
+    }
+
+    // Columns 35 and 36 are the two checklist groups. In 66 source rows their
+    // comma-separated selections were exported without the inner CSV quoting.
+    // The final eight columns remain stable and start with insert_date, so use
+    // that anchor and retain every checklist fragment rather than dropping it.
+    $insertDateIndex = count($values) - 8;
+    if ($insertDateIndex < 35
+        || !isset($values[$insertDateIndex])
+        || !preg_match('/^\d{1,2}\/\d{1,2}\/\d{4} \d{2}:\d{2}:\d{2}$/', trim((string)$values[$insertDateIndex]))) {
+        return $values;
+    }
+
+    $checklistFragments = array_slice($values, 35, $insertDateIndex - 35);
+    if (!$checklistFragments) {
+        return $values;
+    }
+    $repairedValues = array_merge(
+        array_slice($values, 0, 35),
+        [implode(',', $checklistFragments), ''],
+        array_slice($values, $insertDateIndex)
+    );
+    if (count($repairedValues) === 45) {
+        $wasRepaired = true;
+        return $repairedValues;
+    }
+    return $values;
+}
+
 function drilling_import_normalize_text($value)
 {
-    $value = str_replace(['ي', 'ك', "\xE2\x80\x8C"], ['ی', 'ک', ' '], trim((string)$value));
+    $value = drilling_import_repair_mojibake($value);
+    $value = str_replace(['ي', 'ك', "\xE2\x80\x8C"], ['ی', 'ک', ' '], trim($value));
     return preg_replace('/\s+/u', ' ', $value);
 }
 
@@ -316,6 +365,7 @@ $stats = [
     'already_imported' => 0,
     'needs_review' => 0,
     'boreholes_created' => 0,
+    'csv_rows_repaired' => 0,
     'parse_errors' => 0,
 ];
 $reviewSamples = [];
@@ -346,14 +396,26 @@ while (($values = drilling_import_read_csv_row($handle)) !== false) {
         continue;
     }
     $stats['source_rows']++;
+    $parsedColumnCount = count($values);
+    $columnsRepaired = false;
+    $values = drilling_import_repair_columns($values, $columnsRepaired);
+    if ($columnsRepaired) {
+        $stats['csv_rows_repaired']++;
+    }
     if (count($values) !== count($headers)) {
         $stats['parse_errors']++;
         if (count($reviewSamples) < 20) {
-            $reviewSamples[] = ['row' => $stats['source_rows'], 'errors' => ['column_count_mismatch']];
+            $reviewSamples[] = [
+                'row' => $stats['source_rows'],
+                'errors' => ['column_count_mismatch:' . $parsedColumnCount],
+            ];
         }
         continue;
     }
     $row = array_combine($headers, $values);
+    foreach ($row as $column => $value) {
+        $row[$column] = drilling_import_repair_mojibake($value);
+    }
     $errors = [];
     $legacyId = preg_match('/^[1-9][0-9]*$/', trim((string)$row['id'])) ? (int)$row['id'] : null;
     if ($legacyId === null) {

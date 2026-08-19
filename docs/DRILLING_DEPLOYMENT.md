@@ -33,7 +33,7 @@ Keep the existing shared API files (`_bootstrap.php`, `_audit.php`, and `_module
   - `prc_db_gozaresh_ruzane_copy2.csv`
 
 Do not use a CSV that has been opened and re-saved with a different delimiter or character encoding. The importer requires a UTF-8, comma-delimited CSV with the original 45 columns.
-The reader supports the supplied outer-quoted ProcessMaker/Navicat export and preserves multiline text fields while reconstructing the original 2,035 logical records.
+The reader supports the supplied outer-quoted ProcessMaker/Navicat export and preserves multiline text fields while reconstructing the original 2,029 logical records.
 
 ## Windows CMD deployment for the current installation
 
@@ -250,7 +250,7 @@ php "$EMCORE_RELEASE/tools/import_legacy_drilling_masters.php" \
 
 Rerunning is safe: existing mine/borehole pairs are reported as existing rather than duplicated.
 
-## 9. Dry-run the 2,035 daily reports
+## 9. Dry-run the 2,029 daily reports
 
 Use `--create-boreholes` because the full report source contains two borehole codes not present in the 170-row legacy master. The dry run simulates their creation but writes nothing:
 
@@ -262,8 +262,9 @@ php "$EMCORE_RELEASE/tools/import_legacy_drilling.php" \
 
 For the reviewed source, the acceptance targets are:
 
-- `source_rows = 2035`
+- `source_rows = 2029`
 - `parse_errors = 0`
+- `csv_rows_repaired = 66` for the known unquoted checklist selections
 - no deduplication count or winner selection
 - legacy project values `1`–`6` resolved through the reviewed mine-name/alias mapping
 - `stop_time = 99` mapped to `no_drilling`
