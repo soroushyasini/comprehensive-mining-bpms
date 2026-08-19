@@ -448,23 +448,17 @@ while (($values = drilling_import_read_csv_row($handle)) !== false) {
     }
 
     $boreholeId = null;
+    $boreholeMapKey = null;
+    $createBorehole = false;
     if ($mineId !== null && $boreholeCode !== '') {
         $boreholeMapKey = $mineId . ':' . $boreholeCode;
         if (isset($boreholes[$boreholeMapKey])) {
             $boreholeId = $boreholes[$boreholeMapKey];
         } elseif ($createBoreholes) {
-            if ($commit) {
-                $create = $db->prepare(
-                    "INSERT INTO emcore_boreholes (mine_id, borehole_code, status, notes)
-                     VALUES (:mine_id, :borehole_code, 'active', 'ایجادشده هنگام مهاجرت گزارش‌های قدیمی')"
-                );
-                $create->execute([':mine_id' => $mineId, ':borehole_code' => $boreholeCode]);
-                $boreholeId = (int)$db->lastInsertId();
-            } else {
-                $boreholeId = -1;
-            }
-            $boreholes[$boreholeMapKey] = $boreholeId;
-            $stats['boreholes_created']++;
+            // Defer the real insert until the report transaction. Dry runs use
+            // a sentinel only after the row has passed every validation rule.
+            $boreholeId = -1;
+            $createBorehole = true;
         } else {
             $errors[] = 'borehole:not_mapped';
         }
@@ -502,6 +496,10 @@ while (($values = drilling_import_read_csv_row($handle)) !== false) {
         }
         continue;
     }
+    if (!$commit && $createBorehole) {
+        $boreholes[$boreholeMapKey] = -1;
+        $stats['boreholes_created']++;
+    }
     $stats['ready']++;
     if (!$commit) {
         continue;
@@ -533,8 +531,43 @@ while (($values = drilling_import_read_csv_row($handle)) !== false) {
         $stopDuration = null;
     }
 
+    $boreholeWasCreated = false;
     $db->beginTransaction();
     try {
+        if ($createBorehole) {
+            $create = $db->prepare(
+                "INSERT INTO emcore_boreholes (mine_id, borehole_code, status, notes)
+                 VALUES (:mine_id, :borehole_code, 'active', 'ایجادشده هنگام مهاجرت گزارش‌های قدیمی')"
+            );
+            $create->execute([':mine_id' => $mineId, ':borehole_code' => $boreholeCode]);
+            $boreholeId = (int)$db->lastInsertId();
+            $boreholeWasCreated = true;
+
+            $boreholeAudit = $db->prepare(
+                "INSERT INTO emcore_audit_log
+                    (request_id, actor_usr_uid, module_key, action, entity_type, entity_id,
+                     after_data, metadata, created_at)
+                 VALUES
+                    (:request_id, :actor_usr_uid, 'drilling_daily_reports', 'create',
+                     'borehole', :entity_id, :after_data, :metadata, NOW())"
+            );
+            $boreholeAudit->execute([
+                ':request_id' => $batchId,
+                ':actor_usr_uid' => $actorUsrUid,
+                ':entity_id' => (string)$boreholeId,
+                ':after_data' => drilling_import_json([
+                    'id' => $boreholeId,
+                    'mine_id' => $mineId,
+                    'borehole_code' => $boreholeCode,
+                ]),
+                ':metadata' => drilling_import_json([
+                    'source' => basename($csvPath),
+                    'batch_id' => $batchId,
+                    'legacy_id' => $legacyId,
+                ]),
+            ]);
+        }
+
         $convert = $db->prepare('SELECT shamsi_slash_to_gregorian_date(:date_fa)');
         $convert->execute([':date_fa' => $reportDateFa]);
         $reportDateEn = $convert->fetchColumn();
@@ -662,6 +695,10 @@ while (($values = drilling_import_read_csv_row($handle)) !== false) {
             ':metadata' => drilling_import_json(['source' => basename($csvPath), 'batch_id' => $batchId]),
         ]);
         $db->commit();
+        if ($boreholeWasCreated) {
+            $boreholes[$boreholeMapKey] = $boreholeId;
+            $stats['boreholes_created']++;
+        }
         $stats['imported']++;
     } catch (Throwable $exception) {
         if ($db->inTransaction()) {
