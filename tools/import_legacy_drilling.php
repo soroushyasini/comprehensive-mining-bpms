@@ -188,6 +188,19 @@ function drilling_import_optional_int($row, $field, &$errors)
     return (int)$value;
 }
 
+function drilling_import_parse_insert_date($value)
+{
+    $value = trim((string)$value);
+    foreach (['Y-m-d H:i:s.u', 'Y-m-d H:i:s', 'j/n/Y H:i:s'] as $format) {
+        $date = DateTime::createFromFormat($format, $value);
+        if ($date !== false) {
+            return $date->format('Y-m-d H:i:s');
+        }
+    }
+
+    return null;
+}
+
 function drilling_import_split_people($value)
 {
     $people = [];
@@ -507,11 +520,8 @@ while (($values = drilling_import_read_source_row($source)) !== false) {
     $bentoniteAmount = drilling_import_decimal($row, 'bentonite_flt', $errors);
     $sodaAmount = drilling_import_decimal($row, 'soda_flt', $errors);
     $cementAmount = drilling_import_decimal($row, 'cement_flt', $errors);
-    $legacyInsertedAt = null;
-    $insertDate = DateTime::createFromFormat('j/n/Y H:i:s', trim((string)$row['insert_date']));
-    if ($insertDate) {
-        $legacyInsertedAt = $insertDate->format('Y-m-d H:i:s');
-    } else {
+    $legacyInsertedAt = drilling_import_parse_insert_date($row['insert_date']);
+    if ($legacyInsertedAt === null) {
         $errors[] = 'insert_date:invalid';
     }
 
