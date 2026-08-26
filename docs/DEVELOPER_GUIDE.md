@@ -4,7 +4,7 @@
 **Runtime:** ProcessMaker 3.8, PHP, MySQL, HTML/CSS, jQuery Panel WebControls
 **Audience:** EMCORE developers, ProcessMaker administrators, reviewers, and coding agents/LLMs
 **Document role:** Canonical implementation and integration guide
-**Last reviewed:** 2026-08-15
+**Last reviewed:** 2026-08-26
 
 ## 1. Purpose
 
@@ -147,7 +147,8 @@ Do not duplicate database credentials, session logic, or JSON error handling in 
 | `persons` | `emcore_persons`; `emcore_persons_api.php` | `panels/emcore_persons_panel.html` | Implemented |
 | `mines` | `emcore_mines`; `emcore_mines.php` | `panels/emcore_mines_panel.html` | Implemented; supports owned, contractor, and personnel-related mines plus soft merge lineage |
 | `mine_technical_managers` | `emcore_mine_technical_managers`; `emcore_mine_technical_managers.php` | `panels/emcore_mine_technical_managers_panel.html` | Implemented |
-| `drilling_daily_reports` | `emcore_drilling_reports` plus borehole/rig/crew/checklist tables; `emcore_drilling_reports.php` | `panels/emcore_drilling_reports_panel.html` | Implemented; server lint, migration, import, and acceptance pending |
+| `drilling_daily_reports` | `emcore_drilling_reports` plus borehole/rig/crew/checklist tables; `emcore_drilling_reports.php` | `panels/emcore_drilling_reports_panel.html` | Deployed; production import verified, panel acceptance pending |
+| `visitor_log` | `emcore_visits`; `emcore_visitor_log.php` | `panels/emcore_visitor_log_panel.html` | Implemented; deployment pending |
 | `company_persons` | `emcore_company_persons` | Pending | Domain/schema defined |
 | `memberships` | `emcore_memberships` | Pending | Domain/schema defined |
 | `tokens` | `emcore_tokens` | Pending | Security-sensitive; panel/API pending |

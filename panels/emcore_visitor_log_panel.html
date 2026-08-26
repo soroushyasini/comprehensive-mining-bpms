@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root {
+      --ink: #17221d;
+      --ink-soft: #536159;
+      --paper: #f4f2eb;
+      --surface: #fffefa;
+      --line: #d9d7ce;
+      --green: #17664b;
+      --green-soft: #dcece5;
+      --amber: #b77b18;
+      --amber-soft: #f4e6c7;
+      --red: #a33b32;
+      --red-soft: #f4dfdc;
+      --shadow: 0 16px 40px rgba(23, 34, 29, .10);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 18px;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: "Vazirmatn", Tahoma, "Segoe UI", sans-serif;
+      font-size: 14px;
+      line-height: 1.75;
+      letter-spacing: 0;
+    }
+    button, input, select, textarea { font: inherit; letter-spacing: 0; }
+    button { cursor: pointer; }
+    .app-shell { max-width: 1500px; margin: 0 auto; }
+    .masthead {
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      min-height: 116px;
+      padding: 24px 28px;
+      color: #fff;
+      background: var(--ink);
+      border-radius: 18px 18px 6px 6px;
+      box-shadow: var(--shadow);
+    }
+    .masthead::after {
+      content: "";
+      position: absolute;
+      inset-inline-end: -55px;
+      inset-block-start: -95px;
+      width: 250px;
+      height: 250px;
+      border: 32px solid rgba(255,255,255,.05);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+    .eyebrow { color: #b8c8bf; font-size: 12px; margin-bottom: 2px; }
+    h1 { margin: 0; font-size: 25px; line-height: 1.5; font-weight: 800; }
+    .subtitle { margin: 5px 0 0; color: #d6dfda; font-size: 13px; }
+    .btn {
+      border: 1px solid transparent;
+      border-radius: 8px;
+      padding: 8px 14px;
+      color: var(--ink);
+      background: #fff;
+      transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+      white-space: nowrap;
+    }
+    .btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 5px 14px rgba(23,34,29,.14); }
+    .btn:disabled { opacity: .45; cursor: default; }
+    .btn-primary { color: #fff; background: var(--green); border-color: var(--green); }
+    .btn-accent { color: var(--ink); background: #e8b44d; border-color: #e8b44d; font-weight: 700; }
+    .btn-light { background: var(--surface); border-color: var(--line); }
+    .btn-danger { color: var(--red); background: #fff; border-color: #dcb8b3; }
+    .btn-small { padding: 5px 9px; border-radius: 6px; font-size: 12px; }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(120px, 1fr));
+      gap: 10px;
+      margin: 12px 0;
+    }
+    .stat {
+      position: relative;
+      min-height: 78px;
+      padding: 13px 16px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+    .stat::before {
+      content: "";
+      position: absolute;
+      inset-inline-start: 0;
+      inset-block: 0;
+      width: 4px;
+      border-radius: 0 8px 8px 0;
+      background: var(--line);
+    }
+    .stat.inside::before { background: var(--amber); }
+    .stat.today::before { background: var(--green); }
+    .stat-value { display: block; font-size: 25px; line-height: 1.25; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .stat-label { color: var(--ink-soft); font-size: 12px; }
+    .notice { display: none; margin: 10px 0; padding: 10px 14px; border-radius: 7px; }
+    .notice.error { display: block; color: #742a24; background: var(--red-soft); border: 1px solid #deb6b2; }
+    .notice.success { display: block; color: #174f3e; background: var(--green-soft); border: 1px solid #b7d8c9; }
+    .filters {
+      display: grid;
+      grid-template-columns: minmax(210px, 1.5fr) repeat(4, minmax(135px, .75fr)) auto;
+      gap: 9px;
+      align-items: end;
+      padding: 14px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px 8px 0 0;
+    }
+    .field { min-width: 0; }
+    .field label { display: block; margin-bottom: 4px; color: var(--ink-soft); font-size: 11px; }
+    .field input, .field select, .field textarea {
+      width: 100%;
+      min-height: 38px;
+      padding: 7px 10px;
+      color: var(--ink);
+      background: #fff;
+      border: 1px solid #cbc9c0;
+      border-radius: 6px;
+      outline: none;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus {
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(23,102,75,.10);
+    }
+    .field textarea { min-height: 86px; resize: vertical; }
+    .ltr { direction: ltr; text-align: start; font-variant-numeric: tabular-nums; }
+    .filter-actions { display: flex; gap: 6px; }
+    .ledger {
+      overflow-x: auto;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-top: 0;
+      border-radius: 0 0 8px 8px;
+      box-shadow: 0 8px 22px rgba(23,34,29,.06);
+    }
+    table { width: 100%; min-width: 1100px; border-collapse: collapse; }
+    th {
+      padding: 10px 12px;
+      color: #e8eeea;
+      background: #26332c;
+      text-align: start;
+      font-size: 11px;
+      font-weight: 500;
+    }
+    td { padding: 11px 12px; border-bottom: 1px solid #ece9df; vertical-align: middle; }
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody tr:hover td { background: #f8f7f2; }
+    tbody tr.row-inside td { background: #fffbef; }
+    tbody tr.row-inside:hover td { background: #fff7df; }
+    .visitor-name { font-weight: 750; }
+    .secondary { display: block; color: var(--ink-soft); font-size: 11px; margin-top: 1px; }
+    .purpose { max-width: 260px; white-space: normal; }
+    .badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; font-size: 11px; white-space: nowrap; }
+    .badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+    .badge-inside { color: #80520a; background: var(--amber-soft); }
+    .badge-completed { color: #1c5f49; background: var(--green-soft); }
+    .row-actions { display: flex; flex-wrap: wrap; gap: 5px; }
+    .empty { padding: 42px 20px; color: var(--ink-soft); text-align: center; }
+    .pagination { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 12px; }
+    .page-label { color: var(--ink-soft); font-size: 12px; min-width: 110px; text-align: center; }
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      background: rgba(13, 21, 17, .68);
+      backdrop-filter: blur(3px);
+    }
+    .overlay.open { display: flex; }
+    .dialog {
+      width: 760px;
+      max-width: 100%;
+      max-height: 92vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--surface);
+      border: 1px solid rgba(255,255,255,.2);
+      border-radius: 12px;
+      box-shadow: 0 28px 80px rgba(0,0,0,.32);
+    }
+    .dialog-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; color: #fff; background: var(--ink); }
+    .dialog-title { font-size: 16px; font-weight: 750; }
+    .close-button { border: 0; color: #fff; background: transparent; font-size: 20px; line-height: 1; }
+    .dialog-body { overflow-y: auto; padding: 20px; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .span-2 { grid-column: span 2; }
+    .form-section { grid-column: span 2; margin-top: 4px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--green); font-size: 12px; font-weight: 750; }
+    .required { color: var(--red); }
+    .manual-host { display: none; }
+    .exit-fields { display: none; }
+    .form-error { display: none; margin-top: 12px; padding: 9px 12px; color: #742a24; background: var(--red-soft); border-radius: 6px; }
+    .dialog-foot { display: flex; gap: 8px; padding: 13px 20px; border-top: 1px solid var(--line); background: #f7f5ef; }
+    @media (max-width: 980px) {
+      .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .filter-actions { grid-column: span 2; }
+      .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 620px) {
+      body { padding: 8px; }
+      .masthead { align-items: flex-start; flex-direction: column; padding: 20px; }
+      h1 { font-size: 21px; }
+      .filters, .form-grid { grid-template-columns: 1fr; }
+      .filter-actions, .span-2, .form-section { grid-column: span 1; }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <header class="masthead">
+    <div>
+      <div class="eyebrow">دفتر پذیرش و انتظامات</div>
+      <h1>ثبت ورود و خروج مراجعان</h1>
+      <p class="subtitle">ورود را هنگام مراجعه ثبت کنید؛ افراد حاضر همیشه بالای فهرست می‌مانند.</p>
+    </div>
+    <button type="button" class="btn btn-accent" id="addButton">ثبت ورود جدید</button>
+  </header>
+
+  <section class="stats" aria-label="خلاصه مراجعان">
+    <div class="stat today"><span class="stat-value" id="todayCount">۰</span><span class="stat-label">مراجعه امروز</span></div>
+    <div class="stat inside"><span class="stat-value" id="insideCount">۰</span><span class="stat-label">اکنون داخل مجموعه</span></div>
+    <div class="stat"><span class="stat-value" id="completedCount">۰</span><span class="stat-label">خروج ثبت‌شده</span></div>
+    <div class="stat"><span class="stat-value" id="totalCount">۰</span><span class="stat-label">کل سوابق</span></div>
+  </section>
+
+  <div id="notice" class="notice" role="status"></div>
+
+  <section class="filters" aria-label="فیلتر مراجعان">
+    <div class="field">
+      <label for="searchInput">جست‌وجو</label>
+      <input type="text" id="searchInput" placeholder="نام، سازمان، موضوع یا میزبان">
+    </div>
+    <div class="field">
+      <label for="statusFilter">وضعیت حضور</label>
+      <select id="statusFilter">
+        <option value="">همه وضعیت‌ها</option>
+        <option value="inside">داخل مجموعه</option>
+        <option value="completed">خارج شده</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="hostFilter">ملاقات با</label>
+      <select id="hostFilter"><option value="">همه میزبان‌ها</option></select>
+    </div>
+    <div class="field">
+      <label for="dateFrom">از تاریخ</label>
+      <input type="text" id="dateFrom" class="ltr" inputmode="numeric" maxlength="10" placeholder="1405/01/01">
+    </div>
+    <div class="field">
+      <label for="dateTo">تا تاریخ</label>
+      <input type="text" id="dateTo" class="ltr" inputmode="numeric" maxlength="10" placeholder="1405/12/29">
+    </div>
+    <div class="filter-actions">
+      <button type="button" class="btn btn-primary" id="filterButton">اعمال</button>
+      <button type="button" class="btn btn-light" id="resetButton">پاک‌کردن</button>
+    </div>
+  </section>
+
+  <div class="ledger" id="ledger"><div class="empty">در حال دریافت اطلاعات…</div></div>
+  <div class="pagination">
+    <button type="button" class="btn btn-light btn-small" id="previousButton">قبلی</button>
+    <span class="page-label" id="pageLabel">صفحه ۱</span>
+    <button type="button" class="btn btn-light btn-small" id="nextButton">بعدی</button>
+  </div>
+</div>
+
+<div class="overlay" id="formOverlay" role="dialog" aria-modal="true" aria-labelledby="dialogTitle">
+  <div class="dialog">
+    <div class="dialog-head">
+      <div class="dialog-title" id="dialogTitle">ثبت ورود جدید</div>
+      <button type="button" class="close-button" id="closeButton" aria-label="بستن">×</button>
+    </div>
+    <div class="dialog-body">
+      <input type="hidden" id="visitId">
+      <div class="form-grid">
+        <div class="field">
+          <label for="visitorName">نام مراجعه‌کننده <span class="required">*</span></label>
+          <input type="text" id="visitorName" maxlength="200" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="organizationName">شرکت یا سازمان</label>
+          <input type="text" id="organizationName" maxlength="200" autocomplete="off">
+        </div>
+        <div class="field span-2">
+          <label for="purpose">موضوع مراجعه <span class="required">*</span></label>
+          <textarea id="purpose" maxlength="1000"></textarea>
+        </div>
+
+        <div class="form-section">میزبان</div>
+        <div class="field span-2">
+          <label for="hostSelect">ملاقات با <span class="required">*</span></label>
+          <select id="hostSelect"></select>
+        </div>
+        <div class="field span-2 manual-host" id="manualHostField">
+          <label for="manualHostName">نام میزبان <span class="required">*</span></label>
+          <input type="text" id="manualHostName" maxlength="200" placeholder="نام و نام خانوادگی">
+        </div>
+
+        <div class="form-section">زمان مراجعه</div>
+        <div class="field">
+          <label for="visitDate">تاریخ مراجعه <span class="required">*</span></label>
+          <input type="text" id="visitDate" class="ltr" inputmode="numeric" maxlength="10" placeholder="1405/01/01">
+        </div>
+        <div class="field">
+          <label for="entryTime">ساعت ورود <span class="required">*</span></label>
+          <input type="time" id="entryTime" class="ltr">
+        </div>
+        <div class="field exit-fields">
+          <label for="exitDate">تاریخ خروج</label>
+          <input type="text" id="exitDate" class="ltr" inputmode="numeric" maxlength="10" placeholder="1405/01/01">
+        </div>
+        <div class="field exit-fields">
+          <label for="exitTime">ساعت خروج</label>
+          <input type="time" id="exitTime" class="ltr">
+        </div>
+
+        <div class="field span-2">
+          <label for="notes">توضیحات</label>
+          <textarea id="notes" maxlength="5000"></textarea>
+        </div>
+      </div>
+      <div id="formError" class="form-error"></div>
+    </div>
+    <div class="dialog-foot">
+      <button type="button" class="btn btn-primary" id="saveButton">ثبت ورود</button>
+      <button type="button" class="btn btn-light" id="cancelButton">انصراف</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function ($) {
+  'use strict';
+
+  var API = '/emcore_api/emcore_visitor_log.php';
+  var csrfToken = '';
+  var permissions = { can_create: 0, can_read: 0, can_update: 0, can_delete: 0 };
+  var hosts = [];
+  var page = 1;
+  var pageSize = 50;
+  var total = 0;
+
+  function api(action, data) {
+    data = data || {};
+    data.action = action;
+    return $.ajax({
+      url: API,
+      method: 'POST',
+      dataType: 'json',
+      data: data,
+      headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {}
+    });
+  }
+
+  function errorText(xhr) {
+    if (xhr && xhr.responseJSON && xhr.responseJSON.error) return xhr.responseJSON.error;
+    if (xhr && xhr.status === 401) return 'نشست کاربری پایان یافته است. دوباره وارد سامانه شوید.';
+    if (xhr && xhr.status === 403) return 'دسترسی لازم برای این عملیات وجود ندارد.';
+    return 'ارتباط با سرویس ثبت مراجعان ناموفق بود.';
+  }
+
+  function showNotice(text, type) {
+    $('#notice').removeClass('error success').addClass(type || 'error').text(text).show();
+  }
+
+  function hideNotice() { $('#notice').hide().removeClass('error success').text(''); }
+  function faNumber(value) { return Number(value || 0).toLocaleString('fa-IR'); }
+  function two(value) { return String(value).length < 2 ? '0' + value : String(value); }
+
+  function toLatinDigits(value) {
+    var persian = '۰۱۲۳۴۵۶۷۸۹';
+    var arabic = '٠١٢٣٤٥٦٧٨٩';
+    return String(value || '').replace(/[۰-۹]/g, function (digit) { return persian.indexOf(digit); })
+      .replace(/[٠-٩]/g, function (digit) { return arabic.indexOf(digit); });
+  }
+
+  function dateToJalali(date) {
+    try {
+      var formatter = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { year: 'numeric', month: '2-digit', day: '2-digit' });
+      var parts = formatter.formatToParts(date);
+      var values = {};
+      $.each(parts, function (_, part) { if (part.type !== 'literal') values[part.type] = toLatinDigits(part.value); });
+      return values.year + '/' + two(values.month) + '/' + two(values.day);
+    } catch (error) {
+      return '';
+    }
+  }
+
+  function todayJalali() { return dateToJalali(new Date()); }
+
+  function isoDateToJalali(value) {
+    if (!value) return '';
+    var datePart = String(value).substring(0, 10).split('-');
+    if (datePart.length !== 3) return '';
+    return dateToJalali(new Date(Number(datePart[0]), Number(datePart[1]) - 1, Number(datePart[2]), 12, 0, 0));
+  }
+
+  function currentTime() {
+    var now = new Date();
+    return two(now.getHours()) + ':' + two(now.getMinutes());
+  }
+
+  function timePart(value) { return value ? String(value).substring(11, 16) : ''; }
+
+  function formatDuration(minutes) {
+    minutes = Math.max(0, Number(minutes || 0));
+    var hours = Math.floor(minutes / 60);
+    var rest = minutes % 60;
+    if (!hours) return faNumber(rest) + ' دقیقه';
+    if (!rest) return faNumber(hours) + ' ساعت';
+    return faNumber(hours) + ' ساعت و ' + faNumber(rest) + ' دقیقه';
+  }
+
+  function hostLabel(host) {
+    var name = $.trim((host.USR_FIRSTNAME || '') + ' ' + (host.USR_LASTNAME || ''));
+    return name ? name + ' (' + host.USR_USERNAME + ')' : host.USR_USERNAME;
+  }
+
+  function fillHosts() {
+    var filter = $('#hostFilter').empty().append($('<option>').val('').text('همه میزبان‌ها'));
+    var form = $('#hostSelect').empty().append($('<option>').val('').text('انتخاب کنید'));
+    $.each(hosts, function (_, host) {
+      var label = hostLabel(host);
+      filter.append($('<option>').val(host.USR_UID).text(label));
+      form.append($('<option>').val(host.USR_UID).text(label));
+    });
+    form.append($('<option>').val('__manual__').text('ورود دستی نام میزبان'));
+  }
+
+  function loadLookups() {
+    return api('lookups').done(function (response) {
+      hosts = (response.data && response.data.hosts) || [];
+      csrfToken = response.csrf_token || csrfToken;
+      permissions = response.permissions || permissions;
+      fillHosts();
+      $('#addButton').toggle(Number(permissions.can_create) === 1);
+    }).fail(function (xhr) {
+      showNotice(errorText(xhr), 'error');
+    });
+  }
+
+  function filterData() {
+    return {
+      search: $.trim($('#searchInput').val()),
+      status: $('#statusFilter').val(),
+      host_usr_uid: $('#hostFilter').val(),
+      date_from_fa: toLatinDigits($.trim($('#dateFrom').val())),
+      date_to_fa: toLatinDigits($.trim($('#dateTo').val())),
+      page: page,
+      page_size: pageSize
+    };
+  }
+
+  function loadVisits() {
+    hideNotice();
+    $('#ledger').empty().append($('<div>').addClass('empty').text('در حال دریافت اطلاعات…'));
+    return api('list', filterData()).done(function (response) {
+      csrfToken = response.csrf_token || csrfToken;
+      permissions = response.permissions || permissions;
+      total = Number((response.pagination && response.pagination.total) || 0);
+      renderSummary(response.summary || {});
+      renderTable(response.data || []);
+      renderPagination();
+      $('#addButton').toggle(Number(permissions.can_create) === 1);
+    }).fail(function (xhr) {
+      $('#ledger').empty().append($('<div>').addClass('empty').text('اطلاعات قابل نمایش نیست.'));
+      showNotice(errorText(xhr), 'error');
+    });
+  }
+
+  function renderSummary(summary) {
+    $('#todayCount').text(faNumber(summary.today_count));
+    $('#insideCount').text(faNumber(summary.inside_count));
+    $('#completedCount').text(faNumber(summary.completed_count));
+    $('#totalCount').text(faNumber(summary.total));
+  }
+
+  function renderTable(rows) {
+    var ledger = $('#ledger').empty();
+    if (!rows.length) {
+      ledger.append($('<div>').addClass('empty').text('رکوردی با این فیلتر پیدا نشد.'));
+      return;
+    }
+    var table = $('<table>');
+    var head = $('<tr>');
+    $.each(['مراجعه‌کننده', 'موضوع مراجعه', 'ملاقات با', 'تاریخ و ورود', 'خروج', 'مدت حضور', 'وضعیت', 'عملیات'], function (_, label) {
+      head.append($('<th>').text(label));
+    });
+    table.append($('<thead>').append(head));
+    var body = $('<tbody>');
+
+    $.each(rows, function (_, row) {
+      var inside = row.visit_status === 'inside';
+      var tr = $('<tr>').toggleClass('row-inside', inside);
+      var visitorCell = $('<td>').append($('<span>').addClass('visitor-name').text(row.visitor_name));
+      if (row.organization_name) visitorCell.append($('<span>').addClass('secondary').text(row.organization_name));
+      tr.append(visitorCell);
+      tr.append($('<td>').addClass('purpose').text(row.purpose));
+      tr.append($('<td>').text(row.host_name_snapshot));
+      tr.append($('<td>').append($('<span>').attr('dir', 'ltr').text(row.visit_date_fa + ' · ' + timePart(row.entered_at))));
+      tr.append($('<td>').append(row.exited_at ? $('<span>').attr('dir', 'ltr').text(isoDateToJalali(row.exited_at) + ' · ' + timePart(row.exited_at)) : $('<span>').addClass('secondary').text('ثبت نشده')));
+      tr.append($('<td>').text(formatDuration(row.duration_minutes)));
+      tr.append($('<td>').append($('<span>').addClass('badge ' + (inside ? 'badge-inside' : 'badge-completed')).text(inside ? 'داخل مجموعه' : 'خارج شده')));
+
+      var actions = $('<div>').addClass('row-actions');
+      if (inside && Number(permissions.can_update) === 1) {
+        actions.append($('<button>').attr('type', 'button').addClass('btn btn-accent btn-small').text('ثبت خروج').on('click', function () { checkout(row); }));
+      }
+      if (Number(permissions.can_update) === 1) {
+        actions.append($('<button>').attr('type', 'button').addClass('btn btn-light btn-small').text('ویرایش').on('click', function () { openEdit(row.id); }));
+      }
+      if (Number(permissions.can_delete) === 1) {
+        actions.append($('<button>').attr('type', 'button').addClass('btn btn-danger btn-small').text('حذف').on('click', function () { removeVisit(row); }));
+      }
+      tr.append($('<td>').append(actions));
+      body.append(tr);
+    });
+
+    table.append(body);
+    ledger.append(table);
+  }
+
+  function renderPagination() {
+    var maxPage = Math.max(1, Math.ceil(total / pageSize));
+    $('#pageLabel').text('صفحه ' + faNumber(page) + ' از ' + faNumber(maxPage));
+    $('#previousButton').prop('disabled', page <= 1);
+    $('#nextButton').prop('disabled', page >= maxPage);
+  }
+
+  function resetForm() {
+    $('#visitId,#visitorName,#organizationName,#purpose,#manualHostName,#exitDate,#exitTime,#notes').val('');
+    $('#hostSelect').val('');
+    $('#visitDate').val(todayJalali());
+    $('#entryTime').val(currentTime());
+    $('#manualHostField,.exit-fields').hide();
+    $('#formError').hide().text('');
+  }
+
+  function openCreate() {
+    resetForm();
+    $('#dialogTitle').text('ثبت ورود جدید');
+    $('#saveButton').text('ثبت ورود');
+    $('#formOverlay').addClass('open');
+    setTimeout(function () { $('#visitorName').focus(); }, 50);
+  }
+
+  function openEdit(id) {
+    resetForm();
+    api('get', { id: id }).done(function (response) {
+      var visit = response.data;
+      $('#visitId').val(visit.id);
+      $('#visitorName').val(visit.visitor_name);
+      $('#organizationName').val(visit.organization_name || '');
+      $('#purpose').val(visit.purpose);
+      $('#visitDate').val(visit.visit_date_fa);
+      $('#entryTime').val(timePart(visit.entered_at));
+      $('#notes').val(visit.notes || '');
+      if (visit.host_usr_uid && $('#hostSelect option[value="' + visit.host_usr_uid + '"]').length) {
+        $('#hostSelect').val(visit.host_usr_uid);
+      } else {
+        $('#hostSelect').val('__manual__');
+        $('#manualHostName').val(visit.host_name_snapshot);
+        $('#manualHostField').show();
+      }
+      $('.exit-fields').show();
+      if (visit.exited_at) {
+        $('#exitDate').val(isoDateToJalali(visit.exited_at));
+        $('#exitTime').val(timePart(visit.exited_at));
+      }
+      $('#dialogTitle').text('ویرایش مراجعه');
+      $('#saveButton').text('ذخیره تغییرات');
+      $('#formOverlay').addClass('open');
+    }).fail(function (xhr) { showNotice(errorText(xhr), 'error'); });
+  }
+
+  function formData() {
+    var hostValue = $('#hostSelect').val();
+    return {
+      id: $('#visitId').val(),
+      visitor_name: $.trim($('#visitorName').val()),
+      organization_name: $.trim($('#organizationName').val()),
+      purpose: $.trim($('#purpose').val()),
+      host_usr_uid: hostValue && hostValue !== '__manual__' ? hostValue : '',
+      host_name_snapshot: hostValue === '__manual__' ? $.trim($('#manualHostName').val()) : $('#hostSelect option:selected').text(),
+      visit_date_fa: toLatinDigits($.trim($('#visitDate').val())),
+      entry_time: $('#entryTime').val(),
+      exit_date_fa: toLatinDigits($.trim($('#exitDate').val())),
+      exit_time: $('#exitTime').val(),
+      notes: $.trim($('#notes').val())
+    };
+  }
+
+  function validateForm(data) {
+    if (!data.visitor_name) return 'نام مراجعه‌کننده را وارد کنید.';
+    if (!data.purpose) return 'موضوع مراجعه را وارد کنید.';
+    if (!data.host_usr_uid && !data.host_name_snapshot) return 'میزبان را انتخاب یا نام او را وارد کنید.';
+    if (!/^1[34][0-9]{2}\/(0[1-9]|1[0-2])\/([0-2][0-9]|3[01])$/.test(data.visit_date_fa)) return 'تاریخ مراجعه را با قالب YYYY/MM/DD وارد کنید.';
+    if (!/^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(data.entry_time)) return 'ساعت ورود معتبر نیست.';
+    if ((data.exit_date_fa && !data.exit_time) || (!data.exit_date_fa && data.exit_time)) return 'تاریخ و ساعت خروج را با هم وارد کنید.';
+    return '';
+  }
+
+  function saveVisit() {
+    var data = formData();
+    var error = validateForm(data);
+    if (error) { $('#formError').text(error).show(); return; }
+    var action = data.id ? 'update' : 'create';
+    $('#saveButton').prop('disabled', true);
+    api(action, data).done(function () {
+      var message = action === 'create' ? 'ورود مراجعه‌کننده ثبت شد.' : 'تغییرات ذخیره شد.';
+      closeDialog();
+      loadVisits().done(function () { showNotice(message, 'success'); });
+    }).fail(function (xhr) {
+      $('#formError').text(errorText(xhr)).show();
+    }).always(function () {
+      $('#saveButton').prop('disabled', false);
+    });
+  }
+
+  function checkout(row) {
+    if (!window.confirm('خروج «' + row.visitor_name + '» در زمان فعلی ثبت شود؟')) return;
+    api('checkout', { id: row.id }).done(function () {
+      loadVisits().done(function () { showNotice('خروج مراجعه‌کننده ثبت شد.', 'success'); });
+    }).fail(function (xhr) { showNotice(errorText(xhr), 'error'); });
+  }
+
+  function removeVisit(row) {
+    if (!window.confirm('رکورد مراجعه «' + row.visitor_name + '» حذف شود؟')) return;
+    api('delete', { id: row.id }).done(function () {
+      loadVisits().done(function () { showNotice('رکورد مراجعه حذف شد.', 'success'); });
+    }).fail(function (xhr) { showNotice(errorText(xhr), 'error'); });
+  }
+
+  function closeDialog() { $('#formOverlay').removeClass('open'); }
+
+  $('#hostSelect').on('change', function () {
+    $('#manualHostField').toggle($(this).val() === '__manual__');
+    if ($(this).val() !== '__manual__') $('#manualHostName').val('');
+  });
+  $('#addButton').on('click', openCreate);
+  $('#saveButton').on('click', saveVisit);
+  $('#cancelButton,#closeButton').on('click', closeDialog);
+  $('#formOverlay').on('click', function (event) { if (event.target === this) closeDialog(); });
+  $('#filterButton').on('click', function () { page = 1; loadVisits(); });
+  $('#resetButton').on('click', function () {
+    $('#searchInput,#statusFilter,#hostFilter,#dateFrom,#dateTo').val('');
+    page = 1;
+    loadVisits();
+  });
+  $('#searchInput').on('keydown', function (event) { if (event.which === 13) { page = 1; loadVisits(); } });
+  $('#previousButton').on('click', function () { if (page > 1) { page--; loadVisits(); } });
+  $('#nextButton').on('click', function () { if (page * pageSize < total) { page++; loadVisits(); } });
+  $(document).on('keydown', function (event) { if (event.which === 27) closeDialog(); });
+
+  loadLookups().done(loadVisits);
+})(jQuery);
+</script>
+</body>
+</html>

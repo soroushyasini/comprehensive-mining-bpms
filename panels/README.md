@@ -9,6 +9,7 @@ These are the deployable Panel WebControl files corresponding to the secured API
 | `emcore_mines_panel.html` | `/emcore_api/emcore_mines.php` | `mines` |
 | `emcore_mine_technical_managers_panel.html` | `/emcore_api/emcore_mine_technical_managers.php` | `mine_technical_managers` |
 | `emcore_drilling_reports_panel.html` | `/emcore_api/emcore_drilling_reports.php` | `drilling_daily_reports` |
+| `emcore_visitor_log_panel.html` | `/emcore_api/emcore_visitor_log.php` | `visitor_log` |
 
 ## Security integration
 
