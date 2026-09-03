@@ -4,7 +4,7 @@
 **Runtime:** ProcessMaker 3.8, PHP, MySQL, HTML/CSS, jQuery Panel WebControls
 **Audience:** EMCORE developers, ProcessMaker administrators, reviewers, and coding agents/LLMs
 **Document role:** Canonical implementation and integration guide
-**Last reviewed:** 2026-08-26
+**Last reviewed:** 2026-09-02
 
 ## 1. Purpose
 
@@ -149,6 +149,7 @@ Do not duplicate database credentials, session logic, or JSON error handling in 
 | `mine_technical_managers` | `emcore_mine_technical_managers`; `emcore_mine_technical_managers.php` | `panels/emcore_mine_technical_managers_panel.html` | Implemented |
 | `drilling_daily_reports` | `emcore_drilling_reports` plus borehole/rig/crew/checklist tables; `emcore_drilling_reports.php` | `panels/emcore_drilling_reports_panel.html` | Deployed; production import verified, panel acceptance pending |
 | `visitor_log` | `emcore_visits`; `emcore_visitor_log.php` | `panels/emcore_visitor_log_panel.html` | Implemented; deployment pending |
+| `trade_documents` | `emcore_trade_cases` plus issuer/document/version/template/attachment/download-log tables; `emcore_trade_documents.php` | `panels/emcore_trade_documents_panel.html` | Implemented; deployment and acceptance pending |
 | `company_persons` | `emcore_company_persons` | Pending | Domain/schema defined |
 | `memberships` | `emcore_memberships` | Pending | Domain/schema defined |
 | `tokens` | `emcore_tokens` | Pending | Security-sensitive; panel/API pending |
@@ -629,6 +630,8 @@ Supported configuration:
 - `EMCORE_DB_USER`
 - `EMCORE_DB_PASSWORD`
 - optional `EMCORE_SESSION_NAME`
+- `EMCORE_TRADE_STORAGE_ROOT` for an existing writable directory outside the web root
+- optional `EMCORE_TRADE_MAX_UPLOAD_BYTES` (defaults to 50 MiB)
 - ignored local `emcore_api/emcore_config.php`
 
 Use `emcore_api/emcore_config.example.php` only as a template. Production should use a least-privilege database user, not MySQL `root`.
@@ -786,6 +789,8 @@ A module is not complete merely because its table or list screen works. It is co
 - `database/migrations/002_emcore_audit_log.sql` — audit schema and initial access.
 - `docs/DRILLING_MODULE.md` — drilling domain, API, checklist, crew, and legacy-mapping contract.
 - `docs/DRILLING_DEPLOYMENT.md` — drilling migration, import, acceptance, and rollback runbook.
+- `docs/TRADE_DOCUMENTS_MODULE.md` — PI-led case, numbering, templates, versioning, and attachment contract.
+- `docs/TRADE_DOCUMENTS_DEPLOYMENT.md` — storage, counter cutover, migration, acceptance, and rollback runbook.
 - `db_schema.md` — core business module reference.
 - `EMCORE_dev_reference_addendum.md` — mines, technical managers, and unified expiry design.
 - `fa_en_date_explainer.md` — date-conversion rationale.

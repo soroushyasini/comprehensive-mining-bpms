@@ -1,6 +1,6 @@
 # EMCORE security and feature roadmap
 
-Last updated: 2026-08-26
+Last updated: 2026-09-02
 
 ## Objective
 
@@ -64,7 +64,7 @@ Status: **implementation started — append-only audit logging added**
 
 Status: **partially implemented**
 
-Current module note: secured company, person, mine, mine-technical-manager, daily-drilling, and visitor-log modules are implemented. Mines support owned, contractor, and personnel-related scopes plus merge lineage. The drilling production migration and API deployment are verified; panel acceptance remains. The arrival-only visitor log has migration, API, panel, authorization, audit, and deployment documentation ready for rollout.
+Current module note: secured company, person, mine, mine-technical-manager, daily-drilling, visitor-log, and trade-document modules are implemented. Mines support owned, contractor, and personnel-related scopes plus merge lineage. The drilling production migration and API deployment are verified; panel acceptance remains. The arrival-only visitor log is ready for rollout. The PI-led trade-document module now includes independent issuer counters, six versioned Word-template slots, PI/CI/PL versions, private attachments, download logging, authorization, audit, panel, and deployment documentation; production rollout and acceptance remain.
 
 Suggested order: companies, persons, company-person relations, mines, mine technical managers, memberships, internet services, attachments, tokens/email accounts after secrets-policy approval, then unified expiry alerts.
 
@@ -73,6 +73,8 @@ A module is complete only with a migration, authorization registration, validate
 Drilling deployment is governed by `docs/DRILLING_DEPLOYMENT.md`. The source contains 2,035 authoritative report rows; imports preserve every legacy ID and never deduplicate same-context reports.
 
 Visitor-log deployment is governed by `docs/VISITOR_LOG_DEPLOYMENT.md`; its domain and API contract are documented in `docs/VISITOR_LOG_MODULE.md`.
+
+Trade-document deployment is governed by `docs/TRADE_DOCUMENTS_DEPLOYMENT.md`; numbering, lifecycle, storage, and API rules are documented in `docs/TRADE_DOCUMENTS_MODULE.md`.
 
 ## Authorization design
 

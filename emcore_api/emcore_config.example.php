@@ -6,4 +6,7 @@ return [
     'db_dsn' => 'mysql:host=127.0.0.1;port=3306;dbname=wf_pishro;charset=utf8mb4',
     'db_user' => 'emcore_app',
     'db_password' => 'replace-with-a-secret',
+    // Must exist, be writable by PHP, and remain outside every web-served directory.
+    'trade_storage_root' => 'C:\\pmlearning\\emcore-private\\trade-documents',
+    'trade_max_upload_bytes' => 52428800,
 ];
