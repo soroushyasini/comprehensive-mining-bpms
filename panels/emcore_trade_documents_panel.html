@@ -253,7 +253,12 @@
   function badge(status) { return $('<span>').addClass('badge s-' + status).text(statusNames[status] || status || '—'); }
   function findTemplate(issuerId, type) { var match = null; $.each(lookups.templates || [], function (_, item) { if (String(item.issuer_id) === String(issuerId) && item.document_type === type) match = item; }); return match; }
   function issuerById(id) { var result = null; $.each(lookups.issuers || [], function (_, item) { if (String(item.id) === String(id)) result = item; }); return result; }
-  function submitDownload(kind, id) { $('#downloadKind').val(kind); $('#downloadId').val(id); $('#downloadForm').trigger('submit'); }
+  function submitDownload(kind, id) {
+    var form = document.getElementById('downloadForm');
+    $('#downloadKind').val(kind); $('#downloadId').val(id);
+    // Native submission bypasses ProcessMaker's Dynaform submit listener and its loading modal.
+    HTMLFormElement.prototype.submit.call(form);
+  }
   function setBusy(button, state, text) { busy = state; button.prop('disabled', state); if (text) { if (state) button.data('old-text', button.text()).text(text); else button.text(button.data('old-text') || button.text()); } }
 
   function loadLookups() {

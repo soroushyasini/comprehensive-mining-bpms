@@ -96,6 +96,8 @@ requireText(storage, 'emcore_trade_download_log', 'download logging is missing')
 requireText(panel, "var API = '/emcore_api/emcore_trade_documents.php'", 'panel API URL is wrong');
 requireText(panel, "['pi', 'ci', 'pl']", 'panel does not render all three template types');
 requireText(panel, 'new FormData()', 'multipart uploads are missing');
+requireText(panel, 'HTMLFormElement.prototype.submit.call(form)', 'downloads must bypass the ProcessMaker Dynaform submit listener');
+if (/downloadForm[^\n]*\.trigger\(['"]submit['"]\)/.test(panel)) failures.push('download form triggers the ProcessMaker Dynaform submit listener');
 if (/\son(?:click|change|submit)\s*=/.test(panel)) failures.push('panel contains an inline event handler');
 if (/\.html\s*\(/.test(panel)) failures.push('panel uses .html() for generated content');
 
