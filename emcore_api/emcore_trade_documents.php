@@ -44,7 +44,8 @@ function emcore_trade_date($name)
 
 function emcore_trade_case_row($db, $id, $forUpdate = false, $includeDeleted = false)
 {
-    $sql = "SELECT c.id, c.issuer_id, c.sequence_number, c.number_year, c.pi_number,
+    $sql = "SELECT c.id, c.issuer_id, c.record_origin, c.sequence_number, c.number_year, c.pi_number,
+                   c.numbering_issue, c.numbering_note,
                    c.direction, c.summary, c.counterparty, c.coordinator_usr_uid,
                    c.case_status, c.notes, c.created_by_usr_uid, c.updated_by_usr_uid,
                    c.created_at, c.updated_at, c.deleted_at,
@@ -64,10 +65,11 @@ function emcore_trade_case_row($db, $id, $forUpdate = false, $includeDeleted = f
 
 function emcore_trade_document_row($db, $id, $forUpdate = false)
 {
-    $sql = "SELECT d.id, d.case_id, d.document_type, d.document_number, d.document_date,
+    $sql = "SELECT d.id, d.case_id, d.document_type, d.record_origin,
+                   d.document_number, d.document_date,
                    d.document_status, d.approved_by_name, d.approved_at,
                    d.status_note, d.updated_by_usr_uid, d.created_at, d.updated_at,
-                   c.pi_number, c.issuer_id, i.issuer_key
+                   c.pi_number, c.issuer_id, c.record_origin AS case_origin, i.issuer_key
             FROM emcore_trade_documents d
             JOIN emcore_trade_cases c ON c.id = d.case_id AND c.deleted_at IS NULL
             JOIN emcore_trade_issuers i ON i.id = c.issuer_id
@@ -80,6 +82,9 @@ function emcore_trade_document_row($db, $id, $forUpdate = false)
 
 function emcore_trade_assert_document_prerequisite($db, $document)
 {
+    if ($document['case_origin'] === 'legacy') {
+        return;
+    }
     if ($document['document_type'] === 'pi') {
         return;
     }
@@ -108,6 +113,57 @@ function emcore_trade_case_input()
         'summary' => emcore_string('summary', true, 500),
         'counterparty' => emcore_string('counterparty', false, 255),
         'notes' => emcore_string('notes', false, 10000),
+    ];
+}
+
+function emcore_trade_legacy_documents_input()
+{
+    $documents = [];
+    foreach (['pi', 'ci', 'pl'] as $type) {
+        $documents[$type] = [
+            'number' => emcore_string($type . '_number', false, 64),
+            'date' => emcore_trade_date($type . '_date'),
+        ];
+    }
+    return $documents;
+}
+
+function emcore_trade_legacy_number_conflicts($db, $documents, $excludeCaseId = null)
+{
+    $numbers = [];
+    foreach ($documents as $document) {
+        if ($document['number'] !== null) {
+            $numbers[] = $document['number'];
+        }
+    }
+    $duplicates = [];
+    foreach (array_count_values($numbers) as $number => $count) {
+        if ($count > 1) {
+            $duplicates[] = $number;
+        }
+    }
+    if (!$numbers) {
+        return ['numbers' => [], 'duplicates' => []];
+    }
+    $placeholders = implode(',', array_fill(0, count($numbers), '?'));
+    $params = $numbers;
+    $excludeSql = '';
+    if ($excludeCaseId !== null) {
+        $excludeSql = ' AND case_id <> ?';
+        $params[] = $excludeCaseId;
+    }
+    $stmt = $db->prepare(
+        "SELECT DISTINCT document_number
+         FROM emcore_trade_documents
+         WHERE document_number IN ({$placeholders}){$excludeSql}"
+    );
+    $stmt->execute($params);
+    return [
+        'numbers' => $numbers,
+        'duplicates' => array_values(array_unique(array_merge(
+            $duplicates,
+            $stmt->fetchAll(PDO::FETCH_COLUMN)
+        ))),
     ];
 }
 
@@ -157,7 +213,7 @@ function emcore_trade_download_row($db, $kind, $id)
 
 $action = emcore_action([
     'lookups', 'list', 'get', 'download',
-    'create', 'update', 'set_document_status',
+    'create', 'create_legacy', 'update', 'set_document_status',
     'upload_document', 'upload_attachment', 'upload_template',
     'delete_file', 'delete',
 ]);
@@ -167,6 +223,7 @@ $capabilityMap = [
     'get' => 'read',
     'download' => 'read',
     'create' => 'create',
+    'create_legacy' => 'create',
     'update' => 'update',
     'set_document_status' => 'update',
     'upload_document' => 'update',
@@ -230,18 +287,26 @@ if ($action === 'list') {
         $where[] = 'c.issuer_id = :issuer_id';
         $params[':issuer_id'] = (int)$issuerRaw;
     }
-    $status = emcore_trade_enum('case_status', ['open', 'completed', 'cancelled'], false);
+    $origin = emcore_trade_enum('record_origin', ['managed', 'legacy'], false);
+    if ($origin !== null) {
+        $where[] = 'c.record_origin = :record_origin';
+        $params[':record_origin'] = $origin;
+    }
+    $status = emcore_trade_enum('case_status', ['open', 'completed', 'cancelled', 'archived'], false);
     if ($status !== null) {
         $where[] = 'c.case_status = :case_status';
         $params[':case_status'] = $status;
     }
     $search = emcore_string('search', false, 100);
     if ($search !== null) {
-        $where[] = '(c.pi_number LIKE :search_number OR c.summary LIKE :search_summary '
-            . 'OR c.counterparty LIKE :search_counterparty)';
-        $params[':search_number'] = '%' . $search . '%';
+        $where[] = '(c.pi_number LIKE :search_pi OR c.summary LIKE :search_summary '
+            . 'OR c.counterparty LIKE :search_counterparty OR EXISTS '
+            . '(SELECT 1 FROM emcore_trade_documents sd '
+            . 'WHERE sd.case_id = c.id AND sd.document_number LIKE :search_document))';
+        $params[':search_pi'] = '%' . $search . '%';
         $params[':search_summary'] = '%' . $search . '%';
         $params[':search_counterparty'] = '%' . $search . '%';
+        $params[':search_document'] = '%' . $search . '%';
     }
     $page = emcore_trade_page_value('page', 1);
     $pageSize = emcore_trade_page_value('page_size', 50, 200);
@@ -251,12 +316,13 @@ if ($action === 'list') {
     $count->execute($params);
     $total = (int)$count->fetchColumn();
     $stmt = $db->prepare(
-        "SELECT c.id, c.pi_number, c.direction, c.summary, c.counterparty,
+        "SELECT c.id, c.pi_number, c.record_origin, c.numbering_issue, c.numbering_note,
+                c.direction, c.summary, c.counterparty,
                 c.case_status, c.coordinator_usr_uid, c.created_at, c.updated_at,
                 i.name_fa AS issuer_name_fa, i.name_en AS issuer_name_en,
-                pi.document_status AS pi_status,
-                ci.document_status AS ci_status,
-                pl.document_status AS pl_status,
+                pi.document_number AS pi_document_number, pi.document_status AS pi_status,
+                ci.document_number AS ci_document_number, ci.document_status AS ci_status,
+                pl.document_number AS pl_document_number, pl.document_status AS pl_status,
                 (SELECT COUNT(*) FROM emcore_trade_attachments a
                  WHERE a.case_id = c.id AND a.deleted_at IS NULL) AS attachment_count
          FROM emcore_trade_cases c
@@ -285,7 +351,7 @@ if ($action === 'get') {
         throw new EmcoreHttpException(404, 'پرونده یافت نشد');
     }
     $documentStmt = $db->prepare(
-        "SELECT id, case_id, document_type, document_number, document_date, document_status,
+        "SELECT id, case_id, document_type, record_origin, document_number, document_date, document_status,
                 approved_by_name, approved_at, status_note, updated_at
          FROM emcore_trade_documents
          WHERE case_id = :case_id
@@ -294,7 +360,7 @@ if ($action === 'get') {
     $documentStmt->execute([':case_id' => $id]);
     $documents = $documentStmt->fetchAll();
     $versionStmt = $db->prepare(
-        "SELECT v.id, v.document_id, v.revision_number, v.version_state,
+        "SELECT v.id, v.document_id, v.revision_number, v.version_state, v.file_role,
                 v.original_filename, v.extension, v.mime_type, v.file_size,
                 v.sha256, v.change_note, v.uploaded_by_usr_uid, v.created_at,
                 TRIM(CONCAT_WS(' ', u.USR_FIRSTNAME, u.USR_LASTNAME)) AS uploaded_by_name
@@ -363,17 +429,37 @@ if ($action === 'create') {
         }
         $year = (int)$db->query('SELECT YEAR(CURDATE())')->fetchColumn();
         $sequence = (int)$issuer['next_sequence'];
-        $piNumber = $issuer['code_prefix'] . $sequence . '-' . $year;
+        $skippedSequences = [];
+        $numberConflictStmt = $db->prepare(
+            "SELECT COUNT(*) FROM emcore_trade_documents
+             WHERE document_number IN (:pi_number, :ci_number, :pl_number)"
+        );
+        do {
+            $piNumber = $issuer['code_prefix'] . $sequence . '-' . $year;
+            $numberConflictStmt->execute([
+                ':pi_number' => $piNumber,
+                ':ci_number' => $piNumber . 'CI',
+                ':pl_number' => $piNumber . 'PL',
+            ]);
+            if ((int)$numberConflictStmt->fetchColumn() === 0) {
+                break;
+            }
+            $skippedSequences[] = $sequence;
+            $sequence++;
+            if (count($skippedSequences) > 10000) {
+                throw new EmcoreHttpException(409, 'شمارهٔ آزاد برای این شرکت پیدا نشد');
+            }
+        } while (true);
         $db->prepare(
-            'UPDATE emcore_trade_issuers SET next_sequence = next_sequence + 1 WHERE id = :id'
-        )->execute([':id' => $issuerId]);
+            'UPDATE emcore_trade_issuers SET next_sequence = :next_sequence WHERE id = :id'
+        )->execute([':next_sequence' => $sequence + 1, ':id' => $issuerId]);
         $caseStmt = $db->prepare(
             "INSERT INTO emcore_trade_cases
-                (issuer_id, sequence_number, number_year, pi_number, direction,
+                (issuer_id, record_origin, sequence_number, number_year, pi_number, direction,
                  summary, counterparty, coordinator_usr_uid, case_status, notes,
                  created_by_usr_uid, updated_by_usr_uid)
              VALUES
-                (:issuer_id, :sequence_number, :number_year, :pi_number, :direction,
+                (:issuer_id, 'managed', :sequence_number, :number_year, :pi_number, :direction,
                  :summary, :counterparty, :coordinator_usr_uid, 'open', :notes,
                  :created_by_usr_uid, :updated_by_usr_uid)"
         );
@@ -393,8 +479,8 @@ if ($action === 'create') {
         $caseId = (int)$db->lastInsertId();
         $documentStmt = $db->prepare(
             "INSERT INTO emcore_trade_documents
-                (case_id, document_type, document_number, document_status, updated_by_usr_uid)
-             VALUES (:case_id, :document_type, :document_number, :document_status, :updated_by_usr_uid)"
+                (case_id, document_type, record_origin, document_number, document_status, updated_by_usr_uid)
+             VALUES (:case_id, :document_type, 'managed', :document_number, :document_status, :updated_by_usr_uid)"
         );
         foreach ([
             ['pi', $piNumber, 'draft'],
@@ -412,6 +498,7 @@ if ($action === 'create') {
         $after = emcore_trade_case_row($db, $caseId, false);
         emcore_audit(EMCORE_TRADE_MODULE, 'create', 'trade_case', $caseId, null, $after, [
             'reserved_sequence' => $sequence,
+            'skipped_sequences' => $skippedSequences,
             'document_numbers' => [$piNumber, $piNumber . 'CI', $piNumber . 'PL'],
         ]);
         $db->commit();
@@ -424,17 +511,138 @@ if ($action === 'create') {
     }
 }
 
+if ($action === 'create_legacy') {
+    $issuerId = emcore_positive_id('issuer_id');
+    $input = emcore_trade_case_input();
+    $documents = emcore_trade_legacy_documents_input();
+    $numberingIssue = emcore_trade_enum('numbering_issue', [
+        'none', 'suspected', 'duplicate', 'missing', 'unknown',
+    ]);
+    $numberingNote = emcore_string('numbering_note', false, 1000);
+    $db->beginTransaction();
+    try {
+        $issuerStmt = $db->prepare(
+            'SELECT id FROM emcore_trade_issuers WHERE id = :id AND is_active = 1 LIMIT 1 FOR UPDATE'
+        );
+        $issuerStmt->execute([':id' => $issuerId]);
+        if (!$issuerStmt->fetchColumn()) {
+            throw new EmcoreHttpException(422, 'شرکت فعال یافت نشد');
+        }
+
+        $numberConflicts = emcore_trade_legacy_number_conflicts($db, $documents);
+        $documentNumbers = $numberConflicts['numbers'];
+        $duplicateNumbers = $numberConflicts['duplicates'];
+        if ($duplicateNumbers) {
+            $numberingIssue = 'duplicate';
+        } elseif (count($documentNumbers) < 3 && $numberingIssue === 'none') {
+            $numberingIssue = 'missing';
+        }
+
+        $caseStmt = $db->prepare(
+            "INSERT INTO emcore_trade_cases
+                (issuer_id, record_origin, sequence_number, number_year, pi_number,
+                 numbering_issue, numbering_note, direction, summary, counterparty,
+                 coordinator_usr_uid, case_status, notes, created_by_usr_uid, updated_by_usr_uid)
+             VALUES
+                (:issuer_id, 'legacy', NULL, NULL, :pi_number,
+                 :numbering_issue, :numbering_note, :direction, :summary, :counterparty,
+                 :coordinator_usr_uid, 'archived', :notes, :created_by_usr_uid, :updated_by_usr_uid)"
+        );
+        $caseStmt->execute([
+            ':issuer_id' => $issuerId,
+            ':pi_number' => $documents['pi']['number'],
+            ':numbering_issue' => $numberingIssue,
+            ':numbering_note' => $numberingNote,
+            ':direction' => $input['direction'],
+            ':summary' => $input['summary'],
+            ':counterparty' => $input['counterparty'],
+            ':coordinator_usr_uid' => $actor['USR_UID'],
+            ':notes' => $input['notes'],
+            ':created_by_usr_uid' => $actor['USR_UID'],
+            ':updated_by_usr_uid' => $actor['USR_UID'],
+        ]);
+        $caseId = (int)$db->lastInsertId();
+        $documentStmt = $db->prepare(
+            "INSERT INTO emcore_trade_documents
+                (case_id, document_type, record_origin, document_number, document_date,
+                 document_status, updated_by_usr_uid)
+             VALUES
+                (:case_id, :document_type, 'legacy', :document_number, :document_date,
+                 'archived', :updated_by_usr_uid)"
+        );
+        foreach ($documents as $type => $document) {
+            $documentStmt->execute([
+                ':case_id' => $caseId,
+                ':document_type' => $type,
+                ':document_number' => $document['number'],
+                ':document_date' => $document['date'],
+                ':updated_by_usr_uid' => $actor['USR_UID'],
+            ]);
+        }
+        $after = emcore_trade_case_row($db, $caseId);
+        emcore_audit(EMCORE_TRADE_MODULE, 'create', 'trade_case', $caseId, null, $after, [
+            'record_origin' => 'legacy',
+            'counter_advanced' => false,
+            'document_numbers' => $documentNumbers,
+            'duplicate_numbers' => $duplicateNumbers,
+        ]);
+        $db->commit();
+        emcore_json([
+            'success' => true,
+            'id' => $caseId,
+            'reference' => $documents['pi']['number']
+                ?: ($documents['ci']['number'] ?: ($documents['pl']['number'] ?: ('سابقه #' . $caseId))),
+            'duplicate_numbers' => $duplicateNumbers,
+        ], 201);
+    } catch (Throwable $exception) {
+        if ($db->inTransaction()) {
+            $db->rollBack();
+        }
+        throw $exception;
+    }
+}
+
 if ($action === 'update') {
     $id = emcore_positive_id('id');
     $input = emcore_trade_case_input();
-    $caseStatus = emcore_trade_enum('case_status', ['open', 'completed', 'cancelled']);
+    $caseStatus = emcore_trade_enum('case_status', ['open', 'completed', 'cancelled', 'archived']);
+    $legacyDocuments = emcore_trade_legacy_documents_input();
+    $numberingIssue = emcore_trade_enum('numbering_issue', [
+        'none', 'suspected', 'duplicate', 'missing', 'unknown',
+    ], false);
+    $numberingNote = emcore_string('numbering_note', false, 1000);
     $db->beginTransaction();
     try {
         $before = emcore_trade_case_row($db, $id, true);
         if (!$before) {
             throw new EmcoreHttpException(404, 'پرونده یافت نشد');
         }
-        if ($caseStatus === 'completed') {
+        if ($before['record_origin'] === 'managed' && $caseStatus === 'archived') {
+            throw new EmcoreHttpException(422, 'پروندهٔ جاری را نمی‌توان به سابقهٔ قبلی تبدیل کرد');
+        }
+        if ($before['record_origin'] === 'legacy' && !in_array($caseStatus, ['archived', 'cancelled'], true)) {
+            throw new EmcoreHttpException(422, 'وضعیت سابقهٔ قبلی نامعتبر است');
+        }
+        $duplicateNumbers = [];
+        $legacyIssuerId = null;
+        if ($before['record_origin'] === 'legacy') {
+            $legacyIssuerId = emcore_positive_id('issuer_id');
+            $issuerStmt = $db->prepare(
+                'SELECT id FROM emcore_trade_issuers WHERE id = :id AND is_active = 1 LIMIT 1 FOR UPDATE'
+            );
+            $issuerStmt->execute([':id' => $legacyIssuerId]);
+            if (!$issuerStmt->fetchColumn()) {
+                throw new EmcoreHttpException(422, 'شرکت فعال یافت نشد');
+            }
+            $numberConflicts = emcore_trade_legacy_number_conflicts($db, $legacyDocuments, $id);
+            $duplicateNumbers = $numberConflicts['duplicates'];
+            if ($duplicateNumbers) {
+                $numberingIssue = 'duplicate';
+            } elseif (count($numberConflicts['numbers']) < 3 && ($numberingIssue === null || $numberingIssue === 'none')) {
+                $numberingIssue = 'missing';
+            }
+        }
+        if ($before['record_origin'] === 'managed' && $caseStatus === 'completed') {
             $completedStmt = $db->prepare(
                 "SELECT COUNT(*)
                  FROM emcore_trade_documents
@@ -446,14 +654,7 @@ if ($action === 'update') {
                 throw new EmcoreHttpException(409, 'برای تکمیل پرونده، هر سه سند PI، CI و PL باید تأیید یا صادر شده باشند');
             }
         }
-        $stmt = $db->prepare(
-            "UPDATE emcore_trade_cases
-             SET direction = :direction, summary = :summary, counterparty = :counterparty,
-                 case_status = :case_status, notes = :notes,
-                 updated_by_usr_uid = :updated_by_usr_uid, updated_at = NOW()
-             WHERE id = :id AND deleted_at IS NULL"
-        );
-        $stmt->execute([
+        $params = [
             ':direction' => $input['direction'],
             ':summary' => $input['summary'],
             ':counterparty' => $input['counterparty'],
@@ -461,11 +662,49 @@ if ($action === 'update') {
             ':notes' => $input['notes'],
             ':updated_by_usr_uid' => $actor['USR_UID'],
             ':id' => $id,
-        ]);
+        ];
+        $legacySet = '';
+        if ($before['record_origin'] === 'legacy') {
+            $legacySet = ', issuer_id = :legacy_issuer_id, pi_number = :pi_number, numbering_issue = :numbering_issue, '
+                . 'numbering_note = :numbering_note';
+            $params[':legacy_issuer_id'] = $legacyIssuerId;
+            $params[':pi_number'] = $legacyDocuments['pi']['number'];
+            $params[':numbering_issue'] = $numberingIssue ?: 'none';
+            $params[':numbering_note'] = $numberingNote;
+        }
+        $stmt = $db->prepare(
+            "UPDATE emcore_trade_cases
+             SET direction = :direction, summary = :summary, counterparty = :counterparty,
+                 case_status = :case_status, notes = :notes{$legacySet},
+                 updated_by_usr_uid = :updated_by_usr_uid, updated_at = NOW()
+             WHERE id = :id AND deleted_at IS NULL"
+        );
+        $stmt->execute($params);
+        if ($before['record_origin'] === 'legacy') {
+            $documentStmt = $db->prepare(
+                "UPDATE emcore_trade_documents
+                 SET document_number = :document_number, document_date = :document_date,
+                     updated_by_usr_uid = :updated_by_usr_uid, updated_at = NOW()
+                 WHERE case_id = :case_id AND document_type = :document_type"
+            );
+            foreach ($legacyDocuments as $type => $document) {
+                $documentStmt->execute([
+                    ':document_number' => $document['number'],
+                    ':document_date' => $document['date'],
+                    ':updated_by_usr_uid' => $actor['USR_UID'],
+                    ':case_id' => $id,
+                    ':document_type' => $type,
+                ]);
+            }
+        }
         $after = emcore_trade_case_row($db, $id);
-        emcore_audit(EMCORE_TRADE_MODULE, 'update', 'trade_case', $id, $before, $after);
+        emcore_audit(EMCORE_TRADE_MODULE, 'update', 'trade_case', $id, $before, $after, [
+            'legacy_document_numbers' => $before['record_origin'] === 'legacy'
+                ? array_column($legacyDocuments, 'number')
+                : null,
+        ]);
         $db->commit();
-        emcore_json(['success' => true]);
+        emcore_json(['success' => true, 'duplicate_numbers' => $duplicateNumbers]);
     } catch (Throwable $exception) {
         if ($db->inTransaction()) {
             $db->rollBack();
@@ -487,6 +726,9 @@ if ($action === 'set_document_status') {
         $before = emcore_trade_document_row($db, $documentId, true);
         if (!$before) {
             throw new EmcoreHttpException(404, 'سند یافت نشد');
+        }
+        if ($before['case_origin'] === 'legacy') {
+            throw new EmcoreHttpException(409, 'وضعیت اسناد سابقهٔ قبلی از مسیر ویرایش همان سابقه ثبت می‌شود');
         }
         if ($status !== 'not_started') {
             emcore_trade_assert_document_prerequisite($db, $before);
@@ -537,6 +779,9 @@ if ($action === 'set_document_status') {
 if ($action === 'upload_document') {
     $documentId = emcore_positive_id('document_id');
     $isFinal = emcore_post_bool('is_final');
+    $requestedFileRole = emcore_trade_enum('file_role', [
+        'editable', 'issued_copy', 'other',
+    ], false);
     $changeNote = emcore_string('change_note', false, 1000);
     $file = null;
     $db->beginTransaction();
@@ -546,6 +791,9 @@ if ($action === 'upload_document') {
             throw new EmcoreHttpException(404, 'سند یافت نشد');
         }
         emcore_trade_assert_document_prerequisite($db, $document);
+        $isLegacy = $document['case_origin'] === 'legacy';
+        $fileRole = $isLegacy ? ($requestedFileRole ?: 'other') : 'revision';
+        $versionState = $isLegacy ? 'historical' : ($isFinal ? 'final' : 'draft');
         $revisionStmt = $db->prepare(
             'SELECT COALESCE(MAX(revision_number), 0) + 1 FROM emcore_trade_document_versions WHERE document_id = :id'
         );
@@ -559,23 +807,25 @@ if ($action === 'upload_document') {
         $params = emcore_trade_file_insert_values($file);
         $params[':document_id'] = $documentId;
         $params[':revision_number'] = $revision;
-        $params[':version_state'] = $isFinal ? 'final' : 'draft';
+        $params[':version_state'] = $versionState;
+        $params[':file_role'] = $fileRole;
         $params[':change_note'] = $changeNote;
         $params[':uploaded_by_usr_uid'] = $actor['USR_UID'];
         $stmt = $db->prepare(
             "INSERT INTO emcore_trade_document_versions
-                (document_id, revision_number, version_state, original_filename,
+                (document_id, revision_number, version_state, file_role, original_filename,
                  stored_filename, storage_path, extension, mime_type, file_size,
                  sha256, change_note, uploaded_by_usr_uid)
              VALUES
-                (:document_id, :revision_number, :version_state, :original_filename,
+                (:document_id, :revision_number, :version_state, :file_role, :original_filename,
                  :stored_filename, :storage_path, :extension, :mime_type, :file_size,
                  :sha256, :change_note, :uploaded_by_usr_uid)"
         );
         $stmt->execute($params);
         $versionId = (int)$db->lastInsertId();
-        $newStatus = $isFinal ? 'issued' : 'draft';
-        $approvalResetSql = $isFinal ? '' : ', approved_by_name = NULL, approved_at = NULL';
+        $newStatus = $isLegacy ? 'archived' : ($isFinal ? 'issued' : 'draft');
+        $approvalReset = !$isLegacy && !$isFinal;
+        $approvalResetSql = $approvalReset ? ', approved_by_name = NULL, approved_at = NULL' : '';
         $db->prepare(
             "UPDATE emcore_trade_documents
              SET document_status = :status, updated_by_usr_uid = :usr_uid,
@@ -586,7 +836,8 @@ if ($action === 'upload_document') {
             'id' => $versionId,
             'document_id' => $documentId,
             'revision_number' => $revision,
-            'version_state' => $isFinal ? 'final' : 'draft',
+            'version_state' => $versionState,
+            'file_role' => $fileRole,
             'original_filename' => $file['original_filename'],
             'extension' => $file['extension'],
             'file_size' => $file['file_size'],
@@ -603,7 +854,7 @@ if ($action === 'upload_document') {
             [
                 'document_status_before' => $document['document_status'],
                 'document_status_after' => $newStatus,
-                'approval_reset' => !$isFinal,
+                'approval_reset' => $approvalReset,
             ]
         );
         $db->commit();

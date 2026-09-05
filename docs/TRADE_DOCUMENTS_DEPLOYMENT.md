@@ -128,6 +128,24 @@ Migration قابل اجرای دوباره است. جدول‌های پروند�
 
 اعداد `21` و `44` در این دستور نمونهٔ مقادیر فعلی‌اند. پس از نخستین رزرو، کانتر را عقب نبرید و شمارهٔ حذف‌شده را دوباره مصرف نکنید.
 
+## فعال‌سازی ثبت سوابق قبلی
+
+پس از migration اصلی، migration سوابق قبلی را اجرا کنید. در سروری که migration شمارهٔ ۰۰۷ قبلاً اجرا شده است، فقط همین مرحلهٔ جدید لازم است:
+
+~~~bat
+"%MYSQL_BIN%\mysql.exe" -h 127.0.0.1 -P 3306 -u root -p --default-character-set=utf8mb4 --show-warnings "%PM_DATABASE%" < "%EMCORE_RELEASE%\database\migrations\008_emcore_trade_legacy_records.sql"
+~~~
+
+این migration قابل اجرای دوباره است. رکوردهای موجود را مدیریت‌شده نگه می‌دارد، یکتایی شماره‌های جاری را حفظ می‌کند و شماره‌های خالی یا تکراری را فقط برای سوابق قبلی مجاز می‌سازد.
+
+ساختار جدید را کنترل کنید:
+
+~~~bat
+"%MYSQL_BIN%\mysql.exe" -h 127.0.0.1 -P 3306 -u root -p --default-character-set=utf8mb4 "%PM_DATABASE%" -e "SELECT TABLE_NAME,COLUMN_NAME,IS_NULLABLE,EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND ((TABLE_NAME='emcore_trade_cases' AND COLUMN_NAME IN ('record_origin','numbering_issue','numbering_note','managed_pi_number')) OR (TABLE_NAME='emcore_trade_documents' AND COLUMN_NAME IN ('record_origin','managed_document_number')) OR (TABLE_NAME='emcore_trade_document_versions' AND COLUMN_NAME='file_role')) ORDER BY TABLE_NAME,ORDINAL_POSITION; SELECT TABLE_NAME,INDEX_NAME,NON_UNIQUE FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND INDEX_NAME IN ('uq_emcore_trade_cases_managed_pi','uq_emcore_trade_documents_managed_number') ORDER BY TABLE_NAME;"
+~~~
+
+باید هفت ستون و دو شاخص یکتای مدیریت‌شده دیده شوند. اجرای migration نباید مقدار next_sequence هیچ شرکتی را تغییر دهد.
+
 ## استقرار API
 
 هر دو فایل زیر برای اجرای ماژول لازم‌اند:
@@ -201,6 +219,11 @@ curl.exe -i -X POST -d "action=list" "http://PROCESSMAKER_HOST/emcore_api/emcore
 - بارگذاری پیش‌نویس جدید پس از تأیید باید وضعیت را به draft برگرداند و تأیید قبلی را پاک کند.
 - پسوند غیرمجاز، MIME ناسازگار و فایل بزرگ‌تر از سقف باید رد شوند.
 - بارنامه، گواهی مبدأ، MTC یا قبض باسکول باید زیر همان پرونده دیده و دانلود شود.
+- ثبت سابقهٔ قبلی باید شماره‌های PI، CI و PL را عیناً بپذیرد و next_sequence را تغییر ندهد.
+- شماره‌های خالی یا تکراری باید برای سابقهٔ قبلی مجاز و در رابط علامت‌گذاری شوند.
+- Word و PDF یک سند تاریخی باید با نقش‌های جداگانه و بدون تغییر وضعیت به پیش‌نویس یا صادرشده ثبت شوند.
+- جست‌وجو باید شمارهٔ CI یا PL سابقه‌ای را که PI ندارد نیز پیدا کند.
+- ایجاد پروندهٔ جدید باید از شماره‌ای که قبلاً در سوابق تاریخی ثبت شده عبور کند.
 - تکمیل پرونده پیش از تأیید یا صدور هر سه سند باید با `409` رد شود.
 - درخواست نوشتن بدون CSRF معتبر باید `403` برگرداند.
 - متن فارسی و payload شامل HTML یا script باید به‌صورت متن نمایش داده شود و اجرا نشود.
@@ -211,7 +234,7 @@ curl.exe -i -X POST -d "action=list" "http://PROCESSMAKER_HOST/emcore_api/emcore
 ## بررسی پس از استقرار
 
 ```bat
-"%MYSQL_BIN%\mysql.exe" -h 127.0.0.1 -P 3306 -u root -p --default-character-set=utf8mb4 "%PM_DATABASE%" -e "SELECT issuer_key,code_prefix,next_sequence FROM emcore_trade_issuers ORDER BY id; SELECT COUNT(*) AS active_cases FROM emcore_trade_cases WHERE deleted_at IS NULL; SELECT document_type,document_status,COUNT(*) AS document_count FROM emcore_trade_documents GROUP BY document_type,document_status ORDER BY document_type,document_status; SELECT action,COUNT(*) AS audit_rows FROM emcore_audit_log WHERE module_key='trade_documents' GROUP BY action; SELECT actor_usr_uid,file_kind,original_filename,created_at FROM emcore_trade_download_log ORDER BY id DESC LIMIT 20;"
+"%MYSQL_BIN%\mysql.exe" -h 127.0.0.1 -P 3306 -u root -p --default-character-set=utf8mb4 "%PM_DATABASE%" -e "SELECT issuer_key,code_prefix,next_sequence FROM emcore_trade_issuers ORDER BY id; SELECT record_origin,COUNT(*) AS active_cases FROM emcore_trade_cases WHERE deleted_at IS NULL GROUP BY record_origin; SELECT document_type,document_status,COUNT(*) AS document_count FROM emcore_trade_documents GROUP BY document_type,document_status ORDER BY document_type,document_status; SELECT action,COUNT(*) AS audit_rows FROM emcore_audit_log WHERE module_key='trade_documents' GROUP BY action; SELECT actor_usr_uid,file_kind,original_filename,created_at FROM emcore_trade_download_log ORDER BY id DESC LIMIT 20;"
 ```
 
 وجود فایل‌های ذخیره‌شده و رشد مصرف دیسک را نیز کنترل کنید:

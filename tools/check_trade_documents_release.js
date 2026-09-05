@@ -55,6 +55,7 @@ function checkPhpDelimiters(source, label) {
 }
 
 const migration = read('database/migrations/007_emcore_trade_documents.sql');
+const legacyMigration = read('database/migrations/008_emcore_trade_legacy_records.sql');
 const endpoint = read('emcore_api/emcore_trade_documents.php');
 const storage = read('emcore_api/_trade_storage.php');
 const panel = read('panels/emcore_trade_documents_panel.html');
@@ -73,10 +74,15 @@ requireText(migration, "('emidco', 'امیدکو', 'EMIDCO', 'EMDEX', 21, 1)", '
 requireText(migration, "('emidco_metal', 'امیدکو متال', 'EMIDCO METAL', 'EMDMET', 44, 1)", 'EMIDCO METAL cutover counter is not 44');
 requireText(migration, "VALUES ('trade_documents'", 'trade_documents module registration is missing');
 requireText(migration, 'document_date DATE', 'official document date is missing');
+requireText(legacyMigration, 'ADD COLUMN record_origin', 'legacy record origin is missing');
+requireText(legacyMigration, 'GENERATED ALWAYS AS', 'managed-only number uniqueness is missing');
+requireText(legacyMigration, 'managed_pi_number', 'managed PI uniqueness key is missing');
+requireText(legacyMigration, 'managed_document_number', 'managed document uniqueness key is missing');
+requireText(legacyMigration, 'ADD COLUMN file_role', 'historical file role is missing');
 
 [
   "'lookups' => 'read'", "'list' => 'read'", "'get' => 'read'", "'download' => 'read'",
-  "'create' => 'create'", "'update' => 'update'", "'set_document_status' => 'update'",
+  "'create' => 'create'", "'create_legacy' => 'create'", "'update' => 'update'", "'set_document_status' => 'update'",
   "'upload_document' => 'update'", "'upload_attachment' => 'update'", "'upload_template' => 'update'",
   "'delete_file' => 'delete'", "'delete' => 'delete'",
 ].forEach((mapping) => requireText(endpoint, mapping, `missing capability mapping ${mapping}`));
@@ -85,6 +91,10 @@ requireText(endpoint, 'emcore_require_csrf();', 'write CSRF enforcement is missi
 requireText(endpoint, 'FOR UPDATE', 'counter/version locking is missing');
 requireText(endpoint, 'emcore_trade_assert_document_prerequisite', 'PI to CI to PL prerequisite is missing');
 requireText(endpoint, "document_status IN ('approved', 'issued')", 'case completion guard is missing');
+requireText(endpoint, "if ($action === 'create_legacy')", 'legacy create action is missing');
+requireText(endpoint, "'counter_advanced' => false", 'legacy create must not advance the issuer counter');
+requireText(endpoint, '$skippedSequences', 'managed numbering does not skip historical conflicts');
+requireText(endpoint, "'file_role' => $fileRole", 'historical file role is not audited');
 
 requireText(storage, "getenv('EMCORE_TRADE_STORAGE_ROOT')", 'storage environment configuration is missing');
 requireText(storage, "$_SERVER['DOCUMENT_ROOT']", 'web-root containment check is missing');
@@ -96,10 +106,16 @@ requireText(storage, 'emcore_trade_download_log', 'download logging is missing')
 requireText(panel, "var API = '/emcore_api/emcore_trade_documents.php'", 'panel API URL is wrong');
 requireText(panel, "['pi', 'ci', 'pl']", 'panel does not render all three template types');
 requireText(panel, 'new FormData()', 'multipart uploads are missing');
+requireText(panel, 'id="legacyBtn"', 'legacy record button is missing');
+requireText(panel, "api(action, data)", 'case create mode dispatch is missing');
+requireText(panel, "data.append('file_role'", 'historical file role upload is missing');
 requireText(panel, 'HTMLFormElement.prototype.submit.call(form)', 'downloads must bypass the ProcessMaker Dynaform submit listener');
 if (/downloadForm[^\n]*\.trigger\(['"]submit['"]\)/.test(panel)) failures.push('download form triggers the ProcessMaker Dynaform submit listener');
 if (/\son(?:click|change|submit)\s*=/.test(panel)) failures.push('panel contains an inline event handler');
 if (/\.html\s*\(/.test(panel)) failures.push('panel uses .html() for generated content');
+const panelIds = [...panel.matchAll(/\sid="([^"]+)"/g)].map((match) => match[1]);
+const duplicatePanelIds = panelIds.filter((id, index) => panelIds.indexOf(id) !== index);
+if (duplicatePanelIds.length) failures.push('panel contains duplicate ids: ' + [...new Set(duplicatePanelIds)].join(', '));
 
 const scripts = [...panel.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].map((match) => match[1]);
 if (!scripts.length) failures.push('panel script block is missing');

@@ -46,7 +46,7 @@
     .notice { display: none; margin-bottom: 12px; padding: 10px 12px; border-right: 4px solid var(--danger); background: #fff0ed; color: #7d2925; }
     .notice.ok { border-color: var(--green); background: #e9f5ed; color: #28543b; }
     .storage-warning { display: none; margin-bottom: 12px; padding: 11px 13px; background: #fff2cd; border-right: 4px solid var(--gold); color: #685018; }
-    .filters { display: grid; grid-template-columns: 1.5fr repeat(2, 1fr) auto auto; gap: 9px; padding: 13px; margin-bottom: 14px; border: 1px solid var(--line); background: #f8f5ed; align-items: end; }
+    .filters { display: grid; grid-template-columns: 1.5fr repeat(3, 1fr) auto auto; gap: 9px; padding: 13px; margin-bottom: 14px; border: 1px solid var(--line); background: #f8f5ed; align-items: end; }
     .field { display: flex; flex-direction: column; gap: 4px; }
     .field label { color: var(--muted); font-size: 11px; }
     .field input, .field select, .field textarea { width: 100%; min-height: 36px; padding: 7px 9px; border: 1px solid #c9c2b5; background: #fff; color: var(--ink); }
@@ -85,6 +85,10 @@
     .s-revision_requested { background: #f8d9d3; color: #842e28; }
     .s-approved { background: #dff0e5; color: #2a5a3d; }
     .s-issued { background: #d8ebf2; color: #285a70; }
+    .s-archived { background: #eee7d5; color: #66552b; }
+    .origin-badge { display: inline-block; direction: rtl; margin-top: 4px; padding: 2px 6px; border: 1px solid #b78b42; color: #755c2e; background: #fff5dc; font-size: 10px; }
+    .numbering-warning { margin-top: 7px; padding: 7px 9px; border-right: 3px solid var(--gold); background: #fff5dc; color: #6b521e; }
+    .historical-number { display: block; direction: ltr; text-align: left; margin-bottom: 4px; font-size: 11px; overflow-wrap: anywhere; }
     .case-cancelled { opacity: .62; }
     .pager { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 12px; }
     .overlay { display: none; position: fixed; inset: 0; z-index: 1000; padding: 18px 9px; overflow-y: auto; background: rgba(18,25,22,.74); }
@@ -98,6 +102,8 @@
     .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
     .span-2 { grid-column: span 2; }
     .span-4 { grid-column: 1 / -1; }
+    .legacy-fields { display: none; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 12px; border: 1px solid #d8c89e; background: #fff9e9; }
+    .legacy-fields.open { display: grid; }
     .case-summary { margin-bottom: 13px; padding: 12px; background: #edf2ef; border-right: 4px solid var(--green); }
     .case-summary strong { direction: ltr; display: inline-block; }
     .document-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 11px; }
@@ -120,7 +126,7 @@
     .attachment-form .wide { grid-column: span 2; }
     .subtle { color: var(--muted); font-size: 11px; }
     @media (max-width: 1000px) { .filters { grid-template-columns: repeat(2, 1fr); } .template-grid, .document-grid { grid-template-columns: 1fr; } .grid { grid-template-columns: repeat(2, 1fr); } .masthead { align-items: flex-start; flex-direction: column; } }
-    @media (max-width: 640px) { body { padding: 0; } .content, .modal-body { padding: 10px; } .filters, .grid, .attachment-form { grid-template-columns: 1fr; } .span-2, .span-4, .attachment-form .wide { grid-column: auto; } }
+    @media (max-width: 640px) { body { padding: 0; } .content, .modal-body { padding: 10px; } .filters, .grid, .legacy-fields, .attachment-form { grid-template-columns: 1fr; } .span-2, .span-4, .attachment-form .wide { grid-column: auto; } }
   </style>
 </head>
 <body>
@@ -149,14 +155,18 @@
     <section class="filters" aria-label="فیلتر پرونده‌ها">
       <div class="field"><label for="qSearch">جست‌وجو در شماره، شرح یا طرف معامله</label><input id="qSearch" type="search"></div>
       <div class="field"><label for="qIssuer">شرکت صادرکنندهٔ سند</label><select id="qIssuer"></select></div>
-      <div class="field"><label for="qStatus">وضعیت پرونده</label><select id="qStatus"><option value="">همه وضعیت‌ها</option><option value="open">باز</option><option value="completed">تکمیل‌شده</option><option value="cancelled">لغوشده</option></select></div>
+      <div class="field"><label for="qOrigin">نوع ثبت</label><select id="qOrigin"><option value="">همه پرونده‌ها</option><option value="managed">پرونده‌های جدید</option><option value="legacy">سوابق قبلی</option></select></div>
+      <div class="field"><label for="qStatus">وضعیت پرونده</label><select id="qStatus"><option value="">همه وضعیت‌ها</option><option value="open">باز</option><option value="completed">تکمیل‌شده</option><option value="archived">سابقه</option><option value="cancelled">لغوشده</option></select></div>
       <button id="searchBtn" class="btn btn-dark" type="button">اعمال فیلتر</button>
       <button id="resetBtn" class="btn btn-light" type="button">پاک‌کردن</button>
     </section>
 
     <div class="toolbar">
       <span id="resultLabel">۰ پرونده</span>
-      <div class="toolbar-actions"><button id="addBtn" class="btn btn-primary" type="button" style="display:none">پروندهٔ جدید و رزرو PI</button></div>
+      <div class="toolbar-actions">
+        <button id="legacyBtn" class="btn btn-light" type="button" style="display:none">ثبت سابقهٔ قبلی</button>
+        <button id="addBtn" class="btn btn-primary" type="button" style="display:none">پروندهٔ جدید و رزرو PI</button>
+      </div>
     </div>
     <div id="tableHost" class="table-wrap empty">در حال دریافت پرونده‌ها…</div>
     <div class="pager"><button id="prevBtn" class="btn btn-light" type="button">قبلی</button><span id="pageLabel">صفحه ۱</span><button id="nextBtn" class="btn btn-light" type="button">بعدی</button></div>
@@ -169,12 +179,23 @@
     <div class="modal-body">
       <div id="caseError" class="modal-error"></div>
       <input id="caseId" type="hidden">
+      <input id="caseMode" type="hidden" value="managed">
       <div class="grid">
         <div id="issuerField" class="field"><label for="caseIssuer">شرکت *</label><select id="caseIssuer"></select></div>
         <div class="field"><label for="caseDirection">نوع عملیات *</label><select id="caseDirection"><option value="export">صادرات</option><option value="import">واردات</option></select></div>
-        <div id="caseStatusField" class="field" style="display:none"><label for="caseStatus">وضعیت پرونده</label><select id="caseStatus"><option value="open">باز</option><option value="completed">تکمیل‌شده</option><option value="cancelled">لغوشده</option></select></div>
+        <div id="caseStatusField" class="field" style="display:none"><label for="caseStatus">وضعیت پرونده</label><select id="caseStatus"><option value="open">باز</option><option value="completed">تکمیل‌شده</option><option value="archived">سابقه</option><option value="cancelled">لغوشده</option></select></div>
         <div class="field span-2"><label for="caseCounterparty">طرف معامله / تحویل‌گیرنده</label><input id="caseCounterparty" maxlength="255"></div>
         <div class="field span-4"><label for="caseSummary">شرح پرونده *</label><input id="caseSummary" maxlength="500" placeholder="مثال: امیدکو به Rebratone ـ کلاف ۵٫۵ میلی‌متر"></div>
+        <div id="legacyFields" class="legacy-fields span-4">
+          <div class="field"><label for="legacyPiNumber">شمارهٔ PI مطابق اصل سند</label><input id="legacyPiNumber" class="ltr" maxlength="64"></div>
+          <div class="field"><label for="legacyPiDate">تاریخ PI</label><input id="legacyPiDate" type="date"></div>
+          <div class="field"><label for="legacyCiNumber">شمارهٔ CI مطابق اصل سند</label><input id="legacyCiNumber" class="ltr" maxlength="64"></div>
+          <div class="field"><label for="legacyCiDate">تاریخ CI</label><input id="legacyCiDate" type="date"></div>
+          <div class="field"><label for="legacyPlNumber">شمارهٔ PL مطابق اصل سند</label><input id="legacyPlNumber" class="ltr" maxlength="64"></div>
+          <div class="field"><label for="legacyPlDate">تاریخ PL</label><input id="legacyPlDate" type="date"></div>
+          <div class="field"><label for="numberingIssue">وضعیت شماره‌ها</label><select id="numberingIssue"><option value="none">بدون مغایرت شناخته‌شده</option><option value="suspected">مشکوک یا ناهماهنگ</option><option value="duplicate">تکراری</option><option value="missing">یک یا چند شماره موجود نیست</option><option value="unknown">نامشخص</option></select></div>
+          <div class="field span-2"><label for="numberingNote">توضیح مغایرت شماره‌ها</label><input id="numberingNote" maxlength="1000"></div>
+        </div>
         <div class="field span-4"><label for="caseNotes">یادداشت داخلی</label><textarea id="caseNotes" maxlength="10000"></textarea></div>
       </div>
       <p id="numberHint" class="subtle">با ثبت پرونده، شمارهٔ PI از کانتر شرکت رزرو می‌شود و شماره‌های CI و PL از همان شماره ساخته می‌شوند.</p>
@@ -224,8 +245,10 @@
   var total = 0;
   var busy = false;
   var documentNames = { pi: 'پیش‌فاکتور (PI)', ci: 'فاکتور تجاری (CI)', pl: 'فهرست بسته‌بندی (PL)' };
-  var statusNames = { not_started: 'شروع‌نشده', draft: 'پیش‌نویس', under_review: 'در حال بررسی', revision_requested: 'نیازمند اصلاح', approved: 'تأییدشده', issued: 'صادرشده' };
-  var caseStatusNames = { open: 'باز', completed: 'تکمیل‌شده', cancelled: 'لغوشده' };
+  var statusNames = { not_started: 'شروع‌نشده', draft: 'پیش‌نویس', under_review: 'در حال بررسی', revision_requested: 'نیازمند اصلاح', approved: 'تأییدشده', issued: 'صادرشده', archived: 'سابقه' };
+  var caseStatusNames = { open: 'باز', completed: 'تکمیل‌شده', archived: 'سابقه', cancelled: 'لغوشده' };
+  var numberingIssueNames = { none: 'بدون مغایرت شناخته‌شده', suspected: 'شمارهٔ مشکوک یا ناهماهنگ', duplicate: 'شمارهٔ تکراری', missing: 'یک یا چند شماره موجود نیست', unknown: 'وضعیت شماره نامشخص است' };
+  var fileRoleNames = { editable: 'فایل قابل ویرایش Word', issued_copy: 'نسخهٔ نهایی یا صادرشده', other: 'سایر فایل‌های همان سند', revision: 'نسخه' };
   var categoryNames = { bill_of_lading: 'بارنامه', certificate_of_origin: 'گواهی مبدأ', mtc: 'گواهی فنی MTC', weighbridge: 'قبض باسکول', insurance: 'بیمه', customs: 'گمرک', other: 'سایر' };
 
   function api(action, data) {
@@ -253,6 +276,19 @@
   function badge(status) { return $('<span>').addClass('badge s-' + status).text(statusNames[status] || status || '—'); }
   function findTemplate(issuerId, type) { var match = null; $.each(lookups.templates || [], function (_, item) { if (String(item.issuer_id) === String(issuerId) && item.document_type === type) match = item; }); return match; }
   function issuerById(id) { var result = null; $.each(lookups.issuers || [], function (_, item) { if (String(item.id) === String(id)) result = item; }); return result; }
+  function caseReference(item) { return item.pi_number || item.pi_document_number || item.ci_document_number || item.pl_document_number || ('سابقه #' + fa(item.id)); }
+  function documentsByType(documents) { var result = {}; $.each(documents || [], function (_, item) { result[item.document_type] = item; }); return result; }
+  function documentTableCell(number, status, isLegacy) {
+    var cell = $('<td>');
+    if (isLegacy) cell.append($('<span>').addClass('historical-number').text(number || 'شماره ثبت نشده'));
+    return cell.append(badge(status));
+  }
+  function fillCaseStatus(mode, value) {
+    var select = $('#caseStatus').empty();
+    if (mode === 'legacy') { option(select, 'archived', 'سابقه'); option(select, 'cancelled', 'لغوشده'); }
+    else { option(select, 'open', 'باز'); option(select, 'completed', 'تکمیل‌شده'); option(select, 'cancelled', 'لغوشده'); }
+    select.val(value || (mode === 'legacy' ? 'archived' : 'open'));
+  }
   function submitDownload(kind, id) {
     var form = document.getElementById('downloadForm');
     $('#downloadKind').val(kind); $('#downloadId').val(id);
@@ -265,7 +301,7 @@
     return api('lookups').done(function (response) {
       capture(response); lookups = response.data || lookups;
       $('#storageWarning').toggle(!lookups.storage_ready);
-      $('#addBtn').toggle(Number(permissions.can_create) === 1);
+      $('#addBtn,#legacyBtn').toggle(Number(permissions.can_create) === 1);
       fillIssuerSelects(); renderTemplates();
     }).fail(function (xhr) { showNotice(errorText(xhr)); });
   }
@@ -300,7 +336,7 @@
       });
     });
   }
-  function filters() { return { search: $.trim($('#qSearch').val()), issuer_id: $('#qIssuer').val(), case_status: $('#qStatus').val(), page: page, page_size: pageSize }; }
+  function filters() { return { search: $.trim($('#qSearch').val()), issuer_id: $('#qIssuer').val(), record_origin: $('#qOrigin').val(), case_status: $('#qStatus').val(), page: page, page_size: pageSize }; }
   function loadCases() {
     hideNotice(); $('#tableHost').addClass('empty').text('در حال دریافت پرونده‌ها…');
     api('list', filters()).done(function (response) {
@@ -314,35 +350,79 @@
     var host = $('#tableHost').removeClass('empty').empty();
     if (!rows.length) { host.addClass('empty').text('پرونده‌ای با این فیلتر پیدا نشد.'); return; }
     var table = $('<table>'), head = $('<tr>');
-    $.each(['شماره PI', 'شرکت', 'نوع', 'شرح', 'طرف معامله', 'PI', 'CI', 'PL', 'پیوست', 'وضعیت', 'آخرین تغییر', 'عملیات'], function (_, label) { head.append($('<th>').text(label)); });
+    $.each(['شماره / شناسه', 'شرکت', 'نوع', 'شرح', 'طرف معامله', 'PI', 'CI', 'PL', 'پیوست', 'وضعیت', 'آخرین تغییر', 'عملیات'], function (_, label) { head.append($('<th>').text(label)); });
     table.append($('<thead>').append(head)); var body = $('<tbody>');
     $.each(rows, function (_, row) {
       var tr = $('<tr>').toggleClass('case-cancelled', row.case_status === 'cancelled');
-      tr.append($('<td>').addClass('ltr').text(row.pi_number)); tr.append($('<td>').text(row.issuer_name_fa)); tr.append($('<td>').text(row.direction === 'import' ? 'واردات' : 'صادرات'));
+      var referenceCell = $('<td>').addClass('ltr').text(caseReference(row));
+      if (row.record_origin === 'legacy') referenceCell.append($('<br>')).append($('<span>').addClass('origin-badge').text('سابقهٔ قبلی'));
+      tr.append(referenceCell); tr.append($('<td>').text(row.issuer_name_fa)); tr.append($('<td>').text(row.direction === 'import' ? 'واردات' : 'صادرات'));
       tr.append($('<td>').text(row.summary)); tr.append($('<td>').text(row.counterparty || '—'));
-      tr.append($('<td>').append(badge(row.pi_status))); tr.append($('<td>').append(badge(row.ci_status))); tr.append($('<td>').append(badge(row.pl_status)));
+      var isLegacy = row.record_origin === 'legacy';
+      tr.append(documentTableCell(row.pi_document_number, row.pi_status, isLegacy)); tr.append(documentTableCell(row.ci_document_number, row.ci_status, isLegacy)); tr.append(documentTableCell(row.pl_document_number, row.pl_status, isLegacy));
       tr.append($('<td>').text(fa(row.attachment_count))); tr.append($('<td>').text(caseStatusNames[row.case_status] || row.case_status)); tr.append($('<td>').addClass('ltr').text(dateText(row.updated_at)));
       var actions = $('<div>').addClass('actions'); actions.append($('<button>').attr({ type: 'button', 'data-id': row.id }).addClass('btn btn-dark btn-small js-detail').text('بازکردن'));
       if (Number(permissions.can_update) === 1) actions.append($('<button>').attr({ type: 'button', 'data-id': row.id }).addClass('btn btn-light btn-small js-edit').text('ویرایش'));
-      if (Number(permissions.can_delete) === 1) actions.append($('<button>').attr({ type: 'button', 'data-id': row.id, 'data-number': row.pi_number }).addClass('btn btn-danger btn-small js-delete-case').text('حذف نرم'));
+      if (Number(permissions.can_delete) === 1) actions.append($('<button>').attr({ type: 'button', 'data-id': row.id, 'data-number': caseReference(row) }).addClass('btn btn-danger btn-small js-delete-case').text('حذف نرم'));
       tr.append($('<td>').append(actions)); body.append(tr);
     });
     table.append(body); host.append(table);
   }
 
-  function resetCaseForm() { $('#caseId,#caseCounterparty,#caseSummary,#caseNotes').val(''); $('#caseDirection').val('export'); $('#caseStatus').val('open'); $('#caseError').hide().text(''); $('#issuerField,#numberHint').show(); $('#caseStatusField').hide(); }
-  function openCreate() { resetCaseForm(); $('#caseModalTitle').text('پروندهٔ جدید و رزرو شماره PI'); $('#caseOverlay').addClass('open').attr('aria-hidden', 'false'); }
+  function resetCaseForm() {
+    $('#caseId,#caseCounterparty,#caseSummary,#caseNotes,#legacyPiNumber,#legacyPiDate,#legacyCiNumber,#legacyCiDate,#legacyPlNumber,#legacyPlDate,#numberingNote').val('');
+    $('#caseMode').val('managed'); $('#caseDirection').val('export'); fillCaseStatus('managed', 'open'); $('#numberingIssue').val('none');
+    $('#caseError').hide().text(''); $('#issuerField,#numberHint').show(); $('#caseStatusField').hide(); $('#legacyFields').removeClass('open'); $('#saveCaseBtn').text('ثبت پرونده');
+  }
+  function openCreate() {
+    resetCaseForm(); $('#caseModalTitle').text('پروندهٔ جدید و رزرو شماره PI');
+    $('#numberHint').text('با ثبت پرونده، شمارهٔ PI از کانتر شرکت رزرو می‌شود و شماره‌های CI و PL از همان شماره ساخته می‌شوند.');
+    $('#caseOverlay').addClass('open').attr('aria-hidden', 'false');
+  }
+  function openLegacy() {
+    resetCaseForm(); $('#caseMode').val('legacy'); fillCaseStatus('legacy', 'archived'); $('#legacyFields').addClass('open');
+    $('#caseModalTitle').text('ثبت سابقهٔ قبلی'); $('#saveCaseBtn').text('ثبت سابقه');
+    $('#numberHint').text('شماره‌ها دقیقاً مطابق اصل سند ذخیره می‌شوند؛ خالی یا تکراری بودن آن‌ها مجاز است و کانتر شرکت تغییر نمی‌کند.');
+    $('#caseOverlay').addClass('open').attr('aria-hidden', 'false');
+  }
   function closeCase() { $('#caseOverlay').removeClass('open').attr('aria-hidden', 'true'); }
   function openEdit(id) {
     resetCaseForm(); api('get', { id: id }).done(function (response) {
-      capture(response); var item = response.data['case']; $('#caseId').val(item.id); $('#caseDirection').val(item.direction); $('#caseStatus').val(item.case_status); $('#caseCounterparty').val(item.counterparty); $('#caseSummary').val(item.summary); $('#caseNotes').val(item.notes);
-      $('#caseModalTitle').text('ویرایش ' + item.pi_number); $('#issuerField,#numberHint').hide(); $('#caseStatusField').show(); $('#caseOverlay').addClass('open').attr('aria-hidden', 'false');
+      capture(response); var item = response.data['case'], docs = documentsByType(response.data.documents);
+      $('#caseId').val(item.id); $('#caseMode').val(item.record_origin); $('#caseDirection').val(item.direction); fillCaseStatus(item.record_origin, item.case_status); $('#caseCounterparty').val(item.counterparty); $('#caseSummary').val(item.summary); $('#caseNotes').val(item.notes);
+      $('#caseModalTitle').text('ویرایش ' + caseReference(item)); $('#issuerField,#numberHint').hide(); $('#caseStatusField').show();
+      if (item.record_origin === 'legacy') {
+        $('#issuerField').show(); $('#caseIssuer').val(item.issuer_id); $('#legacyFields').addClass('open'); $('#saveCaseBtn').text('ذخیرهٔ سابقه'); $('#numberingIssue').val(item.numbering_issue || 'none'); $('#numberingNote').val(item.numbering_note || '');
+        $('#legacyPiNumber').val((docs.pi || {}).document_number || ''); $('#legacyPiDate').val((docs.pi || {}).document_date || '');
+        $('#legacyCiNumber').val((docs.ci || {}).document_number || ''); $('#legacyCiDate').val((docs.ci || {}).document_date || '');
+        $('#legacyPlNumber').val((docs.pl || {}).document_number || ''); $('#legacyPlDate').val((docs.pl || {}).document_date || '');
+      }
+      $('#caseOverlay').addClass('open').attr('aria-hidden', 'false');
     }).fail(function (xhr) { showNotice(errorText(xhr)); });
   }
   function saveCase() {
-    if (busy) return; var id = $('#caseId').val(); var data = { id: id, issuer_id: $('#caseIssuer').val(), direction: $('#caseDirection').val(), case_status: $('#caseStatus').val(), counterparty: $.trim($('#caseCounterparty').val()), summary: $.trim($('#caseSummary').val()), notes: $.trim($('#caseNotes').val()) };
+    if (busy) return; var id = $('#caseId').val(), mode = $('#caseMode').val();
+    var data = {
+      id: id, issuer_id: $('#caseIssuer').val(), direction: $('#caseDirection').val(), case_status: $('#caseStatus').val(),
+      counterparty: $.trim($('#caseCounterparty').val()), summary: $.trim($('#caseSummary').val()), notes: $.trim($('#caseNotes').val()),
+      pi_number: $.trim($('#legacyPiNumber').val()), pi_date: $('#legacyPiDate').val(),
+      ci_number: $.trim($('#legacyCiNumber').val()), ci_date: $('#legacyCiDate').val(),
+      pl_number: $.trim($('#legacyPlNumber').val()), pl_date: $('#legacyPlDate').val(),
+      numbering_issue: $('#numberingIssue').val(), numbering_note: $.trim($('#numberingNote').val())
+    };
+    var action = id ? 'update' : (mode === 'legacy' ? 'create_legacy' : 'create');
     var button = $('#saveCaseBtn'); $('#caseError').hide(); setBusy(button, true, 'در حال ثبت…');
-    api(id ? 'update' : 'create', data).done(function (response) { closeCase(); loadCases(); loadLookups(); showNotice(id ? 'پرونده به‌روزرسانی شد.' : 'پرونده با شماره ' + response.pi_number + ' ایجاد شد.', true); }).fail(function (xhr) { $('#caseError').text(errorText(xhr)).show(); }).always(function () { setBusy(button, false, ''); });
+    api(action, data).done(function (response) {
+      closeCase(); loadCases(); loadLookups();
+      if (id) {
+        var updatedDuplicates = response.duplicate_numbers || [];
+        showNotice((mode === 'legacy' ? 'سابقهٔ قبلی به‌روزرسانی شد.' : 'پرونده به‌روزرسانی شد.') + (updatedDuplicates.length ? ' شمارهٔ تکراری: ' + updatedDuplicates.join('، ') : ''), true);
+      }
+      else if (mode === 'legacy') {
+        var duplicates = response.duplicate_numbers || [];
+        showNotice('سابقهٔ ' + response.reference + ' ثبت شد.' + (duplicates.length ? ' شمارهٔ تکراری: ' + duplicates.join('، ') : ''), true);
+      } else showNotice('پرونده با شماره ' + response.pi_number + ' ایجاد شد.', true);
+    }).fail(function (xhr) { $('#caseError').text(errorText(xhr)).show(); }).always(function () { setBusy(button, false, ''); });
   }
   function removeCase(id, numberText) { if (!window.confirm('پروندهٔ ' + numberText + ' حذف نرم شود؟ شماره، فایل‌ها و سابقهٔ ممیزی حفظ خواهند شد.')) return; api('delete', { id: id }).done(function () { loadCases(); showNotice('پرونده غیرفعال شد.', true); }).fail(function (xhr) { showNotice(errorText(xhr)); }); }
 
@@ -353,19 +433,26 @@
   function closeDetail() { $('#detailOverlay').removeClass('open').attr('aria-hidden', 'true'); }
   function reloadDetail() { if (currentCase && currentCase['case']) openDetail(currentCase['case'].id); }
   function renderDetail() {
-    var item = currentCase['case']; $('#detailTitle').text(item.pi_number + ' · ' + item.issuer_name_fa);
-    $('#caseSummaryBox').empty().append($('<strong>').text(item.pi_number)).append(document.createTextNode(' — ' + item.summary + ' · ' + (item.direction === 'import' ? 'واردات' : 'صادرات') + (item.counterparty ? ' · ' + item.counterparty : '')));
+    var item = currentCase['case'], docs = documentsByType(currentCase.documents);
+    item.pi_document_number = (docs.pi || {}).document_number; item.ci_document_number = (docs.ci || {}).document_number; item.pl_document_number = (docs.pl || {}).document_number;
+    var reference = caseReference(item); $('#detailTitle').text(reference + ' · ' + item.issuer_name_fa);
+    var summaryBox = $('#caseSummaryBox').empty().append($('<strong>').text(reference)).append(document.createTextNode(' · ' + item.summary + ' · ' + (item.direction === 'import' ? 'واردات' : 'صادرات') + (item.counterparty ? ' · ' + item.counterparty : '')));
+    if (item.record_origin === 'legacy') {
+      summaryBox.append($('<div>').append($('<span>').addClass('origin-badge').text('سابقهٔ قبلی، بدون اثر بر کانتر')));
+      if ((item.numbering_issue || 'none') !== 'none' || item.numbering_note) summaryBox.append($('<div>').addClass('numbering-warning').text((numberingIssueNames[item.numbering_issue] || numberingIssueNames.unknown) + (item.numbering_note ? '؛ ' + item.numbering_note : '')));
+    }
     var host = $('#documentGrid').empty(); $.each(currentCase.documents || [], function (_, document) { host.append(documentCard(document, item)); });
     $('#toggleAttachmentBtn').toggle(Number(permissions.can_update) === 1 && lookups.storage_ready); $('#attachmentForm').hide(); renderAttachments();
   }
   function documentCard(doc, caseItem) {
-    var card = $('<article>').addClass('doc-card'), head = $('<div>').addClass('doc-head'); head.append($('<h3>').text(documentNames[doc.document_type])).append($('<div>').addClass('ltr').text(doc.document_number)); card.append(head);
+    var isLegacy = caseItem.record_origin === 'legacy';
+    var card = $('<article>').addClass('doc-card'), head = $('<div>').addClass('doc-head'); head.append($('<h3>').text(documentNames[doc.document_type])).append($('<div>').addClass('ltr').text(doc.document_number || 'شماره ثبت نشده')); card.append(head);
     var body = $('<div>').addClass('doc-body');
     var statusLine = $('<div>').addClass('toolbar').append(badge(doc.document_status)); var template = findTemplate(caseItem.issuer_id, doc.document_type);
     statusLine.append($('<span>').addClass('subtle').text('تاریخ سند: ' + (doc.document_date || '—')));
-    if (template) statusLine.append($('<button>').attr({ type: 'button', 'data-kind': 'template', 'data-id': template.id }).addClass('btn btn-light btn-small js-download').text('دانلود قالب'));
+    if (!isLegacy && template) statusLine.append($('<button>').attr({ type: 'button', 'data-kind': 'template', 'data-id': template.id }).addClass('btn btn-light btn-small js-download').text('دانلود قالب'));
     body.append(statusLine);
-    if (Number(permissions.can_update) === 1) {
+    if (!isLegacy && Number(permissions.can_update) === 1) {
       var statusBox = $('<div>').addClass('field'); var select = $('<select>').addClass('js-doc-status').attr('data-document', doc.id);
       $.each(statusNames, function (value, label) { option(select, value, label); }); select.val(doc.document_status);
       var documentDate = $('<input>').attr({ type: 'date', title: 'تاریخ رسمی سند' }).addClass('js-document-date').val(doc.document_date || '');
@@ -376,16 +463,27 @@
     }
     if (Number(permissions.can_update) === 1 && lookups.storage_ready) {
       var uploadBox = $('<div>').addClass('upload-box').attr('data-document-box', doc.id);
-      uploadBox.append($('<strong>').text('نسخهٔ جدید Word یا PDF'));
+      uploadBox.append($('<strong>').text(isLegacy ? 'افزودن فایل موجود Word یا PDF' : 'نسخهٔ جدید Word یا PDF'));
       uploadBox.append($('<input>').attr({ type: 'file', accept: '.doc,.docx,.pdf' }).addClass('js-document-file'));
-      uploadBox.append($('<input>').attr({ type: 'text', maxlength: 1000, placeholder: 'شرح تغییرات' }).addClass('js-change-note'));
-      uploadBox.append($('<label>').append($('<input>').attr('type', 'checkbox').addClass('js-is-final')).append(window.document.createTextNode(' نسخهٔ نهایی / صادرشده')));
-      uploadBox.append($('<button>').attr({ type: 'button', 'data-document': doc.id }).addClass('btn btn-green btn-small js-upload-document').text('بارگذاری نسخه')); body.append(uploadBox);
+      uploadBox.append($('<input>').attr({ type: 'text', maxlength: 1000, placeholder: isLegacy ? 'توضیح فایل (اختیاری)' : 'شرح تغییرات' }).addClass('js-change-note'));
+      if (isLegacy) {
+        var roleSelect = $('<select>').addClass('js-file-role');
+        option(roleSelect, 'editable', fileRoleNames.editable); option(roleSelect, 'issued_copy', fileRoleNames.issued_copy); option(roleSelect, 'other', fileRoleNames.other);
+        uploadBox.append(roleSelect);
+      } else uploadBox.append($('<label>').append($('<input>').attr('type', 'checkbox').addClass('js-is-final')).append(window.document.createTextNode(' نسخهٔ نهایی / صادرشده')));
+      uploadBox.append($('<button>').attr({ type: 'button', 'data-document': doc.id }).addClass('btn btn-green btn-small js-upload-document').text(isLegacy ? 'بارگذاری فایل' : 'بارگذاری نسخه')); body.append(uploadBox);
     }
     var versions = $('<div>').addClass('versions');
     if (!(doc.versions || []).length) versions.append($('<div>').addClass('subtle').text('هنوز فایلی ثبت نشده است.'));
     $.each(doc.versions || [], function (_, version) {
-      var row = $('<div>').addClass('file-row'); var meta = $('<div>').addClass('file-meta'); meta.append($('<strong>').text('نسخه ' + fa(version.revision_number) + ' · ' + version.original_filename)); meta.append($('<small>').text((version.version_state === 'final' ? 'نهایی' : 'پیش‌نویس') + ' · ' + bytes(version.file_size) + ' · ' + dateText(version.created_at) + (version.change_note ? ' · ' + version.change_note : '')));
+      var row = $('<div>').addClass('file-row'); var meta = $('<div>').addClass('file-meta');
+      if (isLegacy) {
+        meta.append($('<strong>').text((fileRoleNames[version.file_role] || fileRoleNames.other) + ' · ' + version.original_filename));
+        meta.append($('<small>').text(bytes(version.file_size) + ' · ' + dateText(version.created_at) + (version.change_note ? ' · ' + version.change_note : '')));
+      } else {
+        meta.append($('<strong>').text('نسخه ' + fa(version.revision_number) + ' · ' + version.original_filename));
+        meta.append($('<small>').text((version.version_state === 'final' ? 'نهایی' : 'پیش‌نویس') + ' · ' + bytes(version.file_size) + ' · ' + dateText(version.created_at) + (version.change_note ? ' · ' + version.change_note : '')));
+      }
       var actions = $('<div>').addClass('actions').append($('<button>').attr({ type: 'button', 'data-kind': 'version', 'data-id': version.id }).addClass('btn btn-light btn-small js-download').text('دانلود'));
       if (Number(permissions.can_delete) === 1) actions.append($('<button>').attr({ type: 'button', 'data-kind': 'version', 'data-id': version.id }).addClass('btn btn-danger btn-small js-delete-file').text('حذف نرم'));
       row.append(meta).append(actions); versions.append(row);
@@ -409,7 +507,7 @@
   }
   function uploadDocument(button) {
     if (busy) return; var box = button.closest('[data-document-box]'), file = box.find('.js-document-file')[0].files[0]; if (!file) { $('#detailError').text('فایل نسخه را انتخاب کنید.').show(); return; }
-    var data = new FormData(); data.append('document_id', button.data('document')); data.append('change_note', $.trim(box.find('.js-change-note').val())); data.append('is_final', box.find('.js-is-final').is(':checked') ? '1' : '0'); data.append('file', file);
+    var data = new FormData(); data.append('document_id', button.data('document')); data.append('change_note', $.trim(box.find('.js-change-note').val())); data.append('is_final', box.find('.js-is-final').is(':checked') ? '1' : '0'); data.append('file_role', box.find('.js-file-role').val() || ''); data.append('file', file);
     setBusy(button, true, 'در حال بارگذاری…'); upload('upload_document', data).done(function () { reloadDetail(); loadCases(); }).fail(function (xhr) { $('#detailError').text(errorText(xhr)).show(); }).always(function () { setBusy(button, false, ''); });
   }
   function saveDocumentStatus(button) {
@@ -431,10 +529,10 @@
   $(document).on('click', '.js-upload-document', function () { uploadDocument($(this)); });
   $(document).on('click', '.js-save-status', function () { saveDocumentStatus($(this)); });
   $(document).on('click', '.js-delete-file', function () { deleteFile($(this).data('kind'), $(this).data('id')); });
-  $('#addBtn').on('click', openCreate); $('#saveCaseBtn').on('click', saveCase); $('.js-close-case').on('click', closeCase); $('.js-close-detail').on('click', closeDetail);
+  $('#addBtn').on('click', openCreate); $('#legacyBtn').on('click', openLegacy); $('#saveCaseBtn').on('click', saveCase); $('.js-close-case').on('click', closeCase); $('.js-close-detail').on('click', closeDetail);
   $('#toggleAttachmentBtn').on('click', function () { $('#attachmentForm').css('display', $('#attachmentForm').is(':visible') ? 'none' : 'grid'); }); $('#uploadAttachmentBtn').on('click', uploadAttachment);
   $('#searchBtn').on('click', function () { page = 1; loadCases(); }); $('#qSearch').on('keydown', function (event) { if (event.keyCode === 13) { page = 1; loadCases(); } });
-  $('#resetBtn').on('click', function () { $('#qSearch,#qIssuer,#qStatus').val(''); page = 1; loadCases(); }); $('#prevBtn').on('click', function () { if (page > 1) { page--; loadCases(); } }); $('#nextBtn').on('click', function () { if (page * pageSize < total) { page++; loadCases(); } });
+  $('#resetBtn').on('click', function () { $('#qSearch,#qIssuer,#qOrigin,#qStatus').val(''); page = 1; loadCases(); }); $('#prevBtn').on('click', function () { if (page > 1) { page--; loadCases(); } }); $('#nextBtn').on('click', function () { if (page * pageSize < total) { page++; loadCases(); } });
   $('#caseOverlay').on('click', function (event) { if (event.target === this) closeCase(); }); $('#detailOverlay').on('click', function (event) { if (event.target === this) closeDetail(); });
 
   loadLookups().done(loadCases);
