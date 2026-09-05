@@ -91,14 +91,14 @@
     .historical-number { display: block; direction: ltr; text-align: left; margin-bottom: 4px; font-size: 11px; overflow-wrap: anywhere; }
     .case-cancelled { opacity: .62; }
     .pager { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 12px; }
-    .overlay { display: none; position: fixed; inset: 0; z-index: 1000; padding: 18px 9px; overflow-y: auto; background: rgba(18,25,22,.74); }
-    .overlay.open { display: block; }
-    .modal { width: min(1160px, 100%); margin: auto; background: var(--panel); border-top: 6px solid var(--copper); box-shadow: 0 24px 70px rgba(0,0,0,.36); }
-    .modal-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 15px 20px; border-bottom: 1px solid var(--line); }
-    .modal-head h2 { margin: 0; font-size: 18px; }
-    .modal-body { padding: 17px 20px; }
-    .modal-foot { display: flex; gap: 8px; padding: 13px 20px; background: #f4f0e6; border-top: 1px solid var(--line); }
-    .modal-error { display: none; margin: 0 0 11px; padding: 9px; color: #842e28; background: #fff0ed; }
+    .emcore-overlay { display: none; position: fixed; inset: 0; z-index: 1000; padding: 18px 9px; overflow-y: auto; background: rgba(18,25,22,.74); }
+    .emcore-overlay.open { display: block; }
+    .emcore-modal { display: block; position: relative; width: min(1160px, 100%); margin: auto; background: var(--panel); border-top: 6px solid var(--copper); box-shadow: 0 24px 70px rgba(0,0,0,.36); opacity: 1; }
+    .emcore-modal-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 15px 20px; border-bottom: 1px solid var(--line); }
+    .emcore-modal-head h2 { margin: 0; font-size: 18px; }
+    .emcore-modal-body { padding: 17px 20px; }
+    .emcore-modal-foot { display: flex; gap: 8px; padding: 13px 20px; background: #f4f0e6; border-top: 1px solid var(--line); }
+    .emcore-modal-error { display: none; margin: 0 0 11px; padding: 9px; color: #842e28; background: #fff0ed; }
     .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
     .span-2 { grid-column: span 2; }
     .span-4 { grid-column: 1 / -1; }
@@ -126,7 +126,7 @@
     .attachment-form .wide { grid-column: span 2; }
     .subtle { color: var(--muted); font-size: 11px; }
     @media (max-width: 1000px) { .filters { grid-template-columns: repeat(2, 1fr); } .template-grid, .document-grid { grid-template-columns: 1fr; } .grid { grid-template-columns: repeat(2, 1fr); } .masthead { align-items: flex-start; flex-direction: column; } }
-    @media (max-width: 640px) { body { padding: 0; } .content, .modal-body { padding: 10px; } .filters, .grid, .legacy-fields, .attachment-form { grid-template-columns: 1fr; } .span-2, .span-4, .attachment-form .wide { grid-column: auto; } }
+    @media (max-width: 640px) { body { padding: 0; } .content, .emcore-modal-body { padding: 10px; } .filters, .grid, .legacy-fields, .attachment-form { grid-template-columns: 1fr; } .span-2, .span-4, .attachment-form .wide { grid-column: auto; } }
   </style>
 </head>
 <body>
@@ -173,11 +173,11 @@
   </main>
 </div>
 
-<div id="caseOverlay" class="overlay" aria-hidden="true">
-  <section class="modal" role="dialog" aria-modal="true" aria-labelledby="caseModalTitle">
-    <header class="modal-head"><h2 id="caseModalTitle">پروندهٔ جدید</h2><button class="btn btn-light js-close-case" type="button">بستن</button></header>
-    <div class="modal-body">
-      <div id="caseError" class="modal-error"></div>
+<div id="caseOverlay" class="emcore-overlay" aria-hidden="true">
+  <section class="emcore-modal" role="dialog" aria-modal="true" aria-labelledby="caseModalTitle">
+    <header class="emcore-modal-head"><h2 id="caseModalTitle">پروندهٔ جدید</h2><button class="btn btn-light js-close-case" type="button">بستن</button></header>
+    <div class="emcore-modal-body">
+      <div id="caseError" class="emcore-modal-error"></div>
       <input id="caseId" type="hidden">
       <input id="caseMode" type="hidden" value="managed">
       <div class="grid">
@@ -200,15 +200,15 @@
       </div>
       <p id="numberHint" class="subtle">با ثبت پرونده، شمارهٔ PI از کانتر شرکت رزرو می‌شود و شماره‌های CI و PL از همان شماره ساخته می‌شوند.</p>
     </div>
-    <footer class="modal-foot"><button id="saveCaseBtn" class="btn btn-primary" type="button">ثبت پرونده</button><button class="btn btn-light js-close-case" type="button">انصراف</button></footer>
+    <footer class="emcore-modal-foot"><button id="saveCaseBtn" class="btn btn-primary" type="button">ثبت پرونده</button><button class="btn btn-light js-close-case" type="button">انصراف</button></footer>
   </section>
 </div>
 
-<div id="detailOverlay" class="overlay" aria-hidden="true">
-  <section class="modal" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
-    <header class="modal-head"><h2 id="detailTitle">پرونده</h2><button class="btn btn-light js-close-detail" type="button">بستن</button></header>
-    <div class="modal-body">
-      <div id="detailError" class="modal-error"></div>
+<div id="detailOverlay" class="emcore-overlay" aria-hidden="true">
+  <section class="emcore-modal" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
+    <header class="emcore-modal-head"><h2 id="detailTitle">پرونده</h2><button class="btn btn-light js-close-detail" type="button">بستن</button></header>
+    <div class="emcore-modal-body">
+      <div id="detailError" class="emcore-modal-error"></div>
       <div id="caseSummaryBox" class="case-summary"></div>
       <div id="documentGrid" class="document-grid"></div>
       <section class="attachment-section">
