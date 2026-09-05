@@ -102,8 +102,13 @@
     .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
     .span-2 { grid-column: span 2; }
     .span-4 { grid-column: 1 / -1; }
-    .legacy-fields { display: none; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 12px; border: 1px solid #d8c89e; background: #fff9e9; }
+    .legacy-fields { display: none; gap: 10px; padding: 12px; border: 1px solid #d8c89e; background: #fff9e9; }
     .legacy-fields.open { display: grid; }
+    .legacy-document-row { display: grid; grid-template-columns: minmax(170px, .75fr) repeat(2, minmax(0, 1fr)); gap: 10px; align-items: end; padding: 11px; border: 1px solid #e1d4b3; background: #fffdf7; }
+    .legacy-document-title { align-self: stretch; display: flex; flex-direction: column; justify-content: center; padding: 8px 10px; border-right: 4px solid var(--gold); background: #f4ecda; }
+    .legacy-document-title strong { direction: ltr; text-align: left; font-size: 13px; }
+    .legacy-document-title span { color: var(--muted); font-size: 11px; }
+    .legacy-numbering-row { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; }
     .case-summary { margin-bottom: 13px; padding: 12px; background: #edf2ef; border-right: 4px solid var(--green); }
     .case-summary strong { direction: ltr; display: inline-block; }
     .document-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 11px; }
@@ -126,7 +131,7 @@
     .attachment-form .wide { grid-column: span 2; }
     .subtle { color: var(--muted); font-size: 11px; }
     @media (max-width: 1000px) { .filters { grid-template-columns: repeat(2, 1fr); } .template-grid, .document-grid { grid-template-columns: 1fr; } .grid { grid-template-columns: repeat(2, 1fr); } .masthead { align-items: flex-start; flex-direction: column; } }
-    @media (max-width: 640px) { body { padding: 0; } .content, .emcore-modal-body { padding: 10px; } .filters, .grid, .legacy-fields, .attachment-form { grid-template-columns: 1fr; } .span-2, .span-4, .attachment-form .wide { grid-column: auto; } }
+    @media (max-width: 640px) { body { padding: 0; } .content, .emcore-modal-body { padding: 10px; } .filters, .grid, .legacy-fields, .legacy-document-row, .legacy-numbering-row, .attachment-form { grid-template-columns: 1fr; } .span-2, .span-4, .attachment-form .wide { grid-column: auto; } }
   </style>
 </head>
 <body>
@@ -187,14 +192,25 @@
         <div class="field span-2"><label for="caseCounterparty">طرف معامله / تحویل‌گیرنده</label><input id="caseCounterparty" maxlength="255"></div>
         <div class="field span-4"><label for="caseSummary">شرح پرونده *</label><input id="caseSummary" maxlength="500" placeholder="مثال: امیدکو به Rebratone ـ کلاف ۵٫۵ میلی‌متر"></div>
         <div id="legacyFields" class="legacy-fields span-4">
-          <div class="field"><label for="legacyPiNumber">شمارهٔ PI مطابق اصل سند</label><input id="legacyPiNumber" class="ltr" maxlength="64"></div>
-          <div class="field"><label for="legacyPiDate">تاریخ PI</label><input id="legacyPiDate" type="date"></div>
-          <div class="field"><label for="legacyCiNumber">شمارهٔ CI مطابق اصل سند</label><input id="legacyCiNumber" class="ltr" maxlength="64"></div>
-          <div class="field"><label for="legacyCiDate">تاریخ CI</label><input id="legacyCiDate" type="date"></div>
-          <div class="field"><label for="legacyPlNumber">شمارهٔ PL مطابق اصل سند</label><input id="legacyPlNumber" class="ltr" maxlength="64"></div>
-          <div class="field"><label for="legacyPlDate">تاریخ PL</label><input id="legacyPlDate" type="date"></div>
-          <div class="field"><label for="numberingIssue">وضعیت شماره‌ها</label><select id="numberingIssue"><option value="none">بدون مغایرت شناخته‌شده</option><option value="suspected">مشکوک یا ناهماهنگ</option><option value="duplicate">تکراری</option><option value="missing">یک یا چند شماره موجود نیست</option><option value="unknown">نامشخص</option></select></div>
-          <div class="field span-2"><label for="numberingNote">توضیح مغایرت شماره‌ها</label><input id="numberingNote" maxlength="1000"></div>
+          <div class="legacy-document-row">
+            <div class="legacy-document-title"><strong>Proforma Invoice</strong><span>پیش‌فاکتور</span></div>
+            <div class="field"><label for="legacyPiNumber">شمارهٔ Proforma Invoice مطابق اصل سند</label><input id="legacyPiNumber" class="ltr" maxlength="64"></div>
+            <div class="field"><label for="legacyPiDate">تاریخ Proforma Invoice</label><input id="legacyPiDate" type="date"></div>
+          </div>
+          <div class="legacy-document-row">
+            <div class="legacy-document-title"><strong>Commercial Invoice</strong><span>فاکتور تجاری</span></div>
+            <div class="field"><label for="legacyCiNumber">شمارهٔ Commercial Invoice مطابق اصل سند</label><input id="legacyCiNumber" class="ltr" maxlength="64"></div>
+            <div class="field"><label for="legacyCiDate">تاریخ Commercial Invoice</label><input id="legacyCiDate" type="date"></div>
+          </div>
+          <div class="legacy-document-row">
+            <div class="legacy-document-title"><strong>Packing List</strong><span>فهرست بسته‌بندی</span></div>
+            <div class="field"><label for="legacyPlNumber">شمارهٔ Packing List مطابق اصل سند</label><input id="legacyPlNumber" class="ltr" maxlength="64"></div>
+            <div class="field"><label for="legacyPlDate">تاریخ Packing List</label><input id="legacyPlDate" type="date"></div>
+          </div>
+          <div class="legacy-numbering-row">
+            <div class="field"><label for="numberingIssue">وضعیت شماره‌ها</label><select id="numberingIssue"><option value="none">بدون مغایرت شناخته‌شده</option><option value="suspected">مشکوک یا ناهماهنگ</option><option value="duplicate">تکراری</option><option value="missing">یک یا چند شماره موجود نیست</option><option value="unknown">نامشخص</option></select></div>
+            <div class="field"><label for="numberingNote">توضیح مغایرت شماره‌ها</label><input id="numberingNote" maxlength="1000"></div>
+          </div>
         </div>
         <div class="field span-4"><label for="caseNotes">یادداشت داخلی</label><textarea id="caseNotes" maxlength="10000"></textarea></div>
       </div>
