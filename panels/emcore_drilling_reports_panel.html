@@ -130,8 +130,8 @@
     .btn-small { min-height: 28px; padding: 4px 8px; font-size: 11px; }
 
     .table-wrap { overflow-x: auto; border: 1px solid var(--line); }
-    table { width: 100%; min-width: 1000px; border-collapse: collapse; }
-    th {
+    #tableHost > .emcore-report-table { width: 100%; min-width: 1000px; border-collapse: collapse; }
+    #tableHost > .emcore-report-table th {
       padding: 10px 9px;
       color: #f8f4e9;
       background: var(--coal);
@@ -139,11 +139,11 @@
       text-align: right;
       white-space: nowrap;
     }
-    td { padding: 9px; border-bottom: 1px solid #e6e1d6; vertical-align: middle; }
-    tbody tr:nth-child(even) { background: #faf8f2; }
-    tbody tr:hover { background: #fff4df; }
+    #tableHost > .emcore-report-table td { padding: 9px; border-bottom: 1px solid #e6e1d6; vertical-align: middle; text-align: right; }
+    #tableHost > .emcore-report-table tbody tr:nth-child(even) { background: #faf8f2; }
+    #tableHost > .emcore-report-table tbody tr:hover { background: #fff4df; }
     .empty { padding: 38px; color: var(--muted); text-align: center; }
-    .number { direction: ltr; text-align: left; font-variant-numeric: tabular-nums; }
+    #tableHost > .emcore-report-table td.number { direction: ltr; text-align: right; font-variant-numeric: tabular-nums; }
     .badge { display: inline-block; padding: 3px 8px; border-radius: 99px; font-size: 10px; }
     .badge-drilling { background: #e2f1e7; color: #28583b; }
     .badge-partial { background: #fff0c7; color: #765616; }
@@ -517,7 +517,7 @@
   function renderTable(rows) {
     var host = $('#tableHost').removeClass('empty').empty();
     if (!rows.length) { host.addClass('empty').text('گزارشی با این فیلتر پیدا نشد.'); return; }
-    var table = $('<table>');
+    var table = $('<table>').addClass('emcore-report-table');
     var header = $('<tr>');
     $.each(['شماره', 'تاریخ', 'شیفت', 'معدن', 'گمانه', 'دستگاه', 'عمق شروع', 'عمق پایان', 'حفاری', 'وضعیت', 'پرسنل', 'عملیات'], function (_, label) {
       header.append($('<th>').text(label));
