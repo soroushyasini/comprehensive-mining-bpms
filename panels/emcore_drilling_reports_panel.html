@@ -158,7 +158,7 @@
       margin-top: 12px;
     }
 
-    .overlay {
+    .emcore-modal-overlay {
       display: none;
       position: fixed;
       inset: 0;
@@ -167,8 +167,8 @@
       overflow-y: auto;
       background: rgba(18,25,22,.72);
     }
-    .overlay.open { display: block; }
-    .modal {
+    .emcore-modal-overlay.open { display: block; }
+    .emcore-modal-card {
       width: min(1100px, 100%);
       margin: auto;
       background: var(--panel);
@@ -177,15 +177,15 @@
       animation: rise .2s ease-out;
     }
     @keyframes rise { from { transform: translateY(14px); opacity: 0; } }
-    .modal-head {
+    .emcore-modal-head {
       padding: 18px 22px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       border-bottom: 1px solid var(--line);
     }
-    .modal-head h2 { margin: 0; font-size: 18px; }
-    .modal-body { padding: 18px 22px; }
+    .emcore-modal-head h2 { margin: 0; font-size: 18px; }
+    .emcore-modal-body { padding: 18px 22px; }
     .section {
       margin-bottom: 15px;
       padding: 13px;
@@ -244,8 +244,8 @@
     }
     .crew-row select, .crew-row input { width: 100%; min-height: 34px; border: 1px solid #c9c3b6; padding: 6px; }
 
-    .modal-error { display: none; margin: 10px 0; padding: 9px; background: #fff0ed; color: #842e28; }
-    .modal-foot {
+    .emcore-modal-error { display: none; margin: 10px 0; padding: 9px; background: #fff0ed; color: #842e28; }
+    .emcore-modal-foot {
       display: flex;
       justify-content: flex-start;
       gap: 8px;
@@ -265,7 +265,7 @@
       .filters, .grid, .checklist { grid-template-columns: 1fr; }
       .span-2, .span-4 { grid-column: auto; }
       .crew-row { grid-template-columns: 1fr; }
-      .content, .modal-body { padding: 10px; }
+      .content, .emcore-modal-body { padding: 10px; }
     }
   </style>
 </head>
@@ -314,13 +314,13 @@
   </main>
 </div>
 
-<div id="overlay" class="overlay" role="dialog" aria-modal="true">
-  <div class="modal">
-    <div class="modal-head">
+<div id="overlay" class="emcore-modal-overlay" role="dialog" aria-modal="true">
+  <div class="emcore-modal-card">
+    <div class="emcore-modal-head">
       <h2 id="modalTitle">گزارش جدید حفاری</h2>
       <button id="closeTop" class="btn btn-light btn-small" type="button">بستن</button>
     </div>
-    <div class="modal-body">
+    <div class="emcore-modal-body">
       <input type="hidden" id="editId">
 
       <section class="section">
@@ -388,9 +388,9 @@
         </div>
       </section>
 
-      <div id="modalError" class="modal-error"></div>
+      <div id="modalError" class="emcore-modal-error"></div>
     </div>
-    <div class="modal-foot">
+    <div class="emcore-modal-foot">
       <button id="saveBtn" class="btn btn-primary" type="button">ثبت گزارش</button>
       <button id="cancelBtn" class="btn btn-light" type="button">انصراف</button>
     </div>
