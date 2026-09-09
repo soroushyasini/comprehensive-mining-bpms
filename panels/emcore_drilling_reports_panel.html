@@ -316,9 +316,9 @@
       <label class="page-size-control" for="pageSizeSelect">
         <span>تعداد در صفحه</span>
         <select id="pageSizeSelect">
-          <option value="20">20</option>
+          <option value="20" selected>20</option>
           <option value="50">50</option>
-          <option value="100" selected>100</option>
+          <option value="100">100</option>
         </select>
       </label>
     </div>
@@ -417,7 +417,7 @@
   var permissions = { can_create: 0, can_read: 0, can_update: 0, can_delete: 0 };
   var lookups = { mines: [], boreholes: [], rigs: [], persons: [], checklist: [] };
   var page = 1;
-  var pageSize = 100;
+  var pageSize = 20;
   var total = 0;
 
   var roles = [
