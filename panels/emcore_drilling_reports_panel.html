@@ -156,7 +156,10 @@
       align-items: center;
       gap: 10px;
       margin-top: 12px;
+      flex-wrap: wrap;
     }
+    .page-size-control { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+    .page-size-control select { min-height: 36px; padding: 6px 8px; border: 1px solid #c9c3b6; background: #fff; color: var(--ink); }
 
     .emcore-modal-overlay {
       display: none;
@@ -310,6 +313,14 @@
       <button id="prevBtn" class="btn btn-light" type="button">صفحه قبل</button>
       <span id="pageLabel">—</span>
       <button id="nextBtn" class="btn btn-light" type="button">صفحه بعد</button>
+      <label class="page-size-control" for="pageSizeSelect">
+        <span>تعداد در صفحه</span>
+        <select id="pageSizeSelect">
+          <option value="20">20</option>
+          <option value="50">50</option>
+          <option value="100" selected>100</option>
+        </select>
+      </label>
     </div>
   </main>
 </div>
@@ -684,6 +695,11 @@
   $('#resetBtn').on('click', function () { $('#qMine,#qBorehole,#qRig,#qShift,#qFrom,#qTo,#qSearch').val(''); fillBoreholes($('#qBorehole'), '', 'همه گمانه‌ها'); page = 1; loadReports(); });
   $('#prevBtn').on('click', function () { if (page > 1) { page--; loadReports(); } });
   $('#nextBtn').on('click', function () { if (page * pageSize < total) { page++; loadReports(); } });
+  $('#pageSizeSelect').on('change', function () {
+    var selectedSize = Number($(this).val());
+    if ($.inArray(selectedSize, [20, 50, 100]) === -1) return;
+    pageSize = selectedSize; page = 1; loadReports();
+  });
   $('#overlay').on('click', function (event) { if (event.target === this) closeModal(); });
 
   loadLookups().done(loadReports);
