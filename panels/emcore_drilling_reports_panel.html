@@ -538,8 +538,8 @@
       tr.append($('<td>').append($('<span>').addClass('badge ' + stateClass(row.operation_state)).text(stateLabel(row.operation_state))));
       tr.append($('<td>').text(Number(row.crew_count || 0).toLocaleString('fa-IR')));
       var actions = $('<div>').addClass('row-actions');
-      if (Number(permissions.can_update) === 1) actions.append($('<button>').addClass('btn btn-light btn-small').text('ویرایش').on('click', function () { openEdit(row.id); }));
-      if (Number(permissions.can_delete) === 1) actions.append($('<button>').addClass('btn btn-danger btn-small').text('حذف').on('click', function () { removeReport(row.id, row.report_number); }));
+      if (Number(permissions.can_update) === 1) actions.append($('<button>').attr('type', 'button').addClass('btn btn-light btn-small').text('ویرایش').on('click', function () { openEdit(row.id); }));
+      if (Number(permissions.can_delete) === 1) actions.append($('<button>').attr('type', 'button').addClass('btn btn-danger btn-small').text('حذف').on('click', function () { removeReport(row.id, row.report_number); }));
       tr.append($('<td>').append(actions));
       body.append(tr);
     });
