@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root {
+      --ink: #17201d;
+      --muted: #68736e;
+      --paper: #f4f1e8;
+      --panel: #fffdf7;
+      --line: #d8d2c4;
+      --coal: #26322e;
+      --ore: #b85d2e;
+      --amber: #dfa936;
+      --green: #467259;
+      --blue: #486f82;
+      --danger: #a63d36;
+      --shadow: 0 18px 45px rgba(26,35,31,.16);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 12px;
+      color: var(--ink);
+      background:
+        linear-gradient(135deg, rgba(184,93,46,.06) 25%, transparent 25%) 0 0/24px 24px,
+        linear-gradient(315deg, rgba(70,114,89,.06) 25%, transparent 25%) 0 0/24px 24px,
+        var(--paper);
+      font: 13px Vazirmatn, IRANSans, Tahoma, sans-serif;
+    }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    .shell { max-width: 1500px; margin: auto; border: 1px solid var(--line); background: rgba(255,253,247,.96); box-shadow: var(--shadow); }
+    .masthead {
+      display: flex; align-items: center; justify-content: space-between; gap: 20px;
+      min-height: 122px; padding: 24px 28px; color: #fff;
+      background: radial-gradient(circle at 10% 120%, rgba(223,169,54,.28), transparent 32%),
+        repeating-linear-gradient(-8deg, transparent 0 19px, rgba(255,255,255,.035) 20px 21px), var(--coal);
+    }
+    .eyebrow { color: #e8c673; font-size: 11px; letter-spacing: 1px; }
+    h1 { margin: 5px 0; font-size: 26px; }
+    .masthead p { margin: 0; color: #cdd5d1; }
+    .stamp { min-width: 190px; padding: 11px 14px; border-right: 3px solid var(--amber); background: rgba(255,255,255,.08); }
+    .stamp strong, .stamp span { display: block; }
+    .stamp span { margin-top: 3px; color: #cbd4cf; font-size: 10px; }
+    main { padding: 18px; }
+    .filters { display: grid; grid-template-columns: repeat(6, minmax(125px,1fr)); gap: 9px; padding: 13px; border: 1px solid var(--line); background: #f8f6ef; }
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label { color: var(--muted); font-size: 11px; }
+    .field input, .field select { width: 100%; min-height: 36px; padding: 7px 9px; color: var(--ink); background: #fff; border: 1px solid #c9c3b6; border-radius: 2px; }
+    .field input:focus, .field select:focus { outline: 2px solid rgba(223,169,54,.32); border-color: var(--amber); }
+    .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 10px 0 14px; flex-wrap: wrap; }
+    .toolbar-actions { display: flex; gap: 7px; }
+    .btn { min-height: 36px; padding: 7px 14px; border: 1px solid transparent; border-radius: 2px; transition: transform .16s ease, filter .16s ease; }
+    .btn:hover { transform: translateY(-1px); filter: brightness(.96); }
+    .btn-dark { color: #fff; background: var(--coal); }
+    .btn-light { color: var(--ink); background: #eee9dd; border-color: #d4cec1; }
+    .status { min-height: 38px; margin-bottom: 12px; padding: 10px 12px; border-right: 4px solid var(--blue); background: #edf4f6; color: #315766; }
+    .status.error { border-color: var(--danger); background: #fff0ed; color: #7d2925; }
+    .status.warning { border-color: var(--amber); background: #fff6dd; color: #6e5319; }
+    .status[hidden] { display: none; }
+    .kpis { display: grid; grid-template-columns: repeat(6,1fr); gap: 10px; margin-bottom: 14px; }
+    .kpi { min-height: 112px; padding: 15px; border: 1px solid var(--line); border-top: 4px solid var(--ore); background: #fff; }
+    .kpi:nth-child(2n) { border-top-color: var(--green); }
+    .kpi:nth-child(3n) { border-top-color: var(--amber); }
+    .kpi span { color: var(--muted); font-size: 11px; }
+    .kpi strong { display: block; margin: 10px 0 5px; font-size: 24px; direction: ltr; text-align: right; font-variant-numeric: tabular-nums; }
+    .kpi small { color: var(--muted); }
+    .chart-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+    .card { min-width: 0; border: 1px solid var(--line); background: #fff; }
+    .card-wide { grid-column: 1 / -1; }
+    .card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 11px 14px; color: #fff; background: #46544e; }
+    .card-head h2 { margin: 0; font-size: 13px; }
+    .card-head small { color: #dce4df; }
+    .chart-scroll { min-height: 260px; padding: 10px; overflow-x: auto; direction: ltr; }
+    svg { display: block; min-width: 100%; height: 260px; overflow: visible; }
+    .legend { display: flex; gap: 16px; padding: 0 14px 12px; color: var(--muted); font-size: 11px; }
+    .legend i { display: inline-block; width: 10px; height: 10px; margin-left: 5px; vertical-align: -1px; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; min-width: 980px; border-collapse: collapse; }
+    th { padding: 10px 9px; color: #f8f4e9; background: var(--coal); font-weight: 500; text-align: right; white-space: nowrap; }
+    td { padding: 9px; border-bottom: 1px solid #e6e1d6; text-align: right; }
+    tbody tr:nth-child(even) { background: #faf8f2; }
+    td.num { direction: ltr; text-align: right; font-variant-numeric: tabular-nums; }
+    .empty { display: flex; align-items: center; justify-content: center; min-height: 220px; color: var(--muted); direction: rtl; text-align: center; }
+    .metric-note { color: var(--muted); }
+    @media (max-width: 1100px) { .filters { grid-template-columns: repeat(3,1fr); } .kpis { grid-template-columns: repeat(3,1fr); } }
+    @media (max-width: 760px) { body { padding: 0; } .masthead { align-items: flex-start; flex-direction: column; } main { padding: 10px; } .chart-grid { grid-template-columns: 1fr; } .card-wide { grid-column: auto; } }
+    @media (max-width: 560px) { .filters, .kpis { grid-template-columns: 1fr 1fr; } .masthead { padding: 20px 16px; } }
+  </style>
+</head>
+<body>
+<div class="shell">
+  <header class="masthead">
+    <div>
+      <div class="eyebrow">EMCORE / DRILLING INTELLIGENCE</div>
+      <h1>پایش عملکرد حفاری</h1>
+      <p>تولید ثبت‌شده، مصرف منابع، توقف‌ها و ساعت کارکرد واقعی نفرات</p>
+    </div>
+    <div class="stamp"><strong id="scopeLabel">همه عملیات</strong><span id="generatedAt">در حال دریافت داده…</span></div>
+  </header>
+
+  <main>
+    <div class="filters" aria-label="فیلترهای داشبورد">
+      <div class="field"><label for="qMine">معدن</label><select id="qMine"></select></div>
+      <div class="field"><label for="qBorehole">گمانه</label><select id="qBorehole"></select></div>
+      <div class="field"><label for="qRig">دستگاه</label><select id="qRig"></select></div>
+      <div class="field"><label for="qShift">شیفت</label><select id="qShift"><option value="">همه شیفت‌ها</option><option value="DAY">روز</option><option value="NIGHT">شب</option></select></div>
+      <div class="field"><label for="qFrom">از تاریخ شمسی</label><input id="qFrom" inputmode="numeric" placeholder="1405/01/01"></div>
+      <div class="field"><label for="qTo">تا تاریخ شمسی</label><input id="qTo" inputmode="numeric" placeholder="1405/12/29"></div>
+    </div>
+    <div class="toolbar">
+      <div class="toolbar-actions"><button id="applyBtn" class="btn btn-dark" type="button">به‌روزرسانی داشبورد</button><button id="resetBtn" class="btn btn-light" type="button">پاک‌کردن فیلتر</button></div>
+      <small class="metric-note">همه نسبت‌ها از جمع مقادیر ثبت‌شده در بازه انتخابی محاسبه می‌شوند.</small>
+    </div>
+    <div id="status" class="status" role="status">در حال دریافت داده‌های حفاری…</div>
+
+    <section class="kpis" aria-label="شاخص‌های کلیدی">
+      <article class="kpi"><span>حفاری ثبت‌شده</span><strong id="kDrill">—</strong><small>متر</small></article>
+      <article class="kpi"><span>ساعت واقعی نفرات</span><strong id="kCrewHours">—</strong><small id="kCoverage">پوشش داده —</small></article>
+      <article class="kpi"><span>بهره‌وری دستگاه</span><strong id="kProductivity">—</strong><small>متر بر ساعت دستگاه</small></article>
+      <article class="kpi"><span>گازوئیل به ازای متر</span><strong id="kDieselRatio">—</strong><small>واحد مصرف / متر</small></article>
+      <article class="kpi"><span>آب به ازای متر</span><strong id="kWaterRatio">—</strong><small>واحد مصرف / متر</small></article>
+      <article class="kpi"><span>توقف ثبت‌شده</span><strong id="kStop">—</strong><small>ساعت</small></article>
+    </section>
+
+    <section class="chart-grid">
+      <article class="card card-wide">
+        <div class="card-head"><h2>روند حفاری روزانه بر حسب شیفت</h2><small>متر؛ مجموع روز و شب</small></div>
+        <div id="dailyEmpty" class="empty" hidden>داده روزانه‌ای در این بازه وجود ندارد.</div>
+        <div id="dailyScroll" class="chart-scroll"><svg id="dailyChart" role="img" aria-label="نمودار حفاری روزانه شیفت روز و شب"></svg></div>
+        <div class="legend"><span><i style="background:#b85d2e"></i>شیفت روز</span><span><i style="background:#486f82"></i>شیفت شب</span></div>
+      </article>
+      <article class="card">
+        <div class="card-head"><h2>ساعت واقعی هر نفر</h2><small>۱۲ نفر اول؛ بدون برآورد جایگزین</small></div>
+        <div class="chart-scroll"><svg id="roleChart" role="img" aria-label="نمودار ساعت واقعی هر یک از کارکنان"></svg></div>
+      </article>
+      <article class="card">
+        <div class="card-head"><h2>دلایل توقف و عدم حفاری</h2><small>تعداد گزارش درگیر</small></div>
+        <div class="chart-scroll"><svg id="downtimeChart" role="img" aria-label="نمودار دلایل توقف حفاری"></svg></div>
+      </article>
+      <article class="card">
+        <div class="card-head"><h2>تولید دستگاه‌ها</h2><small>متر حفاری</small></div>
+        <div class="chart-scroll"><svg id="rigChart" role="img" aria-label="نمودار تولید دستگاه‌های حفاری"></svg></div>
+      </article>
+      <article class="card">
+        <div class="card-head"><h2>تولید گمانه‌ها</h2><small>متر حفاری</small></div>
+        <div class="chart-scroll"><svg id="boreholeChart" role="img" aria-label="نمودار تولید گمانه‌ها"></svg></div>
+      </article>
+      <article class="card card-wide">
+        <div class="card-head"><h2>جزئیات عملکرد گمانه</h2><small>عمق نهایی، منابع و پوشش ساعت واقعی</small></div>
+        <div id="tableHost" class="table-wrap"></div>
+      </article>
+      <article class="card card-wide">
+        <div class="card-head"><h2>جزئیات ساعت واقعی نفرات</h2><small>تمام نفرات در محدوده فیلتر</small></div>
+        <div id="peopleTableHost" class="table-wrap"></div>
+      </article>
+    </section>
+  </main>
+</div>
+
+<script>
+(function ($) {
+  'use strict';
+
+  var API = '/emcore_api/emcore_drilling_analytics.php';
+  var LOOKUPS_API = '/emcore_api/emcore_drilling_reports.php';
+  var lookups = { mines: [], boreholes: [], rigs: [] };
+  var svgNamespace = 'http://www.w3.org/2000/svg';
+  var roleNames = {
+    supervisor: 'سرپرست', guard: 'نگهبان', geologist: 'زمین‌شناس', driver: 'راننده',
+    head_driller: 'سرحفار', driller: 'حفار', worker: 'کارگر', assistant_driller: 'کمک‌حفار',
+    additional_worker: 'نیروی کمکی', additional_assistant: 'کمک‌حفار کمکی'
+  };
+
+  function request(url, action, data) {
+    data = data || {}; data.action = action;
+    return $.ajax({ url: url, method: 'POST', dataType: 'json', data: data });
+  }
+  function option(select, value, label) { select.append($('<option>').val(value).text(label)); }
+  function number(value, digits) {
+    if (value === null || value === undefined || value === '') return '—';
+    return Number(value).toLocaleString('fa-IR', { maximumFractionDigits: digits === undefined ? 2 : digits });
+  }
+  function errorText(xhr) {
+    if (xhr && xhr.responseJSON && xhr.responseJSON.error) return xhr.responseJSON.error;
+    if (xhr && xhr.status === 401) return 'نشست کاربری پایان یافته است. دوباره وارد سامانه شوید.';
+    if (xhr && xhr.status === 403) return 'دسترسی مشاهده گزارش‌های حفاری برای شما تعریف نشده است.';
+    return 'دریافت اطلاعات داشبورد ناموفق بود.';
+  }
+  function setStatus(text, kind) { $('#status').removeClass('error warning').addClass(kind || '').prop('hidden', false).text(text); }
+  function hideStatus() { $('#status').prop('hidden', true).text(''); }
+  function fillBoreholes(mineId) {
+    var select = $('#qBorehole').empty(); option(select, '', 'همه گمانه‌ها');
+    $.each(lookups.boreholes, function (_, item) { if (!mineId || String(item.mine_id) === String(mineId)) option(select, item.id, item.borehole_code); });
+  }
+  function loadLookups() {
+    return request(LOOKUPS_API, 'lookups').done(function (response) {
+      lookups = response.data || lookups;
+      var mine = $('#qMine').empty(); option(mine, '', 'همه معادن');
+      $.each(lookups.mines || [], function (_, item) { option(mine, item.id, item.mine_name); });
+      var rig = $('#qRig').empty(); option(rig, '', 'همه دستگاه‌ها');
+      $.each(lookups.rigs || [], function (_, item) { option(rig, item.id, item.serial_number + (item.display_name ? ' — ' + item.display_name : '')); });
+      fillBoreholes('');
+    });
+  }
+  function filters() {
+    return { mine_id: $('#qMine').val(), borehole_id: $('#qBorehole').val(), rig_id: $('#qRig').val(), shift: $('#qShift').val(), date_from_fa: $.trim($('#qFrom').val()), date_to_fa: $.trim($('#qTo').val()) };
+  }
+  function svgElement(tag, attrs, textValue) {
+    var node = document.createElementNS(svgNamespace, tag);
+    $.each(attrs || {}, function (key, value) { node.setAttribute(key, value); });
+    if (textValue !== undefined) node.textContent = textValue;
+    return node;
+  }
+  function emptySvg(svg, message) {
+    svg.empty().attr('viewBox', '0 0 600 260').append(svgElement('text', { x: 300, y: 132, 'text-anchor': 'middle', fill: '#68736e', 'font-size': 13, direction: 'rtl' }, message));
+  }
+  function horizontalBars(svgId, rows, label, value, color, unit, missing) {
+    var svg = $(svgId).empty();
+    if (!rows.length) { emptySvg(svg, 'داده‌ای برای نمایش وجود ندارد.'); return; }
+    var shown = rows.slice(0, 12), width = 680, rowHeight = 34, height = Math.max(260, 40 + shown.length * rowHeight);
+    var values = $.map(shown, function (row) { return Number(value(row) || 0); });
+    var maximum = Math.max.apply(Math, values.concat([1]));
+    svg.attr('viewBox', '0 0 ' + width + ' ' + height).attr('height', height);
+    $.each(shown, function (index, row) {
+      var y = 22 + index * rowHeight, barWidth = Math.max(0, Number(value(row) || 0) / maximum * 390);
+      svg.append(svgElement('text', { x: 660, y: y + 14, 'text-anchor': 'end', fill: '#26322e', 'font-size': 11, direction: 'rtl' }, label(row)));
+      svg.append(svgElement('rect', { x: 155, y: y, width: 390, height: 18, rx: 2, fill: '#eee9dd' }));
+      svg.append(svgElement('rect', { x: 155, y: y, width: barWidth, height: 18, rx: 2, fill: color }));
+      svg.append(svgElement('text', { x: 145, y: y + 14, 'text-anchor': 'end', fill: '#17201d', 'font-size': 11 }, number(value(row)) + ' ' + unit));
+      if (missing && Number(missing(row) || 0) > 0) svg.append(svgElement('text', { x: 150, y: y + 28, 'text-anchor': 'end', fill: '#a63d36', 'font-size': 8, direction: 'rtl' }, number(missing(row), 0) + ' ردیف نامشخص'));
+    });
+  }
+  function dailyChart(rows) {
+    var svg = $('#dailyChart').empty();
+    $('#dailyEmpty').prop('hidden', rows.length > 0); $('#dailyScroll').toggle(rows.length > 0);
+    if (!rows.length) return;
+    var width = Math.max(760, 100 + rows.length * 52), height = 260, top = 20, bottom = 55, plotHeight = height - top - bottom;
+    var maximum = 1;
+    $.each(rows, function (_, row) { maximum = Math.max(maximum, Number(row.day_drilled || 0) + Number(row.night_drilled || 0)); });
+    svg.attr('viewBox', '0 0 ' + width + ' ' + height).attr('width', width);
+    for (var grid = 0; grid <= 4; grid += 1) {
+      var gy = top + plotHeight - grid * plotHeight / 4;
+      svg.append(svgElement('line', { x1: 45, y1: gy, x2: width - 20, y2: gy, stroke: '#ded8ca', 'stroke-width': 1 }));
+      svg.append(svgElement('text', { x: 40, y: gy + 4, 'text-anchor': 'end', fill: '#68736e', 'font-size': 9 }, number(maximum * grid / 4, 1)));
+    }
+    $.each(rows, function (index, row) {
+      var x = 62 + index * 52, day = Number(row.day_drilled || 0), night = Number(row.night_drilled || 0);
+      var dayHeight = day / maximum * plotHeight, nightHeight = night / maximum * plotHeight;
+      svg.append(svgElement('rect', { x: x, y: top + plotHeight - dayHeight, width: 22, height: dayHeight, fill: '#b85d2e' }));
+      svg.append(svgElement('rect', { x: x, y: top + plotHeight - dayHeight - nightHeight, width: 22, height: nightHeight, fill: '#486f82' }));
+      svg.append(svgElement('text', { x: x + 11, y: height - 35, 'text-anchor': 'middle', fill: '#68736e', 'font-size': 9, transform: 'rotate(-35 ' + (x + 11) + ' ' + (height - 35) + ')' }, row.report_date_fa));
+    });
+  }
+  function renderKpis(summary) {
+    $('#kDrill').text(number(summary.drilled_meters));
+    $('#kCrewHours').text(number(summary.actual_worked_hours));
+    $('#kCoverage').text('پوشش داده ' + number(summary.worked_hours_coverage_percent, 1) + '٪');
+    $('#kProductivity').text(number(summary.meters_per_rig_hour, 3));
+    $('#kDieselRatio').text(number(summary.diesel_per_meter, 3));
+    $('#kWaterRatio').text(number(summary.water_per_meter, 3));
+    $('#kStop').text(number(summary.stop_hours));
+  }
+  function renderTable(rows) {
+    var host = $('#tableHost').empty();
+    if (!rows.length) { host.append($('<div>').addClass('empty').text('گمانه‌ای در این بازه وجود ندارد.')); return; }
+    var table = $('<table>'), head = $('<tr>');
+    $.each(['معدن','گمانه','گزارش','حفاری','آخرین عمق پایان','آب/متر','گازوئیل/متر','ساعت واقعی نفرات','ساعت نامشخص'], function (_, title) { head.append($('<th>').text(title)); });
+    table.append($('<thead>').append(head)); var body = $('<tbody>');
+    $.each(rows, function (_, row) {
+      var tr = $('<tr>');
+      tr.append($('<td>').text(row.mine_name)); tr.append($('<td>').attr('dir','ltr').text(row.borehole_code));
+      tr.append($('<td>').addClass('num').text(number(row.report_count,0))); tr.append($('<td>').addClass('num').text(number(row.drilled_meters)));
+      tr.append($('<td>').addClass('num').text(number(row.latest_end_depth))); tr.append($('<td>').addClass('num').text(number(row.water_per_meter,3)));
+      tr.append($('<td>').addClass('num').text(number(row.diesel_per_meter,3))); tr.append($('<td>').addClass('num').text(number(row.actual_worked_hours)));
+      tr.append($('<td>').addClass('num').text(number(row.missing_worked_hours,0))); body.append(tr);
+    });
+    host.append(table.append(body));
+  }
+  function roleText(roleKeys) {
+    return $.map(String(roleKeys || '').split(','), function (key) { return roleNames[key] || key; }).join('، ');
+  }
+  function renderPeopleTable(rows) {
+    var host = $('#peopleTableHost').empty();
+    if (!rows.length) { host.append($('<div>').addClass('empty').text('اطلاعات پرسنلی در این بازه وجود ندارد.')); return; }
+    var table = $('<table>'), head = $('<tr>');
+    $.each(['نام ثبت‌شده','نقش‌ها','حضور در گزارش','ساعت دارای مقدار','ساعت واقعی','ردیف ساعت نامشخص'], function (_, title) { head.append($('<th>').text(title)); });
+    table.append($('<thead>').append(head)); var body = $('<tbody>');
+    $.each(rows, function (_, row) {
+      var tr = $('<tr>');
+      tr.append($('<td>').text(row.person_name)); tr.append($('<td>').text(roleText(row.role_keys)));
+      tr.append($('<td>').addClass('num').text(number(row.crew_entries,0))); tr.append($('<td>').addClass('num').text(number(row.known_worked_hours,0)));
+      tr.append($('<td>').addClass('num').text(number(row.actual_worked_hours))); tr.append($('<td>').addClass('num').text(number(row.missing_worked_hours,0)));
+      body.append(tr);
+    });
+    host.append(table.append(body));
+  }
+  function scopeText() {
+    var parts = [];
+    if ($('#qMine').val()) parts.push($('#qMine option:selected').text());
+    if ($('#qBorehole').val()) parts.push('گمانه ' + $('#qBorehole option:selected').text());
+    if ($('#qRig').val()) parts.push('دستگاه ' + $('#qRig option:selected').text());
+    return parts.length ? parts.join(' / ') : 'همه عملیات';
+  }
+  function render(response) {
+    var data = response.data || {}, summary = data.summary || {};
+    renderKpis(summary); dailyChart(data.daily || []);
+    horizontalBars('#roleChart', data.people || [], function (row) {
+      var labels = roleText(row.role_keys);
+      return row.person_name + (labels ? ' — ' + labels : '');
+    }, function (row) { return row.actual_worked_hours; }, '#467259', 'ساعت', function (row) { return row.missing_worked_hours; });
+    horizontalBars('#downtimeChart', data.downtime || [], function (row) { return row.stop_cause; }, function (row) { return row.report_count; }, '#dfa936', 'گزارش');
+    horizontalBars('#rigChart', data.rigs || [], function (row) { return row.serial_number + (row.display_name ? ' — ' + row.display_name : ''); }, function (row) { return row.drilled_meters; }, '#486f82', 'متر');
+    horizontalBars('#boreholeChart', data.boreholes || [], function (row) { return row.borehole_code; }, function (row) { return row.drilled_meters; }, '#b85d2e', 'متر');
+    renderTable(data.boreholes || []); renderPeopleTable(data.people || []); $('#scopeLabel').text(scopeText());
+    $('#generatedAt').text('به‌روزرسانی: ' + new Date((response.meta || {}).generated_at || Date.now()).toLocaleString('fa-IR'));
+    var missing = Number(summary.missing_worked_hours || 0), noCrew = Number(summary.reports_without_crew || 0), mismatches = Number(summary.interval_mismatch_reports || 0);
+    if (missing > 0 || noCrew > 0 || mismatches > 0) {
+      var notes = [];
+      if (missing > 0) notes.push(number(missing,0) + ' ردیف پرسنلی فاقد ساعت واقعی است و در جمع ساعت‌ها برآورد نشده');
+      if (noCrew > 0) notes.push(number(noCrew,0) + ' گزارش فاقد ردیف پرسنلی است');
+      if (mismatches > 0) notes.push(number(mismatches,0) + ' گزارش قدیمی اختلاف میزان حفاری با بازه عمق دارد');
+      setStatus(notes.join('؛ ') + '.', 'warning');
+    } else hideStatus();
+  }
+  function loadDashboard() {
+    setStatus('در حال محاسبه شاخص‌ها…'); $('#applyBtn').prop('disabled', true);
+    request(API, 'dashboard', filters()).done(render).fail(function (xhr) { setStatus(errorText(xhr), 'error'); }).always(function () { $('#applyBtn').prop('disabled', false); });
+  }
+
+  $('#qMine').on('change', function () { fillBoreholes($(this).val()); });
+  $('#applyBtn').on('click', loadDashboard);
+  $('#resetBtn').on('click', function () { $('#qMine,#qRig,#qShift,#qFrom,#qTo').val(''); fillBoreholes(''); loadDashboard(); });
+  loadLookups().done(loadDashboard).fail(function (xhr) { setStatus(errorText(xhr), 'error'); });
+})(jQuery);
+</script>
+</body>
+</html>

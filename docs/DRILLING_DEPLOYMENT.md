@@ -9,9 +9,12 @@ Deploy these files from the same Git revision:
 - `database/migrations/003_emcore_drilling_operations.sql`
 - `database/migrations/004_emcore_drilling_legacy_staging.sql`
 - `database/migrations/005_emcore_mine_relationships_and_legacy_mapping.sql`
+- `database/migrations/009_emcore_drilling_analytics_and_worked_hours.sql`
 - `emcore_api/emcore_drilling_reports.php`
+- `emcore_api/emcore_drilling_analytics.php`
 - `emcore_api/emcore_mines.php`
 - `panels/emcore_drilling_reports_panel.html`
+- `panels/emcore_drilling_analytics_panel.html`
 - `panels/emcore_mines_panel.html`
 - `tools/import_legacy_drilling_masters.php`
 - `tools/import_legacy_drilling.php`
@@ -26,6 +29,7 @@ Keep the existing shared API files (`_bootstrap.php`, `_audit.php`, and `_module
 - Existing EMCORE migrations `001` and `002` already applied.
 - Reviewed mine IDs `3`, `8`, `9`, and `10`, company `معدن کاران مس میامی`, and person `سید محمدداود فیض‌آبادی` must match the preflight documented in migration `005`. The migration creates the remaining historical mine mappings.
 - The database function `shamsi_slash_to_gregorian_date` installed and tested.
+- Node.js for the repository-level drilling release check.
 - A ProcessMaker user with active `authorization` administration access. After migration `003`, that user receives full initial access to `drilling_daily_reports`.
 - Clean exports of:
   - `emidco_db_projects.sql`
@@ -73,14 +77,16 @@ robocopy "%PM_EMCORE_API%" "%BACKUP_ROOT%\emcore_api" /E /COPY:DAT /R:1 /W:1
 "%MYSQL_BIN%\mysqldump.exe" -u YOUR_BACKUP_USER -p --single-transaction --routines --triggers "%PM_DATABASE%" > "%BACKUP_ROOT%\emcore-before-drilling.sql"
 ```
 
-Run all four syntax checks on the exact release being deployed. They can be
+Run the syntax and release checks on the exact release being deployed. They can be
 repeated without loading the unrelated GD and OCI8 configuration:
 
 ```bat
 php -n -l "%EMCORE_RELEASE%\emcore_api\emcore_drilling_reports.php"
+php -n -l "%EMCORE_RELEASE%\emcore_api\emcore_drilling_analytics.php"
 php -n -l "%EMCORE_RELEASE%\emcore_api\emcore_mines.php"
 php -n -l "%EMCORE_RELEASE%\tools\import_legacy_drilling_masters.php"
 php -n -l "%EMCORE_RELEASE%\tools\import_legacy_drilling.php"
+node "%EMCORE_RELEASE%\tools\check_drilling_analytics_release.js"
 ```
 
 Apply the migrations in order to the ProcessMaker database:
@@ -89,13 +95,15 @@ Apply the migrations in order to the ProcessMaker database:
 "%MYSQL_BIN%\mysql.exe" -u YOUR_DEPLOY_USER -p "%PM_DATABASE%" < "%EMCORE_RELEASE%\database\migrations\003_emcore_drilling_operations.sql"
 "%MYSQL_BIN%\mysql.exe" -u YOUR_DEPLOY_USER -p "%PM_DATABASE%" < "%EMCORE_RELEASE%\database\migrations\004_emcore_drilling_legacy_staging.sql"
 "%MYSQL_BIN%\mysql.exe" -u YOUR_DEPLOY_USER -p "%PM_DATABASE%" < "%EMCORE_RELEASE%\database\migrations\005_emcore_mine_relationships_and_legacy_mapping.sql"
+"%MYSQL_BIN%\mysql.exe" -u YOUR_DEPLOY_USER -p "%PM_DATABASE%" < "%EMCORE_RELEASE%\database\migrations\009_emcore_drilling_analytics_and_worked_hours.sql"
 ```
 
-Deploy both updated endpoints, preserving the existing live helpers and
+Deploy the updated endpoints, preserving the existing live helpers and
 `emcore_config.php`, then compare the copied files:
 
 ```bat
 copy /Y "%EMCORE_RELEASE%\emcore_api\emcore_drilling_reports.php" "%PM_EMCORE_API%\emcore_drilling_reports.php"
+copy /Y "%EMCORE_RELEASE%\emcore_api\emcore_drilling_analytics.php" "%PM_EMCORE_API%\emcore_drilling_analytics.php"
 copy /Y "%EMCORE_RELEASE%\emcore_api\emcore_mines.php" "%PM_EMCORE_API%\emcore_mines.php"
 fc /B "%EMCORE_RELEASE%\emcore_api\emcore_drilling_reports.php" "%PM_EMCORE_API%\emcore_drilling_reports.php"
 fc /B "%EMCORE_RELEASE%\emcore_api\emcore_mines.php" "%PM_EMCORE_API%\emcore_mines.php"
@@ -128,6 +136,7 @@ php "%EMCORE_RELEASE%\tools\import_legacy_drilling.php" --source-table=prc_db_go
 Panel HTML is not copied into `%PM_EMCORE_API%`. Paste the complete contents of
 `panels\emcore_mines_panel.html` into the mines Panel WebControl and
 `panels\emcore_drilling_reports_panel.html` into the drilling Panel WebControl
+and `panels\emcore_drilling_analytics_panel.html` into its analytics Panel WebControl
 as described in section 12.
 
 ## 3. Unix/Linux reference paths
@@ -166,9 +175,11 @@ This must pass using the production-compatible PHP CLI before files become reach
 
 ```bash
 php -l "$EMCORE_RELEASE/emcore_api/emcore_drilling_reports.php"
+php -l "$EMCORE_RELEASE/emcore_api/emcore_drilling_analytics.php"
 php -l "$EMCORE_RELEASE/emcore_api/emcore_mines.php"
 php -l "$EMCORE_RELEASE/tools/import_legacy_drilling_masters.php"
 php -l "$EMCORE_RELEASE/tools/import_legacy_drilling.php"
+node "$EMCORE_RELEASE/tools/check_drilling_analytics_release.js"
 ```
 
 Stop deployment if any lint command fails.
@@ -186,9 +197,12 @@ mysql --defaults-extra-file=/secure/mysql-deploy.cnf "$PM_DATABASE" \
 
 mysql --defaults-extra-file=/secure/mysql-deploy.cnf "$PM_DATABASE" \
   < "$EMCORE_RELEASE/database/migrations/005_emcore_mine_relationships_and_legacy_mapping.sql"
+
+mysql --defaults-extra-file=/secure/mysql-deploy.cnf "$PM_DATABASE" \
+  < "$EMCORE_RELEASE/database/migrations/009_emcore_drilling_analytics_and_worked_hours.sql"
 ```
 
-All three migrations are rerunnable. Verify the foundation:
+These migrations are rerunnable. Migration 009 deliberately leaves historical `worked_hours` as `NULL` (unknown); it must not be backfilled with 12. Verify the foundation:
 
 ```sql
 SELECT module_key, is_active
@@ -208,12 +222,16 @@ Expected: one active module, rigs `1030`, `1031`, and `1036`, and 14 checklist i
 
 ## 7. Deploy the API without replacing local secrets
 
-Copy the two versioned endpoints. Preserve the existing ignored `emcore_config.php`:
+Copy the versioned endpoints. Preserve the existing ignored `emcore_config.php`:
 
 ```bash
 install -m 0640 \
   "$EMCORE_RELEASE/emcore_api/emcore_drilling_reports.php" \
   "$PM_PUBLIC/emcore_api/emcore_drilling_reports.php"
+
+install -m 0640 \
+  "$EMCORE_RELEASE/emcore_api/emcore_drilling_analytics.php" \
+  "$PM_PUBLIC/emcore_api/emcore_drilling_analytics.php"
 
 install -m 0640 \
   "$EMCORE_RELEASE/emcore_api/emcore_mines.php" \
@@ -323,10 +341,11 @@ In ProcessMaker Designer:
 1. Back up/export the existing daily drilling Dynaform.
 2. Create a new Dynaform or a dedicated Panel WebControl for the EMCORE drilling module.
 3. Replace the drilling panel content with `panels/emcore_drilling_reports_panel.html`.
-4. Replace the existing mines panel content with `panels/emcore_mines_panel.html` so relationship fields and filtering match migration `005`.
-5. Ensure the panel and `/emcore_api/emcore_drilling_reports.php` are served from the same origin so the ProcessMaker session cookie is sent.
-6. Save and force-refresh the browser to bypass cached Dynaform content.
-7. Keep the classic form available read-only during the acceptance period; do not remove it on first deployment.
+4. Create a separate analytics Panel WebControl from `panels/emcore_drilling_analytics_panel.html`.
+5. Replace the existing mines panel content with `panels/emcore_mines_panel.html` so relationship fields and filtering match migration `005`.
+6. Ensure the panels and `/emcore_api/` endpoints are served from the same origin so the ProcessMaker session cookie is sent.
+7. Save and force-refresh the browser to bypass cached Dynaform content.
+8. Keep the classic form available read-only during the acceptance period; do not remove it on first deployment.
 
 ## 13. Acceptance tests
 
@@ -347,6 +366,10 @@ Perform these tests in the deployed browser session:
 13. The mines relationship filter separates owned, contractor, and personnel-related records.
 14. Only one active `تپه سیاه شمالی` row is visible, with alias `تپه سیاه` and ore subtype `سولفیدی، اکسیدی`.
 15. `راه چمن`, `میامی`, and `کلاته برق` show the reviewed company/person relationship.
+16. A new crew member requires actual worked hours greater than zero and no more than 12.
+17. A legacy crew row with unknown hours remains blank and the dashboard shows the missing-data count.
+18. Two concurrent editors receive HTTP 409 for the stale save/delete instead of overwriting each other.
+19. The analytics filters isolate records by mine/borehole IDs and never mix same-named boreholes across mines.
 
 ## 14. Rollback
 

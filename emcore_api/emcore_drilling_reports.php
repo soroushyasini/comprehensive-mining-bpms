@@ -4,7 +4,7 @@ require_once __DIR__ . '/_module_permissions.php';
 
 const EMCORE_DRILLING_MODULE = 'drilling_daily_reports';
 
-function emcore_drilling_decimal($name, $required = false, $maxIntegerDigits = 11)
+function emcore_drilling_decimal($name, $required = false, $maxIntegerDigits = 11, $scale = 3)
 {
     $raw = isset($_POST[$name]) ? trim((string)$_POST[$name]) : '';
     if ($raw === '') {
@@ -13,11 +13,43 @@ function emcore_drilling_decimal($name, $required = false, $maxIntegerDigits = 1
         }
         return null;
     }
-    $pattern = '/^\d{1,' . (int)$maxIntegerDigits . '}(?:\.\d{1,3})?$/';
+    $pattern = '/^\d{1,' . (int)$maxIntegerDigits . '}(?:\.\d{1,' . (int)$scale . '})?$/';
     if (!preg_match($pattern, $raw)) {
         throw new EmcoreHttpException(422, 'مقدار عددی نامعتبر است', [$name => 'non_negative_decimal_required']);
     }
     return $raw;
+}
+
+function emcore_drilling_decimal_units($value, $scale)
+{
+    $parts = explode('.', (string)$value, 2);
+    $fraction = isset($parts[1]) ? $parts[1] : '';
+    return ((int)$parts[0] * (10 ** $scale)) + (int)str_pad($fraction, $scale, '0');
+}
+
+function emcore_drilling_json_decimal($value, $field, $index, $required, $maxIntegerDigits, $scale)
+{
+    $raw = $value === null ? '' : trim((string)$value);
+    if ($raw === '') {
+        if ($required) {
+            throw new EmcoreHttpException(422, 'ساعت کارکرد واقعی هر نفر الزامی است', ['crew_index' => $index, $field => 'required']);
+        }
+        return null;
+    }
+    $pattern = '/^\d{1,' . (int)$maxIntegerDigits . '}(?:\.\d{1,' . (int)$scale . '})?$/';
+    if (!preg_match($pattern, $raw)) {
+        throw new EmcoreHttpException(422, 'ساعت کارکرد واقعی نامعتبر است', ['crew_index' => $index, $field => 'invalid_decimal']);
+    }
+    return $raw;
+}
+
+function emcore_drilling_lock_version()
+{
+    $raw = isset($_POST['lock_version']) ? trim((string)$_POST['lock_version']) : '';
+    if (!preg_match('/^[1-9][0-9]*$/', $raw)) {
+        throw new EmcoreHttpException(422, 'نسخه گزارش نامعتبر است', ['lock_version' => 'positive_integer_required']);
+    }
+    return (int)$raw;
 }
 
 function emcore_drilling_optional_int($name)
@@ -84,10 +116,51 @@ function emcore_drilling_post_filter_id($name)
     return (int)$raw;
 }
 
+function emcore_drilling_assert_references($db, $boreholeId, $rigId, $currentReport)
+{
+    $borehole = $db->prepare(
+        "SELECT b.id, b.status, b.deleted_at, m.deleted_at AS mine_deleted_at
+         FROM emcore_boreholes b
+         JOIN emcore_mines m ON m.id = b.mine_id
+         WHERE b.id = :id LIMIT 1"
+    );
+    $borehole->execute([':id' => $boreholeId]);
+    $boreholeRow = $borehole->fetch();
+    $sameBorehole = $currentReport && (int)$currentReport['borehole_id'] === $boreholeId;
+    $activeBorehole = $boreholeRow && $boreholeRow['deleted_at'] === null
+        && $boreholeRow['mine_deleted_at'] === null && $boreholeRow['status'] === 'active';
+    if (!$boreholeRow || (!$activeBorehole && !$sameBorehole)) {
+        throw new EmcoreHttpException(422, 'گمانه فعال یافت نشد');
+    }
+
+    $rig = $db->prepare(
+        'SELECT id, status, deleted_at FROM emcore_drilling_rigs WHERE id = :id LIMIT 1'
+    );
+    $rig->execute([':id' => $rigId]);
+    $rigRow = $rig->fetch();
+    $sameRig = $currentReport && (int)$currentReport['rig_id'] === $rigId;
+    $activeRig = $rigRow && $rigRow['deleted_at'] === null && $rigRow['status'] === 'active';
+    if (!$rigRow || (!$activeRig && !$sameRig)) {
+        throw new EmcoreHttpException(422, 'دستگاه حفاری فعال یافت نشد');
+    }
+}
+
 function emcore_drilling_fetch_report($db, $id, $includeDeleted = false)
 {
-    $sql = "SELECT r.*, b.borehole_code, b.mine_id, m.mine_name,
-                   g.serial_number AS rig_serial, g.display_name AS rig_name
+    $sql = "SELECT r.id, r.legacy_id, r.report_number, r.legacy_form_serial,
+                   r.borehole_id, r.rig_id, r.report_date_fa, r.report_date_en,
+                   r.shift, r.start_time, r.end_time, r.rig_hours,
+                   r.drill_start_depth, r.drill_end_depth, r.drill_amount,
+                   r.corebox_start, r.corebox_end, r.water_amount, r.diesel_amount,
+                   r.oil_amount, r.supermix_amount, r.bentonite_amount, r.soda_amount,
+                   r.cement_amount, r.lv_pack, r.operation_state, r.stop_causes,
+                   r.stop_duration_hours, r.incoming_equipment, r.outgoing_equipment,
+                   r.checklist_notes, r.operation_description, r.issues_suggestions,
+                   r.legacy_inserted_at, r.created_by_usr_uid, r.created_at,
+                   r.updated_at, r.lock_version, r.deleted_at,
+                   b.borehole_code, b.status AS borehole_status, b.mine_id, m.mine_name,
+                   g.serial_number AS rig_serial, g.display_name AS rig_name,
+                   g.status AS rig_status
             FROM emcore_drilling_reports r
             JOIN emcore_boreholes b ON b.id = r.borehole_id
             JOIN emcore_mines m ON m.id = b.mine_id
@@ -101,8 +174,8 @@ function emcore_drilling_fetch_report($db, $id, $includeDeleted = false)
     }
 
     $crew = $db->prepare(
-        "SELECT c.id, c.role_key, c.person_id, c.worker_name_snapshot, c.worker_type, c.sort_order,
-                p.first_name, p.last_name
+        "SELECT c.id, c.role_key, c.person_id, c.worker_name_snapshot, c.worker_type,
+                c.worked_hours, c.sort_order, p.first_name, p.last_name, p.is_active AS person_is_active
          FROM emcore_drilling_report_crew c
          LEFT JOIN emcore_persons p ON p.id = c.person_id
          WHERE c.report_id = :id
@@ -123,7 +196,7 @@ function emcore_drilling_fetch_report($db, $id, $includeDeleted = false)
     return $report;
 }
 
-function emcore_drilling_replace_crew($db, $reportId, $crewRows)
+function emcore_drilling_replace_crew($db, $reportId, $crewRows, $isCreate)
 {
     if (count($crewRows) > 100) {
         throw new EmcoreHttpException(422, 'تعداد اعضای شیفت بیش از حد مجاز است');
@@ -134,18 +207,21 @@ function emcore_drilling_replace_crew($db, $reportId, $crewRows)
         'driller', 'worker', 'assistant_driller', 'additional_worker',
         'additional_assistant',
     ];
-    $personLookup = $db->prepare(
-        'SELECT id FROM emcore_persons WHERE id = :id AND deleted_at IS NULL AND is_active = 1 LIMIT 1'
+    $existingStmt = $db->prepare(
+        'SELECT id, role_key, person_id, worker_name_snapshot, worked_hours
+         FROM emcore_drilling_report_crew WHERE report_id = :report_id'
     );
-    $insert = $db->prepare(
-        "INSERT INTO emcore_drilling_report_crew
-            (report_id, role_key, person_id, worker_name_snapshot, worker_type, sort_order)
-         VALUES
-            (:report_id, :role_key, :person_id, :worker_name_snapshot, :worker_type, :sort_order)"
-    );
+    $existingStmt->execute([':report_id' => $reportId]);
+    $existing = [];
+    foreach ($existingStmt->fetchAll() as $oldRow) {
+        $existing[(string)$oldRow['id']] = $oldRow;
+    }
 
-    $db->prepare('DELETE FROM emcore_drilling_report_crew WHERE report_id = :id')
-        ->execute([':id' => $reportId]);
+    $personLookup = $db->prepare(
+        'SELECT id, is_active, deleted_at FROM emcore_persons WHERE id = :id LIMIT 1'
+    );
+    $validated = [];
+    $seenIds = [];
 
     foreach ($crewRows as $index => $row) {
         if (!is_array($row)) {
@@ -157,6 +233,16 @@ function emcore_drilling_replace_crew($db, $reportId, $crewRows)
             throw new EmcoreHttpException(422, 'اطلاعات پرسنل شیفت نامعتبر است', ['crew_index' => $index]);
         }
 
+        $crewId = isset($row['id']) && $row['id'] !== null ? trim((string)$row['id']) : '';
+        $oldRow = null;
+        if ($crewId !== '') {
+            if (!preg_match('/^[1-9][0-9]*$/', $crewId) || !isset($existing[$crewId]) || isset($seenIds[$crewId])) {
+                throw new EmcoreHttpException(422, 'شناسه ردیف پرسنل نامعتبر است', ['crew_index' => $index]);
+            }
+            $oldRow = $existing[$crewId];
+            $seenIds[$crewId] = true;
+        }
+
         $personId = null;
         if (isset($row['person_id']) && $row['person_id'] !== '' && $row['person_id'] !== null) {
             if (!preg_match('/^[1-9][0-9]*$/', (string)$row['person_id'])) {
@@ -164,18 +250,62 @@ function emcore_drilling_replace_crew($db, $reportId, $crewRows)
             }
             $personId = (int)$row['person_id'];
             $personLookup->execute([':id' => $personId]);
-            if (!$personLookup->fetch()) {
+            $person = $personLookup->fetch();
+            $isUnchangedHistoricalPerson = $oldRow !== null && (int)$oldRow['person_id'] === $personId;
+            if (!$person || (($person['deleted_at'] !== null || (int)$person['is_active'] !== 1) && !$isUnchangedHistoricalPerson)) {
                 throw new EmcoreHttpException(422, 'شخص فعال یافت نشد', ['crew_index' => $index]);
             }
         }
 
+        $samePerson = $oldRow !== null && (
+            ($oldRow['person_id'] === null && $personId === null)
+            || ($oldRow['person_id'] !== null && (int)$oldRow['person_id'] === $personId)
+        );
+        $preservesUnknownHistoricalRow = !$isCreate && $oldRow !== null
+            && $oldRow['worked_hours'] === null && $oldRow['role_key'] === $role
+            && $oldRow['worker_name_snapshot'] === $name && $samePerson;
+        $workedHours = emcore_drilling_json_decimal(
+            isset($row['worked_hours']) ? $row['worked_hours'] : null,
+            'worked_hours',
+            $index,
+            !$preservesUnknownHistoricalRow,
+            2,
+            2
+        );
+        if ($workedHours !== null) {
+            $workedUnits = emcore_drilling_decimal_units($workedHours, 2);
+            if ($workedUnits <= 0 || $workedUnits > 1200) {
+                throw new EmcoreHttpException(422, 'ساعت کارکرد واقعی باید بیشتر از صفر و حداکثر ۱۲ باشد', ['crew_index' => $index]);
+            }
+        }
+
+        $validated[] = [
+            'role_key' => $role,
+            'person_id' => $personId,
+            'worker_name_snapshot' => $name,
+            'worker_type' => $personId === null ? 'temporary' : 'registered',
+            'worked_hours' => $workedHours,
+            'sort_order' => $index + 1,
+        ];
+    }
+
+    $db->prepare('DELETE FROM emcore_drilling_report_crew WHERE report_id = :id')
+        ->execute([':id' => $reportId]);
+    $insert = $db->prepare(
+        "INSERT INTO emcore_drilling_report_crew
+            (report_id, role_key, person_id, worker_name_snapshot, worker_type, worked_hours, sort_order)
+         VALUES
+            (:report_id, :role_key, :person_id, :worker_name_snapshot, :worker_type, :worked_hours, :sort_order)"
+    );
+    foreach ($validated as $row) {
         $insert->execute([
             ':report_id' => $reportId,
-            ':role_key' => $role,
-            ':person_id' => $personId,
-            ':worker_name_snapshot' => $name,
-            ':worker_type' => $personId === null ? 'temporary' : 'registered',
-            ':sort_order' => $index + 1,
+            ':role_key' => $row['role_key'],
+            ':person_id' => $row['person_id'],
+            ':worker_name_snapshot' => $row['worker_name_snapshot'],
+            ':worker_type' => $row['worker_type'],
+            ':worked_hours' => $row['worked_hours'],
+            ':sort_order' => $row['sort_order'],
         ]);
     }
 }
@@ -203,7 +333,11 @@ function emcore_drilling_replace_checklist($db, $reportId, $checkedKeys)
         }
     }
 
-    $db->prepare('DELETE FROM emcore_drilling_report_checklist WHERE report_id = :id')
+    $db->prepare(
+        'DELETE rc FROM emcore_drilling_report_checklist rc
+         JOIN emcore_drilling_checklist_items i ON i.item_key = rc.item_key AND i.is_active = 1
+         WHERE rc.report_id = :id'
+    )
         ->execute([':id' => $reportId]);
     $insert = $db->prepare(
         'INSERT INTO emcore_drilling_report_checklist (report_id, item_key, is_checked)
@@ -238,13 +372,13 @@ if ($action === 'lookups') {
         "SELECT b.id, b.mine_id, b.borehole_code, b.status
          FROM emcore_boreholes b
          JOIN emcore_mines m ON m.id = b.mine_id AND m.deleted_at IS NULL
-         WHERE b.deleted_at IS NULL
+         WHERE b.deleted_at IS NULL AND b.status = 'active'
          ORDER BY b.mine_id, b.borehole_code"
     )->fetchAll();
     $rigs = $db->query(
         "SELECT id, serial_number, display_name, status
          FROM emcore_drilling_rigs
-         WHERE deleted_at IS NULL
+         WHERE deleted_at IS NULL AND status = 'active'
          ORDER BY serial_number"
     )->fetchAll();
     $persons = $db->query(
@@ -334,9 +468,11 @@ if ($action === 'list') {
     $sql = "SELECT r.id, r.legacy_id, r.report_number, r.legacy_form_serial,
                    r.report_date_fa, r.shift, r.rig_hours, r.drill_start_depth,
                    r.drill_end_depth, r.drill_amount, r.operation_state,
-                   r.stop_duration_hours, r.updated_at, b.borehole_code, b.mine_id,
+                   r.stop_duration_hours, r.updated_at, r.lock_version, b.borehole_code, b.mine_id,
                    m.mine_name, g.serial_number AS rig_serial,
-                   (SELECT COUNT(*) FROM emcore_drilling_report_crew c WHERE c.report_id = r.id) AS crew_count
+                   (SELECT COUNT(*) FROM emcore_drilling_report_crew c WHERE c.report_id = r.id) AS crew_count,
+                   (SELECT COALESCE(SUM(c.worked_hours), 0) FROM emcore_drilling_report_crew c WHERE c.report_id = r.id) AS actual_worked_hours,
+                   (SELECT COUNT(*) FROM emcore_drilling_report_crew c WHERE c.report_id = r.id AND c.worked_hours IS NULL) AS missing_worked_hours
             FROM emcore_drilling_reports r
             JOIN emcore_boreholes b ON b.id = r.borehole_id
             JOIN emcore_mines m ON m.id = b.mine_id
@@ -368,16 +504,24 @@ emcore_require_csrf();
 
 if ($action === 'delete') {
     $id = emcore_positive_id('id');
+    $expectedVersion = emcore_drilling_lock_version();
     $db->beginTransaction();
     try {
-        $lock = $db->prepare('SELECT id FROM emcore_drilling_reports WHERE id = :id AND deleted_at IS NULL FOR UPDATE');
+        $lock = $db->prepare('SELECT id, lock_version FROM emcore_drilling_reports WHERE id = :id AND deleted_at IS NULL FOR UPDATE');
         $lock->execute([':id' => $id]);
-        if (!$lock->fetch()) {
+        $lockedRow = $lock->fetch();
+        if (!$lockedRow) {
             throw new EmcoreHttpException(404, 'گزارش حفاری یافت نشد');
         }
+        if ((int)$lockedRow['lock_version'] !== $expectedVersion) {
+            throw new EmcoreHttpException(409, 'گزارش توسط کاربر دیگری تغییر کرده است؛ فهرست را تازه‌سازی کنید');
+        }
         $before = emcore_drilling_fetch_report($db, $id);
-        $db->prepare('UPDATE emcore_drilling_reports SET deleted_at = NOW(), updated_at = NOW() WHERE id = :id')
-            ->execute([':id' => $id]);
+        $db->prepare(
+            'UPDATE emcore_drilling_reports
+             SET deleted_at = NOW(), updated_at = NOW(), lock_version = lock_version + 1
+             WHERE id = :id AND lock_version = :lock_version'
+        )->execute([':id' => $id, ':lock_version' => $expectedVersion]);
         $after = emcore_drilling_fetch_report($db, $id, true);
         emcore_audit(EMCORE_DRILLING_MODULE, 'delete', 'drilling_report', $id, $before, $after);
         $db->commit();
@@ -395,23 +539,25 @@ $rigId = emcore_positive_id('rig_id');
 $reportDateFa = emcore_drilling_jalali_date('report_date_fa');
 $shift = emcore_drilling_enum('shift', ['DAY', 'NIGHT']);
 $operationState = emcore_drilling_enum('operation_state', ['drilling', 'partially_stopped', 'no_drilling']);
-$drillStart = emcore_drilling_decimal('drill_start_depth', true);
-$drillEnd = emcore_drilling_decimal('drill_end_depth', true);
-if ((float)$drillEnd < (float)$drillStart) {
+$drillStart = emcore_drilling_decimal('drill_start_depth', true, 10, 2);
+$drillEnd = emcore_drilling_decimal('drill_end_depth', true, 10, 2);
+$drillStartUnits = emcore_drilling_decimal_units($drillStart, 2);
+$drillEndUnits = emcore_drilling_decimal_units($drillEnd, 2);
+if ($drillEndUnits < $drillStartUnits) {
     throw new EmcoreHttpException(422, 'عمق پایان نمی‌تواند کمتر از عمق شروع باشد');
 }
-$drillAmount = number_format((float)$drillEnd - (float)$drillStart, 2, '.', '');
-if ($operationState === 'no_drilling' && abs((float)$drillAmount) > 0.0001) {
+$drillAmount = number_format(($drillEndUnits - $drillStartUnits) / 100, 2, '.', '');
+if ($operationState === 'no_drilling' && $drillEndUnits !== $drillStartUnits) {
     throw new EmcoreHttpException(422, 'در وضعیت بدون حفاری، عمق شروع و پایان باید برابر باشند');
 }
 
 $stopCauses = emcore_string('stop_causes', false, 255);
-$stopDuration = emcore_drilling_decimal('stop_duration_hours', false, 2);
+$stopDuration = emcore_drilling_decimal('stop_duration_hours', false, 3, 2);
 if ($operationState === 'drilling') {
     $stopCauses = null;
     $stopDuration = null;
 } elseif ($operationState === 'partially_stopped') {
-    if ($stopCauses === null || $stopDuration === null || (float)$stopDuration <= 0 || (float)$stopDuration > 12) {
+    if ($stopCauses === null || $stopDuration === null || emcore_drilling_decimal_units($stopDuration, 2) <= 0 || emcore_drilling_decimal_units($stopDuration, 2) > 1200) {
         throw new EmcoreHttpException(422, 'برای توقف جزئی، علت و مدت بین صفر تا ۱۲ ساعت الزامی است');
     }
 } else {
@@ -421,23 +567,6 @@ if ($operationState === 'drilling') {
     $stopDuration = null;
 }
 
-$borehole = $db->prepare(
-    "SELECT b.id FROM emcore_boreholes b
-     JOIN emcore_mines m ON m.id = b.mine_id AND m.deleted_at IS NULL
-     WHERE b.id = :id AND b.deleted_at IS NULL LIMIT 1"
-);
-$borehole->execute([':id' => $boreholeId]);
-if (!$borehole->fetch()) {
-    throw new EmcoreHttpException(422, 'گمانه فعال یافت نشد');
-}
-$rig = $db->prepare(
-    "SELECT id FROM emcore_drilling_rigs
-     WHERE id = :id AND deleted_at IS NULL AND status <> 'retired' LIMIT 1"
-);
-$rig->execute([':id' => $rigId]);
-if (!$rig->fetch()) {
-    throw new EmcoreHttpException(422, 'دستگاه حفاری فعال یافت نشد');
-}
 $convert = $db->prepare('SELECT shamsi_slash_to_gregorian_date(:date_fa)');
 $convert->execute([':date_fa' => $reportDateFa]);
 $reportDateEn = $convert->fetchColumn();
@@ -447,6 +576,15 @@ if (!$reportDateEn) {
 
 $crewRows = emcore_drilling_json_array('crew_json');
 $checkedKeys = emcore_drilling_json_array('checklist_json');
+$coreboxStart = emcore_drilling_optional_int('corebox_start');
+$coreboxEnd = emcore_drilling_optional_int('corebox_end');
+if ($coreboxStart !== null && $coreboxEnd !== null && $coreboxEnd < $coreboxStart) {
+    throw new EmcoreHttpException(422, 'شماره پایان کورباکس نمی‌تواند کمتر از شماره شروع باشد');
+}
+$rigHours = emcore_drilling_decimal('rig_hours', false, 10, 2);
+if ($rigHours !== null && emcore_drilling_decimal_units($rigHours, 2) > 1200) {
+    throw new EmcoreHttpException(422, 'ساعت کارکرد دستگاه در یک شیفت نمی‌تواند بیشتر از ۱۲ باشد');
+}
 $values = [
     ':legacy_form_serial' => emcore_string('legacy_form_serial', false, 100),
     ':borehole_id' => $boreholeId,
@@ -456,19 +594,19 @@ $values = [
     ':shift' => $shift,
     ':start_time' => emcore_drilling_time('start_time'),
     ':end_time' => emcore_drilling_time('end_time'),
-    ':rig_hours' => emcore_drilling_decimal('rig_hours', false),
+    ':rig_hours' => $rigHours,
     ':drill_start_depth' => $drillStart,
     ':drill_end_depth' => $drillEnd,
     ':drill_amount' => $drillAmount,
-    ':corebox_start' => emcore_drilling_optional_int('corebox_start'),
-    ':corebox_end' => emcore_drilling_optional_int('corebox_end'),
-    ':water_amount' => emcore_drilling_decimal('water_amount', false) ?: '0',
-    ':diesel_amount' => emcore_drilling_decimal('diesel_amount', false) ?: '0',
-    ':oil_amount' => emcore_drilling_decimal('oil_amount', false) ?: '0',
-    ':supermix_amount' => emcore_drilling_decimal('supermix_amount', false) ?: '0',
-    ':bentonite_amount' => emcore_drilling_decimal('bentonite_amount', false) ?: '0',
-    ':soda_amount' => emcore_drilling_decimal('soda_amount', false) ?: '0',
-    ':cement_amount' => emcore_drilling_decimal('cement_amount', false) ?: '0',
+    ':corebox_start' => $coreboxStart,
+    ':corebox_end' => $coreboxEnd,
+    ':water_amount' => emcore_drilling_decimal('water_amount', false, 11, 3) ?: '0',
+    ':diesel_amount' => emcore_drilling_decimal('diesel_amount', false, 11, 3) ?: '0',
+    ':oil_amount' => emcore_drilling_decimal('oil_amount', false, 11, 3) ?: '0',
+    ':supermix_amount' => emcore_drilling_decimal('supermix_amount', false, 11, 3) ?: '0',
+    ':bentonite_amount' => emcore_drilling_decimal('bentonite_amount', false, 11, 3) ?: '0',
+    ':soda_amount' => emcore_drilling_decimal('soda_amount', false, 11, 3) ?: '0',
+    ':cement_amount' => emcore_drilling_decimal('cement_amount', false, 11, 3) ?: '0',
     ':lv_pack' => emcore_string('lv_pack', false, 100),
     ':operation_state' => $operationState,
     ':stop_causes' => $stopCauses,
@@ -483,6 +621,7 @@ $values = [
 $db->beginTransaction();
 try {
     if ($action === 'create') {
+        emcore_drilling_assert_references($db, $boreholeId, $rigId, null);
         $user = emcore_current_user();
         $stmt = $db->prepare(
             "INSERT INTO emcore_drilling_reports
@@ -508,22 +647,29 @@ try {
         $reportNumber = 'DR-' . str_pad((string)$id, 8, '0', STR_PAD_LEFT);
         $db->prepare('UPDATE emcore_drilling_reports SET report_number = :number WHERE id = :id')
             ->execute([':number' => $reportNumber, ':id' => $id]);
-        emcore_drilling_replace_crew($db, $id, $crewRows);
+        emcore_drilling_replace_crew($db, $id, $crewRows, true);
         emcore_drilling_replace_checklist($db, $id, $checkedKeys);
         $after = emcore_drilling_fetch_report($db, $id);
         emcore_audit(EMCORE_DRILLING_MODULE, 'create', 'drilling_report', $id, null, $after);
         $db->commit();
-        emcore_json(['success' => true, 'id' => $id, 'report_number' => $reportNumber], 201);
+        emcore_json(['success' => true, 'id' => $id, 'report_number' => $reportNumber, 'lock_version' => 1], 201);
     }
 
     $id = emcore_positive_id('id');
-    $lock = $db->prepare('SELECT id FROM emcore_drilling_reports WHERE id = :id AND deleted_at IS NULL FOR UPDATE');
+    $expectedVersion = emcore_drilling_lock_version();
+    $lock = $db->prepare('SELECT id, lock_version FROM emcore_drilling_reports WHERE id = :id AND deleted_at IS NULL FOR UPDATE');
     $lock->execute([':id' => $id]);
-    if (!$lock->fetch()) {
+    $lockedRow = $lock->fetch();
+    if (!$lockedRow) {
         throw new EmcoreHttpException(404, 'گزارش حفاری یافت نشد');
     }
+    if ((int)$lockedRow['lock_version'] !== $expectedVersion) {
+        throw new EmcoreHttpException(409, 'گزارش توسط کاربر دیگری تغییر کرده است؛ دوباره آن را باز کنید');
+    }
     $before = emcore_drilling_fetch_report($db, $id);
+    emcore_drilling_assert_references($db, $boreholeId, $rigId, $before);
     $values[':id'] = $id;
+    $values[':lock_version'] = $expectedVersion;
     $stmt = $db->prepare(
         "UPDATE emcore_drilling_reports SET
             legacy_form_serial = :legacy_form_serial, borehole_id = :borehole_id,
@@ -540,16 +686,20 @@ try {
             stop_duration_hours = :stop_duration_hours,
             incoming_equipment = :incoming_equipment, outgoing_equipment = :outgoing_equipment,
             checklist_notes = :checklist_notes, operation_description = :operation_description,
-            issues_suggestions = :issues_suggestions, updated_at = NOW()
-         WHERE id = :id AND deleted_at IS NULL"
+            issues_suggestions = :issues_suggestions, updated_at = NOW(),
+            lock_version = lock_version + 1
+         WHERE id = :id AND deleted_at IS NULL AND lock_version = :lock_version"
     );
     $stmt->execute($values);
-    emcore_drilling_replace_crew($db, $id, $crewRows);
+    if ($stmt->rowCount() !== 1) {
+        throw new EmcoreHttpException(409, 'گزارش توسط کاربر دیگری تغییر کرده است؛ دوباره آن را باز کنید');
+    }
+    emcore_drilling_replace_crew($db, $id, $crewRows, false);
     emcore_drilling_replace_checklist($db, $id, $checkedKeys);
     $after = emcore_drilling_fetch_report($db, $id);
     emcore_audit(EMCORE_DRILLING_MODULE, 'update', 'drilling_report', $id, $before, $after);
     $db->commit();
-    emcore_json(['success' => true, 'id' => $id]);
+    emcore_json(['success' => true, 'id' => $id, 'lock_version' => $expectedVersion + 1]);
 } catch (Throwable $exception) {
     if ($db->inTransaction()) {
         $db->rollBack();

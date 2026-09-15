@@ -4,6 +4,8 @@
 
 The daily drilling module replaces the classic ProcessMaker JSON/Dynaform CRUD screen with an EMCORE API and same-origin Panel WebControl. ProcessMaker remains the session identity provider; EMCORE owns the operational data, permissions, validation, and audit history.
 
+The module also records actual worked hours per crew member and includes a filterable RTL analytics dashboard. See `docs/DRILLING_ANALYTICS.md` for metric definitions and legacy-data semantics.
+
 The legacy source reviewed for the migration contains 2,035 authoritative rows. Records are never deduplicated merely because they share a mine, borehole, date, and shift.
 
 ## Domain hierarchy

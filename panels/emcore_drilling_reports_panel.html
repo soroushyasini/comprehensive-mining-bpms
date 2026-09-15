@@ -238,7 +238,7 @@
     .crew-list { display: flex; flex-direction: column; gap: 7px; }
     .crew-row {
       display: grid;
-      grid-template-columns: 1fr 1.4fr 1.4fr auto;
+      grid-template-columns: 1fr 1.3fr 1.3fr .7fr auto;
       gap: 7px;
       align-items: end;
       padding: 8px;
@@ -246,6 +246,11 @@
       border: 1px solid #ded8ca;
     }
     .crew-row select, .crew-row input { width: 100%; min-height: 34px; border: 1px solid #c9c3b6; padding: 6px; }
+    .crew-hours-wrap small { display: block; margin-top: 3px; color: var(--muted); font-size: 9px; }
+    .emcore-modal-card.read-only .section { background: #faf9f5; }
+    .emcore-modal-card.read-only input:disabled,
+    .emcore-modal-card.read-only select:disabled,
+    .emcore-modal-card.read-only textarea:disabled { color: #29332f; opacity: 1; background: #f2efe7; }
 
     .emcore-modal-error { display: none; margin: 10px 0; padding: 9px; background: #fff0ed; color: #842e28; }
     .emcore-modal-foot {
@@ -325,14 +330,15 @@
   </main>
 </div>
 
-<div id="overlay" class="emcore-modal-overlay" role="dialog" aria-modal="true">
-  <div class="emcore-modal-card">
+<div id="overlay" class="emcore-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div id="modalCard" class="emcore-modal-card">
     <div class="emcore-modal-head">
       <h2 id="modalTitle">گزارش جدید حفاری</h2>
       <button id="closeTop" class="btn btn-light btn-small" type="button">بستن</button>
     </div>
     <div class="emcore-modal-body">
       <input type="hidden" id="editId">
+      <input type="hidden" id="lockVersion">
 
       <section class="section">
         <h3>هویت گزارش</h3>
@@ -379,6 +385,7 @@
 
       <section class="section">
         <h3>پرسنل شیفت</h3>
+        <p style="margin-top:0;color:var(--muted)">ساعت واقعی حضور هر نفر در همین شیفت را وارد کنید؛ اطلاعات تاریخیِ ناموجود با ۱۲ ساعت جایگزین نمی‌شود.</p>
         <div id="crewList" class="crew-list"></div>
         <button id="addCrewBtn" class="btn btn-light btn-small" type="button">+ افزودن نفر</button>
       </section>
@@ -419,6 +426,7 @@
   var page = 1;
   var pageSize = 20;
   var total = 0;
+  var modalReadOnly = false;
 
   var roles = [
     ['supervisor', 'سرپرست'], ['guard', 'نگهبان'], ['geologist', 'زمین‌شناس'],
@@ -443,12 +451,18 @@
     if (xhr && xhr.responseJSON && xhr.responseJSON.error) return xhr.responseJSON.error;
     if (xhr && xhr.status === 401) return 'نشست کاربری پایان یافته است. دوباره وارد سامانه شوید.';
     if (xhr && xhr.status === 403) return 'دسترسی لازم برای این عملیات وجود ندارد.';
+    if (xhr && xhr.status === 409) return 'این گزارش هم‌زمان در جای دیگری تغییر کرده است. پنجره را ببندید و دوباره باز کنید.';
     return 'ارتباط با سرویس گزارش حفاری ناموفق بود.';
   }
 
   function showNotice(text) { $('#notice').text(text).show(); }
   function hideNotice() { $('#notice').hide().text(''); }
   function option(select, value, label) { select.append($('<option>').val(value).text(label)); }
+  function ensureOption(select, value, label) {
+    if (value !== null && value !== undefined && select.find('option[value="' + String(value).replace(/"/g, '\\"') + '"]').length === 0) {
+      option(select, value, label);
+    }
+  }
   function number(value) { return value === null || value === '' ? '—' : Number(value).toLocaleString('fa-IR', { maximumFractionDigits: 2 }); }
   function stateLabel(value) { return value === 'no_drilling' ? 'بدون حفاری' : value === 'partially_stopped' ? 'با توقف' : 'حفاری'; }
   function stateClass(value) { return value === 'no_drilling' ? 'badge-none' : value === 'partially_stopped' ? 'badge-partial' : 'badge-drilling'; }
@@ -530,7 +544,7 @@
     if (!rows.length) { host.addClass('empty').text('گزارشی با این فیلتر پیدا نشد.'); return; }
     var table = $('<table>').addClass('emcore-report-table');
     var header = $('<tr>');
-    $.each(['شماره', 'تاریخ', 'شیفت', 'معدن', 'گمانه', 'دستگاه', 'عمق شروع', 'عمق پایان', 'حفاری', 'وضعیت', 'پرسنل', 'عملیات'], function (_, label) {
+    $.each(['شماره', 'تاریخ', 'شیفت', 'معدن', 'گمانه', 'دستگاه', 'عمق شروع', 'عمق پایان', 'حفاری', 'وضعیت', 'ساعت واقعی نفرات', 'عملیات'], function (_, label) {
       header.append($('<th>').text(label));
     });
     table.append($('<thead>').append(header));
@@ -547,10 +561,13 @@
       tr.append($('<td>').addClass('number').text(number(row.drill_end_depth)));
       tr.append($('<td>').addClass('number').text(number(row.drill_amount)));
       tr.append($('<td>').append($('<span>').addClass('badge ' + stateClass(row.operation_state)).text(stateLabel(row.operation_state))));
-      tr.append($('<td>').text(Number(row.crew_count || 0).toLocaleString('fa-IR')));
+      var hoursText = number(row.actual_worked_hours);
+      if (Number(row.missing_worked_hours || 0) > 0) hoursText += ' (ناقص)';
+      tr.append($('<td>').addClass('number').text(hoursText));
       var actions = $('<div>').addClass('row-actions');
+      actions.append($('<button>').attr('type', 'button').addClass('btn btn-light btn-small').text('مشاهده').on('click', function () { openView(row.id); }));
       if (Number(permissions.can_update) === 1) actions.append($('<button>').attr('type', 'button').addClass('btn btn-light btn-small').text('ویرایش').on('click', function () { openEdit(row.id); }));
-      if (Number(permissions.can_delete) === 1) actions.append($('<button>').attr('type', 'button').addClass('btn btn-danger btn-small').text('حذف').on('click', function () { removeReport(row.id, row.report_number); }));
+      if (Number(permissions.can_delete) === 1) actions.append($('<button>').attr('type', 'button').addClass('btn btn-danger btn-small').text('حذف').on('click', function () { removeReport(row.id, row.report_number, row.lock_version); }));
       tr.append($('<td>').append(actions));
       body.append(tr);
     });
@@ -568,14 +585,16 @@
 
   function addCrewRow(data) {
     data = data || {};
-    var row = $('<div>').addClass('crew-row');
+    var row = $('<div>').addClass('crew-row').attr('data-crew-id', data.id || '');
     var role = $('<select>').addClass('crew-role');
     $.each(roles, function (_, item) { option(role, item[0], item[1]); });
     role.val(data.role_key || 'worker');
     var person = $('<select>').addClass('crew-person'); option(person, '', 'نیروی موقت / ورود دستی');
     $.each(lookups.persons, function (_, item) { option(person, item.id, $.trim(item.first_name + ' ' + item.last_name)); });
+    if (data.person_id) ensureOption(person, data.person_id, (data.worker_name_snapshot || 'شخص ثبت‌شده') + (Number(data.person_is_active) === 0 ? ' — غیرفعال' : ''));
     person.val(data.person_id ? String(data.person_id) : '');
     var name = $('<input>').addClass('crew-name').attr('placeholder', 'نام و نام خانوادگی').val(data.worker_name_snapshot || '');
+    var hours = $('<input>').addClass('crew-hours').attr({ type: 'number', min: '0.01', max: '12', step: '0.25', placeholder: 'مثلاً 10.5' }).val(data.worked_hours === null || data.worked_hours === undefined ? '' : data.worked_hours);
     person.on('change', function () {
       if ($(this).val()) name.val($(this).find('option:selected').text());
     });
@@ -583,12 +602,18 @@
     row.append($('<div>').append($('<label>').text('سمت')).append(role));
     row.append($('<div>').append($('<label>').text('شخص ثبت‌شده')).append(person));
     row.append($('<div>').append($('<label>').text('نام ثبت‌شده در گزارش')).append(name));
+    row.append($('<div>').addClass('crew-hours-wrap').append($('<label>').text('ساعت واقعی *')).append(hours).append($('<small>').text(data.worked_hours === null ? 'داده تاریخی نامشخص' : 'حداکثر ۱۲ ساعت')));
     row.append(remove);
     $('#crewList').append(row);
   }
 
   function resetForm() {
-    $('#editId').val('');
+    modalReadOnly = false;
+    $('#checklist .archived-check').closest('.check-item').remove();
+    $('#editId,#lockVersion').val('');
+    $('#modalCard').removeClass('read-only');
+    $('#overlay input,#overlay select,#overlay textarea,#addCrewBtn').prop('disabled', false);
+    $('#saveBtn,#addCrewBtn').show(); $('#cancelBtn').text('انصراف');
     $('#fMine,#fBorehole,#fRig').val('');
     $('#fShift').val('DAY'); $('#fDate,#fRigHours,#fLegacySerial,#fCoreStart,#fCoreEnd,#fStopCauses,#fStopDuration,#fLvPack').val('');
     $('#fStartTime').val('07:00'); $('#fEndTime').val('19:00');
@@ -596,7 +621,7 @@
     $('#fState').val('drilling');
     $('#fIncoming,#fOutgoing,#fChecklistNotes,#fDescription,#fIssues').val('');
     $('#crewList').empty();
-    $('#checklist input').prop('checked', true);
+    $('#checklist input').prop('checked', false);
     $('#modalError').hide().text('');
     updateState(); updateDepth();
   }
@@ -605,12 +630,17 @@
     resetForm(); $('#modalTitle').text('گزارش جدید حفاری'); $('#overlay').addClass('open');
   }
 
-  function openEdit(id) {
+  function openReport(id, readOnly) {
     resetForm();
     api('get', { id: id }).done(function (response) {
       var r = response.data;
-      $('#editId').val(r.id); $('#modalTitle').text('ویرایش ' + (r.report_number || 'گزارش حفاری'));
+      $('#editId').val(r.id); $('#lockVersion').val(r.lock_version);
+      $('#modalTitle').text((readOnly ? 'مشاهده ' : 'ویرایش ') + (r.report_number || 'گزارش حفاری'));
+      ensureOption($('#fMine'), r.mine_id, r.mine_name + ' — غیرفعال');
       $('#fMine').val(String(r.mine_id)); fillBoreholes($('#fBorehole'), r.mine_id, 'انتخاب گمانه', r.borehole_id);
+      ensureOption($('#fBorehole'), r.borehole_id, r.borehole_code + (r.borehole_status === 'active' ? '' : ' — غیرفعال'));
+      $('#fBorehole').val(String(r.borehole_id));
+      ensureOption($('#fRig'), r.rig_id, r.rig_serial + (r.rig_name ? ' — ' + r.rig_name : '') + (r.rig_status === 'active' ? '' : ' — غیرفعال'));
       $('#fRig').val(String(r.rig_id)); $('#fShift').val(r.shift); $('#fDate').val(r.report_date_fa);
       $('#fStartTime').val((r.start_time || '').substring(0, 5)); $('#fEndTime').val((r.end_time || '').substring(0, 5));
       $('#fRigHours').val(r.rig_hours); $('#fLegacySerial').val(r.legacy_form_serial);
@@ -624,10 +654,27 @@
       $('#fChecklistNotes').val(r.checklist_notes); $('#fDescription').val(r.operation_description); $('#fIssues').val(r.issues_suggestions);
       $('#crewList').empty(); $.each(r.crew || [], function (_, item) { addCrewRow(item); });
       $('#checklist input').prop('checked', false);
-      $.each(r.checklist || [], function (_, item) { if (Number(item.is_checked) === 1) $('#check_' + item.item_key).prop('checked', true); });
-      updateState(); updateDepth(); $('#overlay').addClass('open');
+      $.each(r.checklist || [], function (_, item) {
+        var input = $('#check_' + item.item_key);
+        if (!input.length) {
+          input = $('<input>').attr({ type: 'checkbox', id: 'check_archived_' + item.item_key, disabled: true }).addClass('archived-check');
+          $('#checklist').append($('<label>').addClass('check-item').attr('for', 'check_archived_' + item.item_key).append(input).append($('<span>').text(item.item_order + '. ' + item.label_fa + ' — گزینه غیرفعال')));
+        }
+        if (Number(item.is_checked) === 1) input.prop('checked', true);
+      });
+      updateState(); updateDepth();
+      modalReadOnly = readOnly;
+      if (readOnly) {
+        $('#modalCard').addClass('read-only');
+        $('#overlay .emcore-modal-body input,#overlay .emcore-modal-body select,#overlay .emcore-modal-body textarea,#addCrewBtn').prop('disabled', true);
+        $('#crewList .btn-danger,#saveBtn,#addCrewBtn').hide(); $('#cancelBtn').text('بستن');
+      }
+      $('#overlay').addClass('open');
     }).fail(function (xhr) { showNotice(errorText(xhr)); });
   }
+
+  function openEdit(id) { openReport(id, false); }
+  function openView(id) { openReport(id, true); }
 
   function closeModal() { $('#overlay').removeClass('open'); }
   function updateDepth() {
@@ -646,7 +693,13 @@
     var rows = [];
     $('#crewList .crew-row').each(function () {
       var row = $(this), name = $.trim(row.find('.crew-name').val());
-      if (name) rows.push({ role_key: row.find('.crew-role').val(), person_id: row.find('.crew-person').val() || null, worker_name_snapshot: name });
+      if (name) rows.push({
+        id: row.attr('data-crew-id') || null,
+        role_key: row.find('.crew-role').val(),
+        person_id: row.find('.crew-person').val() || null,
+        worker_name_snapshot: name,
+        worked_hours: $.trim(row.find('.crew-hours').val()) || null
+      });
     });
     return rows;
   }
@@ -654,9 +707,9 @@
   function value(id) { return $.trim($(id).val()); }
   function formData() {
     var checked = [];
-    $('#checklist input:checked').each(function () { checked.push($(this).data('key')); });
+    $('#checklist input:not(.archived-check):checked').each(function () { checked.push($(this).data('key')); });
     return {
-      id: $('#editId').val(), borehole_id: $('#fBorehole').val(), rig_id: $('#fRig').val(),
+      id: $('#editId').val(), lock_version: $('#lockVersion').val(), borehole_id: $('#fBorehole').val(), rig_id: $('#fRig').val(),
       report_date_fa: value('#fDate'), shift: $('#fShift').val(), start_time: value('#fStartTime'), end_time: value('#fEndTime'),
       rig_hours: value('#fRigHours'), legacy_form_serial: value('#fLegacySerial'), drill_start_depth: value('#fDepthStart'),
       drill_end_depth: value('#fDepthEnd'), corebox_start: value('#fCoreStart'), corebox_end: value('#fCoreEnd'),
@@ -671,6 +724,7 @@
   }
 
   function saveReport() {
+    if (modalReadOnly) return;
     var data = formData(), action = data.id ? 'update' : 'create';
     $('#modalError').hide(); $('#saveBtn').prop('disabled', true).text('در حال ثبت…');
     api(action, data).done(function () { closeModal(); loadReports(); }).fail(function (xhr) {
@@ -678,9 +732,9 @@
     }).always(function () { $('#saveBtn').prop('disabled', false).text('ثبت گزارش'); });
   }
 
-  function removeReport(id, numberText) {
+  function removeReport(id, numberText, lockVersion) {
     if (!window.confirm('گزارش ' + (numberText || id) + ' با حفظ سابقه ممیزی غیرفعال شود؟')) return;
-    api('delete', { id: id }).done(loadReports).fail(function (xhr) { showNotice(errorText(xhr)); });
+    api('delete', { id: id, lock_version: lockVersion }).done(loadReports).fail(function (xhr) { showNotice(errorText(xhr)); });
   }
 
   $('#qMine').on('change', function () { fillBoreholes($('#qBorehole'), $(this).val(), 'همه گمانه‌ها'); });
