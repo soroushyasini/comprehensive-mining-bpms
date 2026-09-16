@@ -83,9 +83,14 @@
     svg { display: block; min-width: 100%; height: 260px; overflow: visible; }
     .legend { display: flex; gap: 16px; padding: 0 14px 12px; color: var(--muted); font-size: 11px; }
     .legend i { display: inline-block; width: 10px; height: 10px; margin-left: 5px; vertical-align: -1px; }
+    .overview-scope { display: flex; justify-content: space-between; align-items: flex-end; gap: 18px; margin-bottom: 12px; padding: 14px; color: #fff; background: var(--coal); border-right: 4px solid var(--amber); }
+    .scope-copy { max-width: 680px; }
+    .scope-copy h2 { margin: 0 0 5px; font-size: 15px; }
+    .scope-copy p { margin: 0; color: #d7dedb; font-size: 11px; line-height: 1.8; }
+    .scope-fields { display: grid; grid-template-columns: repeat(2,minmax(190px,250px)); gap: 10px; flex: 0 0 auto; }
+    .scope-fields .field label { color: #d7dedb; }
     .progression { border-top: 4px solid var(--amber); }
-    .progress-controls { display: grid; grid-template-columns: minmax(180px,260px) minmax(180px,260px) 1fr; gap: 12px; align-items: end; padding: 14px; background: #f8f6ef; border-bottom: 1px solid var(--line); }
-    .progress-note { min-height: 36px; display: flex; align-items: center; padding: 7px 11px; color: #5f4a17; background: #fff6dd; border-right: 3px solid var(--amber); line-height: 1.7; }
+    .progress-note { min-height: 36px; display: flex; align-items: center; margin: 12px 14px 0; padding: 7px 11px; color: #5f4a17; background: #fff6dd; border-right: 3px solid var(--amber); line-height: 1.7; }
     .progress-summary { display: grid; grid-template-columns: repeat(6,minmax(110px,1fr)); gap: 1px; background: var(--line); border-bottom: 1px solid var(--line); }
     .progress-summary div { min-height: 76px; padding: 10px 12px; background: #fff; }
     .progress-summary span { display: block; color: var(--muted); font-size: 10px; }
@@ -133,8 +138,8 @@
     .attendance-signature { margin: 22px 16px 16px; padding-top: 10px; border-top: 2px solid #333; font-style: italic; }
     .quality-list { margin: 0; padding-right: 18px; }
     @media (max-width: 1100px) { .filters { grid-template-columns: repeat(3,1fr); } .kpis { grid-template-columns: repeat(3,1fr); } .progress-summary { grid-template-columns: repeat(3,1fr); } }
-    @media (max-width: 760px) { body { padding: 0; } .masthead { align-items: flex-start; flex-direction: column; } main { padding: 10px; } .chart-grid { grid-template-columns: 1fr; } .card-wide { grid-column: auto; } .progress-controls { grid-template-columns: 1fr 1fr; } .progress-note { grid-column: 1 / -1; } }
-    @media (max-width: 560px) { .filters, .kpis, .progress-summary { grid-template-columns: 1fr 1fr; } .progress-controls { grid-template-columns: 1fr; } .progress-note { grid-column: auto; } .masthead { padding: 20px 16px; } }
+    @media (max-width: 760px) { body { padding: 0; } .masthead { align-items: flex-start; flex-direction: column; } main { padding: 10px; } .chart-grid { grid-template-columns: 1fr; } .card-wide { grid-column: auto; } .overview-scope { align-items: stretch; flex-direction: column; } .scope-fields { width: 100%; grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 560px) { .filters, .kpis, .progress-summary { grid-template-columns: 1fr 1fr; } .scope-fields { grid-template-columns: 1fr; } .masthead { padding: 20px 16px; } }
   </style>
 </head>
 <body>
@@ -145,7 +150,7 @@
       <h1>پایش عملکرد حفاری</h1>
       <p>تولید ثبت‌شده، مصرف منابع، توقف‌ها و ساعت کارکرد واقعی نفرات</p>
     </div>
-    <div class="stamp"><strong id="scopeLabel">همه عملیات</strong><span id="generatedAt">در حال دریافت داده…</span></div>
+    <div class="stamp"><strong id="scopeLabel">گمانه در حال انتخاب…</strong><span id="generatedAt">در حال دریافت داده…</span></div>
   </header>
 
   <main>
@@ -155,18 +160,13 @@
     </nav>
 
     <section id="overviewView" class="view" role="tabpanel" aria-labelledby="overviewTab">
-    <div class="filters" aria-label="فیلترهای داشبورد">
-      <div class="field"><label for="qMine">معدن</label><select id="qMine"></select></div>
-      <div class="field"><label for="qBorehole">گمانه</label><select id="qBorehole"></select></div>
-      <div class="field"><label for="qRig">دستگاه</label><select id="qRig"></select></div>
-      <div class="field"><label for="qShift">شیفت</label><select id="qShift"><option value="">همه شیفت‌ها</option><option value="DAY">روز</option><option value="NIGHT">شب</option></select></div>
-      <div class="field"><label for="qFrom">از تاریخ شمسی</label><input id="qFrom" inputmode="numeric" placeholder="1405/01/01"></div>
-      <div class="field"><label for="qTo">تا تاریخ شمسی</label><input id="qTo" inputmode="numeric" placeholder="1405/12/29"></div>
-    </div>
-    <div class="toolbar">
-      <div class="toolbar-actions"><button id="applyBtn" class="btn btn-dark" type="button">به‌روزرسانی داشبورد</button><button id="resetBtn" class="btn btn-light" type="button">پاک‌کردن فیلتر</button></div>
-      <small class="metric-note">همه نسبت‌ها از جمع مقادیر ثبت‌شده در بازه انتخابی محاسبه می‌شوند.</small>
-    </div>
+    <section id="overviewScope" class="overview-scope" aria-labelledby="overviewScopeTitle">
+      <div class="scope-copy"><h2 id="overviewScopeTitle">گمانه مورد بررسی</h2><p>تمام شاخص‌های این تب برای کل سابقه گمانه انتخابی محاسبه می‌شوند؛ تاریخ، شیفت و دستگاه فیلتر جداگانه ندارند.</p></div>
+      <div class="scope-fields">
+        <div class="field"><label for="progressMine">پروژه / سایت حفاری</label><select id="progressMine"><option value="">در حال دریافت…</option></select></div>
+        <div class="field"><label for="progressBorehole">گمانه</label><select id="progressBorehole" disabled><option value="">ابتدا پروژه را انتخاب کنید</option></select></div>
+      </div>
+    </section>
     <div id="status" class="status" role="status">در حال دریافت داده‌های حفاری…</div>
 
     <section class="kpis" aria-label="شاخص‌های کلیدی">
@@ -181,11 +181,7 @@
     <section class="chart-grid">
       <article class="card card-wide progression">
         <div class="card-head"><h2>نمودار پیشرفت گمانه</h2><small>کل سابقه ثبت‌شده گمانه</small></div>
-        <div class="progress-controls">
-          <div class="field"><label for="progressMine">سایت حفاری</label><select id="progressMine"><option value="">در حال دریافت…</option></select></div>
-          <div class="field"><label for="progressBorehole">گمانه</label><select id="progressBorehole" disabled><option value="">ابتدا سایت را انتخاب کنید</option></select></div>
-          <div class="progress-note">این نمودار مستقل از بازه زمانی داشبورد، کل سابقه گزارش‌های حذف‌نشده گمانه انتخابی را نمایش می‌دهد.</div>
-        </div>
+        <div class="progress-note">این نمودار بدون محدودیت بازه زمانی، کل سابقه گزارش‌های حذف‌نشده گمانه انتخابی را نمایش می‌دهد.</div>
         <div id="progressStatus" class="status" role="status">در حال دریافت فهرست گمانه‌های دارای گزارش…</div>
         <section id="progressSummary" class="progress-summary" aria-label="خلاصه پیشرفت گمانه" hidden>
           <div><span>اولین گزارش</span><strong id="progressFirstDate">—</strong></div>
@@ -227,7 +223,7 @@
         <div id="tableHost" class="table-wrap"></div>
       </article>
       <article class="card card-wide">
-        <div class="card-head"><h2>جزئیات ساعت واقعی نفرات</h2><small>تمام نفرات در محدوده فیلتر</small></div>
+        <div class="card-head"><h2>جزئیات ساعت واقعی نفرات</h2><small>تمام نفرات در کل سابقه گمانه</small></div>
         <div id="peopleTableHost" class="table-wrap"></div>
       </article>
     </section>
@@ -267,7 +263,7 @@
   var attendancePeriods = [];
   var currentAttendance = null;
   var excelReady = false;
-  var overviewHeader = { scope: 'همه عملیات', generated: 'در حال دریافت داده…' };
+  var overviewHeader = { scope: 'گمانه در حال انتخاب…', generated: 'در حال دریافت داده…' };
   var attendanceHeader = { scope: 'حضور و کارکرد نفرات', generated: 'دوره‌ای محاسبه نشده است' };
   var svgNamespace = 'http://www.w3.org/2000/svg';
   var roleNames = {
@@ -293,25 +289,22 @@
   }
   function setStatus(text, kind) { $('#status').removeClass('error warning').addClass(kind || '').prop('hidden', false).text(text); }
   function hideStatus() { $('#status').prop('hidden', true).text(''); }
-  function fillBoreholes(mineId, selectId) {
-    var select = $(selectId || '#qBorehole').empty(); option(select, '', 'همه گمانه‌ها');
+  function fillAttendanceBoreholes(mineId) {
+    var select = $('#aBorehole').empty(); option(select, '', 'همه گمانه‌ها');
     $.each(lookups.boreholes, function (_, item) { if (!mineId || String(item.mine_id) === String(mineId)) option(select, item.id, item.borehole_code); });
   }
   function loadLookups() {
     return request(LOOKUPS_API, 'lookups').done(function (response) {
       lookups = response.data || lookups;
-      var mine = $('#qMine').empty(); option(mine, '', 'همه معادن');
       var attendanceMine = $('#aMine').empty(); option(attendanceMine, '', 'همه سایت‌ها');
       $.each(lookups.mines || [], function (_, item) {
-        option(mine, item.id, item.mine_name); option(attendanceMine, item.id, item.mine_name);
+        option(attendanceMine, item.id, item.mine_name);
       });
-      var rig = $('#qRig').empty(); option(rig, '', 'همه دستگاه‌ها');
-      $.each(lookups.rigs || [], function (_, item) { option(rig, item.id, item.serial_number + (item.display_name ? ' — ' + item.display_name : '')); });
-      fillBoreholes('', '#qBorehole'); fillBoreholes('', '#aBorehole');
+      fillAttendanceBoreholes('');
     });
   }
-  function filters() {
-    return { mine_id: $('#qMine').val(), borehole_id: $('#qBorehole').val(), rig_id: $('#qRig').val(), shift: $('#qShift').val(), date_from_fa: $.trim($('#qFrom').val()), date_to_fa: $.trim($('#qTo').val()) };
+  function overviewFilters() {
+    return { mine_id: $('#progressMine').val(), borehole_id: $('#progressBorehole').val() };
   }
   function svgElement(tag, attrs, textValue) {
     var node = document.createElementNS(svgNamespace, tag);
@@ -498,10 +491,10 @@
     return request(API, 'progression_lookups').done(function (response) {
       progressionLookups = response.data || progressionLookups;
       var mine = $('#progressMine').empty();
-      if (!(progressionLookups.mines || []).length) { option(mine, '', 'سایت دارای گزارش یافت نشد'); mine.prop('disabled', true); setProgressStatus('هیچ گمانه دارای گزارش حذف‌نشده‌ای یافت نشد.', 'warning'); return; }
+      if (!(progressionLookups.mines || []).length) { option(mine, '', 'پروژه دارای گزارش یافت نشد'); mine.prop('disabled', true); setProgressStatus('هیچ گمانه دارای گزارش حذف‌نشده‌ای یافت نشد.', 'warning'); setStatus('هیچ گمانه دارای گزارش حذف‌نشده‌ای یافت نشد.', 'warning'); return; }
       $.each(progressionLookups.mines, function (_, item) { option(mine, item.id, item.mine_name); });
-      mine.prop('disabled', false).val(String(progressionLookups.mines[0].id)); fillProgressBoreholes(mine.val()); loadProgression();
-    }).fail(function (xhr) { $('#progressMine,#progressBorehole').prop('disabled', true); setProgressStatus(errorText(xhr), 'error'); });
+      mine.prop('disabled', false).val(String(progressionLookups.mines[0].id)); fillProgressBoreholes(mine.val()); loadOverviewForSelection();
+    }).fail(function (xhr) { $('#progressMine,#progressBorehole').prop('disabled', true); setProgressStatus(errorText(xhr), 'error'); setStatus(errorText(xhr), 'error'); });
   }
   function renderKpis(summary) {
     $('#kDrill').text(number(summary.drilled_meters));
@@ -514,7 +507,7 @@
   }
   function renderTable(rows) {
     var host = $('#tableHost').empty();
-    if (!rows.length) { host.append($('<div>').addClass('empty').text('گمانه‌ای در این بازه وجود ندارد.')); return; }
+    if (!rows.length) { host.append($('<div>').addClass('empty').text('برای گمانه انتخابی گزارشی وجود ندارد.')); return; }
     var table = $('<table>'), head = $('<tr>');
     $.each(['معدن','گمانه','گزارش','حفاری','آخرین عمق پایان','آب/متر','گازوئیل/متر','ساعت واقعی نفرات','ساعت نامشخص'], function (_, title) { head.append($('<th>').text(title)); });
     table.append($('<thead>').append(head)); var body = $('<tbody>');
@@ -533,7 +526,7 @@
   }
   function renderPeopleTable(rows) {
     var host = $('#peopleTableHost').empty();
-    if (!rows.length) { host.append($('<div>').addClass('empty').text('اطلاعات پرسنلی در این بازه وجود ندارد.')); return; }
+    if (!rows.length) { host.append($('<div>').addClass('empty').text('اطلاعات پرسنلی در سابقه این گمانه وجود ندارد.')); return; }
     var table = $('<table>'), head = $('<tr>');
     $.each(['نام ثبت‌شده','نقش‌ها','حضور در گزارش','ساعت دارای مقدار','ساعت واقعی','ردیف ساعت نامشخص'], function (_, title) { head.append($('<th>').text(title)); });
     table.append($('<thead>').append(head)); var body = $('<tbody>');
@@ -548,10 +541,9 @@
   }
   function scopeText() {
     var parts = [];
-    if ($('#qMine').val()) parts.push($('#qMine option:selected').text());
-    if ($('#qBorehole').val()) parts.push('گمانه ' + $('#qBorehole option:selected').text());
-    if ($('#qRig').val()) parts.push('دستگاه ' + $('#qRig option:selected').text());
-    return parts.length ? parts.join(' / ') : 'همه عملیات';
+    if ($('#progressMine').val()) parts.push($('#progressMine option:selected').text());
+    if ($('#progressBorehole').val()) parts.push('گمانه ' + $('#progressBorehole option:selected').text());
+    return parts.length ? parts.join(' / ') : 'گمانه انتخاب نشده';
   }
   function render(response) {
     var data = response.data || {}, summary = data.summary || {};
@@ -577,8 +569,13 @@
     } else hideStatus();
   }
   function loadDashboard() {
-    setStatus('در حال محاسبه شاخص‌ها…'); $('#applyBtn').prop('disabled', true);
-    request(API, 'dashboard', filters()).done(render).fail(function (xhr) { setStatus(errorText(xhr), 'error'); }).always(function () { $('#applyBtn').prop('disabled', false); });
+    if (!$('#progressMine').val() || !$('#progressBorehole').val()) { setStatus('پروژه و گمانه را انتخاب کنید.', 'warning'); return; }
+    setStatus('در حال محاسبه شاخص‌های کل سابقه گمانه…');
+    request(API, 'dashboard', overviewFilters()).done(render).fail(function (xhr) { setStatus(errorText(xhr), 'error'); });
+  }
+  function loadOverviewForSelection() {
+    loadDashboard();
+    loadProgression();
   }
 
   function setAttendanceStatus(text, kind, hidden) {
@@ -839,14 +836,12 @@
     }
   }
 
-  $('#qMine').on('change', function () { fillBoreholes($(this).val(), '#qBorehole'); });
-  $('#progressMine').on('change', function () { fillProgressBoreholes($(this).val()); loadProgression(); });
-  $('#progressBorehole').on('change', loadProgression);
-  $('#aMine').on('change', function () { fillBoreholes($(this).val(), '#aBorehole'); invalidateAttendance(); });
+  $('#progressMine').on('change', function () { fillProgressBoreholes($(this).val()); loadOverviewForSelection(); });
+  $('#progressBorehole').on('change', loadOverviewForSelection);
+  $('#aMine').on('change', function () { fillAttendanceBoreholes($(this).val()); invalidateAttendance(); });
   $('#aBorehole').on('change', invalidateAttendance);
   $('#aYear').on('change', function () { fillAttendanceMonths(); invalidateAttendance(); });
   $('#aMonth').on('change', invalidateAttendance);
-  $('#applyBtn').on('click', loadDashboard);
   $('#attendanceLoadBtn').on('click', loadAttendance);
   $('#attendanceExportBtn').on('click', exportAttendance);
   $('#overviewTab,#attendanceTab').on('click', function () { switchTab(this.id); });
@@ -854,11 +849,10 @@
     if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
     event.preventDefault(); var target = this.id === 'overviewTab' ? 'attendanceTab' : 'overviewTab'; switchTab(target); $('#' + target).trigger('focus');
   });
-  $('#resetBtn').on('click', function () { $('#qMine,#qRig,#qShift,#qFrom,#qTo').val(''); fillBoreholes('', '#qBorehole'); loadDashboard(); });
   loadExcelLibrary();
   loadProgressionLookups();
   loadAttendancePeriods();
-  loadLookups().done(loadDashboard).fail(function (xhr) { setStatus(errorText(xhr), 'error'); });
+  loadLookups().fail(function (xhr) { setAttendanceStatus(errorText(xhr), 'error'); });
 })(jQuery);
 </script>
 </body>

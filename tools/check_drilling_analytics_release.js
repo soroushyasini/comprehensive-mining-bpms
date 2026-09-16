@@ -132,7 +132,17 @@ requireText(analyticsPanel, "request(API, 'borehole_progression'", 'progression 
 requireText(analyticsPanel, "request(API, 'progression_lookups'", 'progression module does not request historical borehole lookups');
 requireText(analyticsPanel, 'حفاری روزانه بر حسب شیفت', 'progression module lacks the daily panel');
 requireText(analyticsPanel, 'حفاری تجمعی ثبت‌شده', 'progression module lacks the cumulative panel');
-requireText(analyticsPanel, 'مستقل از بازه زمانی داشبورد', 'progression module does not disclose lifecycle filter independence');
+requireText(analyticsPanel, 'بدون محدودیت بازه زمانی', 'progression module does not disclose its full-lifecycle time semantics');
+requireText(analyticsPanel, 'id="overviewScope"', 'overview lacks a borehole-centered scope selector');
+requireText(analyticsPanel, 'تمام شاخص‌های این تب برای کل سابقه گمانه انتخابی محاسبه می‌شوند', 'overview does not disclose its full-lifecycle borehole scope');
+requireText(analyticsPanel, 'function overviewFilters()', 'overview does not have a dedicated borehole-only request scope');
+requireText(analyticsPanel, "mine_id: $('#progressMine').val(), borehole_id: $('#progressBorehole').val()", 'overview is not driven by the shared project and borehole selectors');
+requireText(analyticsPanel, 'loadOverviewForSelection()', 'overview charts and progression are not refreshed from one selection flow');
+['qMine', 'qBorehole', 'qRig', 'qShift', 'qFrom', 'qTo', 'applyBtn', 'resetBtn'].forEach((id) => {
+  if (analyticsPanel.includes(`id="${id}"`)) failures.push(`overview still renders obsolete filter control: ${id}`);
+  if (analyticsPanel.includes(`#${id}`)) failures.push(`overview script still references obsolete filter control: ${id}`);
+});
+if (analyticsPanel.includes('aria-label="فیلترهای داشبورد"')) failures.push('overview still renders the obsolete dashboard filter section');
 if (/prc_db_gozaresh_ruzane_copy2|@#/.test(analyticsApi + analyticsPanel)) failures.push('attendance implementation contains legacy ProcessMaker SQL or variables');
 
 requireText(docs, 'ساعت کارکرد واقعی', 'analytics documentation lacks actual worked-hours semantics');
