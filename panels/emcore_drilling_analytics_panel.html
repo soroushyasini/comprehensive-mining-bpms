@@ -83,6 +83,23 @@
     svg { display: block; min-width: 100%; height: 260px; overflow: visible; }
     .legend { display: flex; gap: 16px; padding: 0 14px 12px; color: var(--muted); font-size: 11px; }
     .legend i { display: inline-block; width: 10px; height: 10px; margin-left: 5px; vertical-align: -1px; }
+    .progression { border-top: 4px solid var(--amber); }
+    .progress-controls { display: grid; grid-template-columns: minmax(180px,260px) minmax(180px,260px) 1fr; gap: 12px; align-items: end; padding: 14px; background: #f8f6ef; border-bottom: 1px solid var(--line); }
+    .progress-note { min-height: 36px; display: flex; align-items: center; padding: 7px 11px; color: #5f4a17; background: #fff6dd; border-right: 3px solid var(--amber); line-height: 1.7; }
+    .progress-summary { display: grid; grid-template-columns: repeat(6,minmax(110px,1fr)); gap: 1px; background: var(--line); border-bottom: 1px solid var(--line); }
+    .progress-summary div { min-height: 76px; padding: 10px 12px; background: #fff; }
+    .progress-summary span { display: block; color: var(--muted); font-size: 10px; }
+    .progress-summary strong { display: block; margin-top: 8px; color: var(--coal); font-size: 17px; direction: ltr; text-align: right; font-variant-numeric: tabular-nums; }
+    .progress-chart-scroll { position: relative; min-height: 600px; padding: 8px 8px 0; overflow-x: auto; direction: ltr; }
+    .progress-chart-stage { position: relative; min-width: 860px; }
+    #boreholeProgressChart { min-width: 860px; height: 590px; }
+    .progress-tooltip { position: absolute; z-index: 2; width: 210px; padding: 9px 11px; color: #fff; background: rgba(23,32,29,.96); border: 1px solid rgba(255,255,255,.18); box-shadow: 0 8px 24px rgba(23,32,29,.24); direction: rtl; text-align: right; pointer-events: none; line-height: 1.65; }
+    .progress-tooltip strong, .progress-tooltip span { display: block; }
+    .progress-tooltip span { color: #e2e8e5; font-size: 10px; }
+    .progress-caption { display: flex; justify-content: space-between; gap: 12px; padding: 0 14px 12px; color: var(--muted); font-size: 10px; flex-wrap: wrap; }
+    .progress-data { margin: 0 14px 14px; border: 1px solid var(--line); }
+    .progress-data summary { cursor: pointer; padding: 10px 12px; color: var(--coal); background: #f5f2e9; font-weight: 700; }
+    .progress-data table { min-width: 760px; }
     .table-wrap { overflow-x: auto; }
     table { width: 100%; min-width: 980px; border-collapse: collapse; }
     th { padding: 10px 9px; color: #f8f4e9; background: var(--coal); font-weight: 500; text-align: right; white-space: nowrap; }
@@ -115,9 +132,9 @@
     .attendance-table .unknown-row td { color: #8a5d00; background: #fff3cd; font-weight: 700; }
     .attendance-signature { margin: 22px 16px 16px; padding-top: 10px; border-top: 2px solid #333; font-style: italic; }
     .quality-list { margin: 0; padding-right: 18px; }
-    @media (max-width: 1100px) { .filters { grid-template-columns: repeat(3,1fr); } .kpis { grid-template-columns: repeat(3,1fr); } }
-    @media (max-width: 760px) { body { padding: 0; } .masthead { align-items: flex-start; flex-direction: column; } main { padding: 10px; } .chart-grid { grid-template-columns: 1fr; } .card-wide { grid-column: auto; } }
-    @media (max-width: 560px) { .filters, .kpis { grid-template-columns: 1fr 1fr; } .masthead { padding: 20px 16px; } }
+    @media (max-width: 1100px) { .filters { grid-template-columns: repeat(3,1fr); } .kpis { grid-template-columns: repeat(3,1fr); } .progress-summary { grid-template-columns: repeat(3,1fr); } }
+    @media (max-width: 760px) { body { padding: 0; } .masthead { align-items: flex-start; flex-direction: column; } main { padding: 10px; } .chart-grid { grid-template-columns: 1fr; } .card-wide { grid-column: auto; } .progress-controls { grid-template-columns: 1fr 1fr; } .progress-note { grid-column: 1 / -1; } }
+    @media (max-width: 560px) { .filters, .kpis, .progress-summary { grid-template-columns: 1fr 1fr; } .progress-controls { grid-template-columns: 1fr; } .progress-note { grid-column: auto; } .masthead { padding: 20px 16px; } }
   </style>
 </head>
 <body>
@@ -162,11 +179,32 @@
     </section>
 
     <section class="chart-grid">
-      <article class="card card-wide">
-        <div class="card-head"><h2>روند حفاری روزانه بر حسب شیفت</h2><small>متر؛ مجموع روز و شب</small></div>
-        <div id="dailyEmpty" class="empty" hidden>داده روزانه‌ای در این بازه وجود ندارد.</div>
-        <div id="dailyScroll" class="chart-scroll"><svg id="dailyChart" role="img" aria-label="نمودار حفاری روزانه شیفت روز و شب"></svg></div>
-        <div class="legend"><span><i style="background:#b85d2e"></i>شیفت روز</span><span><i style="background:#486f82"></i>شیفت شب</span></div>
+      <article class="card card-wide progression">
+        <div class="card-head"><h2>نمودار پیشرفت گمانه</h2><small>کل سابقه ثبت‌شده گمانه</small></div>
+        <div class="progress-controls">
+          <div class="field"><label for="progressMine">سایت حفاری</label><select id="progressMine"><option value="">در حال دریافت…</option></select></div>
+          <div class="field"><label for="progressBorehole">گمانه</label><select id="progressBorehole" disabled><option value="">ابتدا سایت را انتخاب کنید</option></select></div>
+          <div class="progress-note">این نمودار مستقل از بازه زمانی داشبورد، کل سابقه گزارش‌های حذف‌نشده گمانه انتخابی را نمایش می‌دهد.</div>
+        </div>
+        <div id="progressStatus" class="status" role="status">در حال دریافت فهرست گمانه‌های دارای گزارش…</div>
+        <section id="progressSummary" class="progress-summary" aria-label="خلاصه پیشرفت گمانه" hidden>
+          <div><span>اولین گزارش</span><strong id="progressFirstDate">—</strong></div>
+          <div><span>آخرین گزارش</span><strong id="progressLastDate">—</strong></div>
+          <div><span>حفاری تجمعی ثبت‌شده</span><strong id="progressTotal">—</strong></div>
+          <div><span>آخرین عمق پایان فیزیکی</span><strong id="progressEndDepth">—</strong></div>
+          <div><span>روز فعال / گزارش</span><strong id="progressActivity">—</strong></div>
+          <div><span>میانگین روز فعال</span><strong id="progressAverage">—</strong></div>
+        </section>
+        <div id="progressEmpty" class="empty" hidden>برای گمانه انتخابی گزارش حذف‌نشده‌ای وجود ندارد.</div>
+        <div id="progressChartScroll" class="progress-chart-scroll" hidden>
+          <div id="progressChartStage" class="progress-chart-stage">
+            <svg id="boreholeProgressChart" role="img" aria-label="دو نمودار هماهنگ حفاری روزانه و حفاری تجمعی گمانه"></svg>
+            <div id="progressTooltip" class="progress-tooltip" role="tooltip" hidden></div>
+          </div>
+        </div>
+        <div class="legend" aria-label="راهنمای نمودار"><span><i style="background:#b85d2e"></i>شیفت روز</span><span><i style="background:#486f82"></i>شیفت شب</span><span><i style="background:#8b8172"></i>شیفت نامعتبر</span><span><i style="background:#467259"></i>حفاری تجمعی</span></div>
+        <div class="progress-caption"><span>بالا: حفاری روزانه بر حسب شیفت؛ پایین: حفاری تجمعی ثبت‌شده</span><span>خط‌چین در روند تجمعی یعنی بین دو تاریخ، گزارش روزانه‌ای ثبت نشده است؛ این فاصله صفر فرض نمی‌شود.</span></div>
+        <details id="progressData" class="progress-data" hidden><summary>مشاهده داده‌های نمودار در جدول</summary><div id="progressTableHost" class="table-wrap"></div></details>
       </article>
       <article class="card">
         <div class="card-head"><h2>ساعت واقعی هر نفر</h2><small>۱۲ نفر اول؛ بدون برآورد جایگزین</small></div>
@@ -225,6 +263,7 @@
   var API = '/emcore_api/emcore_drilling_analytics.php';
   var LOOKUPS_API = '/emcore_api/emcore_drilling_reports.php';
   var lookups = { mines: [], boreholes: [], rigs: [] };
+  var progressionLookups = { mines: [], boreholes: [] };
   var attendancePeriods = [];
   var currentAttendance = null;
   var excelReady = false;
@@ -299,26 +338,170 @@
       if (missing && Number(missing(row) || 0) > 0) svg.append(svgElement('text', { x: 150, y: y + 28, 'text-anchor': 'end', fill: '#a63d36', 'font-size': 8, direction: 'rtl' }, number(missing(row), 0) + ' ردیف نامشخص'));
     });
   }
-  function dailyChart(rows) {
-    var svg = $('#dailyChart').empty();
-    $('#dailyEmpty').prop('hidden', rows.length > 0); $('#dailyScroll').toggle(rows.length > 0);
-    if (!rows.length) return;
-    var width = Math.max(760, 100 + rows.length * 52), height = 260, top = 20, bottom = 55, plotHeight = height - top - bottom;
-    var maximum = 1;
-    $.each(rows, function (_, row) { maximum = Math.max(maximum, Number(row.day_drilled || 0) + Number(row.night_drilled || 0)); });
-    svg.attr('viewBox', '0 0 ' + width + ' ' + height).attr('width', width);
-    for (var grid = 0; grid <= 4; grid += 1) {
-      var gy = top + plotHeight - grid * plotHeight / 4;
-      svg.append(svgElement('line', { x1: 45, y1: gy, x2: width - 20, y2: gy, stroke: '#ded8ca', 'stroke-width': 1 }));
-      svg.append(svgElement('text', { x: 40, y: gy + 4, 'text-anchor': 'end', fill: '#68736e', 'font-size': 9 }, number(maximum * grid / 4, 1)));
+  function setProgressStatus(text, kind, hidden) {
+    $('#progressStatus').removeClass('error warning').addClass(kind || '').prop('hidden', !!hidden).text(text || '');
+  }
+  function dateOrdinal(value) {
+    var match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ''));
+    return match ? Math.floor(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) / 86400000) : null;
+  }
+  function progressY(value, minimum, maximum, top, height) { return top + height - (value - minimum) / (maximum - minimum) * height; }
+  function appendProgressAxis(svg, width, left, top, height, minimum, maximum) {
+    for (var tick = 0; tick <= 4; tick += 1) {
+      var value = minimum + (maximum - minimum) * tick / 4, y = progressY(value, minimum, maximum, top, height);
+      svg.append(svgElement('line', { x1: left, y1: y, x2: width - 30, y2: y, stroke: Math.abs(value) < .0001 ? '#a8a092' : '#e5e0d5', 'stroke-width': Math.abs(value) < .0001 ? 1.5 : 1 }));
+      svg.append(svgElement('text', { x: left - 9, y: y + 4, 'text-anchor': 'end', fill: '#68736e', 'font-size': 9 }, number(value, 1)));
     }
-    $.each(rows, function (index, row) {
-      var x = 62 + index * 52, day = Number(row.day_drilled || 0), night = Number(row.night_drilled || 0);
-      var dayHeight = day / maximum * plotHeight, nightHeight = night / maximum * plotHeight;
-      svg.append(svgElement('rect', { x: x, y: top + plotHeight - dayHeight, width: 22, height: dayHeight, fill: '#b85d2e' }));
-      svg.append(svgElement('rect', { x: x, y: top + plotHeight - dayHeight - nightHeight, width: 22, height: nightHeight, fill: '#486f82' }));
-      svg.append(svgElement('text', { x: x + 11, y: height - 35, 'text-anchor': 'middle', fill: '#68736e', 'font-size': 9, transform: 'rotate(-35 ' + (x + 11) + ' ' + (height - 35) + ')' }, row.report_date_fa));
+    if (minimum < 0 && maximum > 0) {
+      var zeroY = progressY(0, minimum, maximum, top, height);
+      svg.append(svgElement('line', { x1: left, y1: zeroY, x2: width - 30, y2: zeroY, stroke: '#a8a092', 'stroke-width': 1.5 }));
+    }
+  }
+  function showProgressTooltip(row, x) {
+    var tooltip = $('#progressTooltip').empty();
+    tooltip.append($('<strong>').text(row.report_date_fa));
+    tooltip.append($('<span>').text('روز: ' + number(row.day_drilled) + ' متر'));
+    tooltip.append($('<span>').text('شب: ' + number(row.night_drilled) + ' متر'));
+    if (Number(row.unclassified_drilled || 0) !== 0) tooltip.append($('<span>').text('شیفت نامعتبر: ' + number(row.unclassified_drilled) + ' متر'));
+    tooltip.append($('<span>').text('جمع روز: ' + number(row.daily_total) + ' متر'));
+    tooltip.append($('<span>').text('تجمعی: ' + number(row.cumulative_drilled) + ' متر'));
+    tooltip.append($('<span>').text('تعداد گزارش: ' + number(row.report_count, 0)));
+    if (Number(row.interval_mismatch_reports || 0) > 0) tooltip.append($('<span>').text('هشدار: اختلاف متراژ و بازه عمق در ' + number(row.interval_mismatch_reports, 0) + ' گزارش'));
+    var stageWidth = $('#progressChartStage').width() || 860;
+    tooltip.css({ left: Math.max(4, Math.min(stageWidth - 214, x - 105)) + 'px', top: '72px' }).prop('hidden', false);
+  }
+  function hideProgressTooltip() { $('#progressTooltip').prop('hidden', true).empty(); }
+  function renderProgressChart(rows) {
+    var svg = $('#boreholeProgressChart').empty(), chartScroll = $('#progressChartScroll');
+    hideProgressTooltip();
+    if (!rows.length) { chartScroll.prop('hidden', true); return; }
+    var left = 68, right = 30, height = 590, topY = 58, topHeight = 178, bottomY = 320, bottomHeight = 178;
+    var firstOrdinal = dateOrdinal(rows[0].report_date_en), lastOrdinal = dateOrdinal(rows[rows.length - 1].report_date_en);
+    var calendarSpan = firstOrdinal !== null && lastOrdinal !== null ? Math.max(0, lastOrdinal - firstOrdinal) : rows.length - 1;
+    var plotWidth = Math.max(762, Math.min(30000, Math.max(calendarSpan * 24, rows.length * 30))), width = left + right + plotWidth;
+    var barWidth = Math.min(26, Math.max(12, plotWidth / Math.max(rows.length, 1) * .55));
+    var dailyMinimum = 0, dailyMaximum = 0, cumulativeMinimum = 0, cumulativeMaximum = 0, points = [];
+    $.each(rows, function (_, row) {
+      var shiftValues = [Number(row.day_drilled || 0), Number(row.night_drilled || 0), Number(row.unclassified_drilled || 0)];
+      var positiveDaily = 0, negativeDaily = 0;
+      $.each(shiftValues, function (__, value) { if (value >= 0) positiveDaily += value; else negativeDaily += value; });
+      dailyMinimum = Math.min(dailyMinimum, negativeDaily); dailyMaximum = Math.max(dailyMaximum, positiveDaily);
+      cumulativeMinimum = Math.min(cumulativeMinimum, Number(row.cumulative_drilled || 0));
+      cumulativeMaximum = Math.max(cumulativeMaximum, Number(row.cumulative_drilled || 0));
     });
+    if (dailyMinimum === dailyMaximum) dailyMaximum = dailyMinimum + 1;
+    if (cumulativeMinimum === cumulativeMaximum) cumulativeMaximum = cumulativeMinimum + 1;
+    svg.attr({ viewBox: '0 0 ' + width + ' ' + height, width: width, height: height });
+    $('#progressChartStage').css('width', width + 'px'); chartScroll.prop('hidden', false);
+    svg.append(svgElement('text', { x: width - right, y: 25, 'text-anchor': 'end', fill: '#26322e', 'font-size': 13, 'font-weight': 700, direction: 'rtl' }, 'حفاری روزانه بر حسب شیفت'));
+    svg.append(svgElement('text', { x: width - right, y: 286, 'text-anchor': 'end', fill: '#26322e', 'font-size': 13, 'font-weight': 700, direction: 'rtl' }, 'حفاری تجمعی ثبت‌شده'));
+    svg.append(svgElement('text', { x: 16, y: topY + topHeight / 2, fill: '#68736e', 'font-size': 9, transform: 'rotate(-90 16 ' + (topY + topHeight / 2) + ')' }, 'متر در روز'));
+    svg.append(svgElement('text', { x: 16, y: bottomY + bottomHeight / 2, fill: '#68736e', 'font-size': 9, transform: 'rotate(-90 16 ' + (bottomY + bottomHeight / 2) + ')' }, 'متر تجمعی'));
+    appendProgressAxis(svg, width, left, topY, topHeight, dailyMinimum, dailyMaximum);
+    appendProgressAxis(svg, width, left, bottomY, bottomHeight, cumulativeMinimum, cumulativeMaximum);
+    $.each(rows, function (index, row) {
+      var ordinal = dateOrdinal(row.report_date_en), ratio;
+      if (calendarSpan > 0 && ordinal !== null && firstOrdinal !== null) ratio = (ordinal - firstOrdinal) / calendarSpan;
+      else ratio = rows.length > 1 ? index / (rows.length - 1) : .5;
+      var x = left + barWidth / 2 + ratio * (plotWidth - barWidth);
+      var shiftBars = [
+        { value: Number(row.day_drilled || 0), color: '#b85d2e' },
+        { value: Number(row.night_drilled || 0), color: '#486f82' },
+        { value: Number(row.unclassified_drilled || 0), color: '#8b8172' }
+      ];
+      var positiveStack = 0, negativeStack = 0;
+      $.each(shiftBars, function (__, shiftBar) {
+        if (shiftBar.value === 0) return;
+        var stackStart = shiftBar.value > 0 ? positiveStack : negativeStack;
+        var stackEnd = stackStart + shiftBar.value;
+        var startY = progressY(stackStart, dailyMinimum, dailyMaximum, topY, topHeight), endY = progressY(stackEnd, dailyMinimum, dailyMaximum, topY, topHeight);
+        svg.append(svgElement('rect', { x: x - barWidth / 2, y: Math.min(startY, endY), width: barWidth, height: Math.abs(startY - endY), fill: shiftBar.color }));
+        if (shiftBar.value > 0) positiveStack = stackEnd; else negativeStack = stackEnd;
+      });
+      if (Number(row.daily_total || 0) === 0) svg.append(svgElement('circle', { cx: x, cy: progressY(0, dailyMinimum, dailyMaximum, topY, topHeight), r: 3.5, fill: '#fff', stroke: '#a63d36', 'stroke-width': 2 }));
+      points.push({ x: x, y: progressY(Number(row.cumulative_drilled || 0), cumulativeMinimum, cumulativeMaximum, bottomY, bottomHeight), row: row, ordinal: ordinal });
+    });
+    for (var segment = 1; segment < points.length; segment += 1) {
+      var previous = points[segment - 1], current = points[segment], missingDates = previous.ordinal !== null && current.ordinal !== null && current.ordinal - previous.ordinal > 1;
+      svg.append(svgElement('path', { d: 'M ' + previous.x + ' ' + previous.y + ' H ' + current.x + ' V ' + current.y, fill: 'none', stroke: missingDates ? '#8b8172' : '#467259', 'stroke-width': 3, 'stroke-dasharray': missingDates ? '7 5' : '', 'stroke-linejoin': 'round' }));
+    }
+    var labelEvery = Math.max(1, Math.ceil(72 / Math.max(1, plotWidth / Math.max(calendarSpan, rows.length - 1, 1))));
+    $.each(points, function (index, point) {
+      svg.append(svgElement('circle', { cx: point.x, cy: point.y, r: 3.5, fill: '#fff', stroke: '#467259', 'stroke-width': 2 }));
+      if (index % labelEvery === 0 || index === points.length - 1) {
+        svg.append(svgElement('text', { x: point.x, y: 526, 'text-anchor': 'end', fill: '#68736e', 'font-size': 9, transform: 'rotate(-35 ' + point.x + ' 526)' }, point.row.report_date_fa));
+      }
+      var hitWidth = Math.max(30, Math.min(72, plotWidth / Math.max(rows.length, 1)));
+      var hit = svgElement('rect', { x: point.x - hitWidth / 2, y: topY, width: hitWidth, height: bottomY + bottomHeight - topY, fill: 'transparent', tabindex: 0, role: 'img', 'aria-label': point.row.report_date_fa + '، حفاری روزانه ' + number(point.row.daily_total) + ' متر، تجمعی ' + number(point.row.cumulative_drilled) + ' متر' });
+      $(hit).on('mouseenter focus', function () { showProgressTooltip(point.row, point.x); }).on('mouseleave blur', hideProgressTooltip);
+      svg.append(hit);
+    });
+    svg.append(svgElement('text', { x: left + plotWidth / 2, y: 578, 'text-anchor': 'middle', fill: '#68736e', 'font-size': 10, direction: 'rtl' }, 'تاریخ گزارش'));
+  }
+  function renderProgressTable(rows) {
+    var host = $('#progressTableHost').empty();
+    if (!rows.length) return;
+    var table = $('<table>'), heading = $('<tr>');
+    $.each(['تاریخ','شیفت روز','شیفت شب','شیفت نامعتبر','جمع روز','تجمعی','تعداد گزارش','کنترل کیفیت'], function (_, title) { heading.append($('<th>').text(title)); });
+    table.append($('<thead>').append(heading)); var body = $('<tbody>');
+    $.each(rows, function (_, row) {
+      var quality = [];
+      if (Number(row.interval_mismatch_reports || 0) > 0) quality.push(number(row.interval_mismatch_reports, 0) + ' اختلاف عمق');
+      if (Number(row.invalid_shift_reports || 0) > 0) quality.push(number(row.invalid_shift_reports, 0) + ' شیفت نامعتبر');
+      if (Number(row.negative_drill_reports || 0) > 0) quality.push(number(row.negative_drill_reports, 0) + ' مقدار منفی');
+      var tr = $('<tr>').append($('<td>').text(row.report_date_fa));
+      $.each(['day_drilled','night_drilled','unclassified_drilled','daily_total','cumulative_drilled'], function (__, key) { tr.append($('<td>').addClass('num').text(number(row[key]))); });
+      tr.append($('<td>').addClass('num').text(number(row.report_count, 0)));
+      tr.append($('<td>').text(quality.length ? quality.join('؛ ') : 'بدون هشدار'));
+      body.append(tr);
+    });
+    host.append(table.append(body));
+  }
+  function renderProgression(response) {
+    var data = response.data || {}, summary = data.summary || {}, rows = data.daily || [], quality = (response.meta || {}).quality || {};
+    $('#progressEmpty').prop('hidden', rows.length > 0); $('#progressSummary,#progressData').prop('hidden', rows.length === 0);
+    $('#progressFirstDate').text(summary.first_report_date_fa || '—'); $('#progressLastDate').text(summary.last_report_date_fa || '—');
+    $('#progressTotal').text(number(summary.total_drilled) + ' متر'); $('#progressEndDepth').text(number(summary.latest_end_depth) + ' متر');
+    $('#progressActivity').text(number(summary.active_days, 0) + ' / ' + number(summary.report_count, 0));
+    $('#progressAverage').text(number(summary.average_per_active_day) + ' متر');
+    renderProgressChart(rows); renderProgressTable(rows);
+    if (!rows.length) { setProgressStatus('برای گمانه انتخابی گزارش حذف‌نشده‌ای وجود ندارد.', 'warning'); return; }
+    var notes = [];
+    if (Number(quality.missing_calendar_days || 0) > 0) notes.push(number(quality.missing_calendar_days, 0) + ' روز تقویمی بدون گزارش با خط‌چین مشخص شده');
+    if (Number(quality.interval_mismatch_reports || 0) > 0) notes.push(number(quality.interval_mismatch_reports, 0) + ' گزارش دارای اختلاف میزان حفاری با بازه عمق است');
+    if (Number(quality.invalid_shift_reports || 0) > 0) notes.push(number(quality.invalid_shift_reports, 0) + ' گزارش دارای شیفت نامعتبر است و جداگانه نمایش داده شده');
+    if (Number(quality.negative_drill_reports || 0) > 0) notes.push(number(quality.negative_drill_reports, 0) + ' گزارش دارای حفاری منفی قدیمی است و بدون دست‌کاری روی محور علامت‌دار نمایش داده شده');
+    if (Number(summary.first_start_depth || 0) !== 0) notes.push('اولین گزارش موجود از عمق ' + number(summary.first_start_depth) + ' متر شروع می‌شود');
+    setProgressStatus(notes.length ? notes.join('؛ ') + '.' : 'کل سابقه ثبت‌شده گمانه با موفقیت محاسبه شد.', notes.length ? 'warning' : '');
+  }
+  function fillProgressBoreholes(mineId) {
+    var select = $('#progressBorehole').empty(), found = [];
+    $.each(progressionLookups.boreholes || [], function (_, item) { if (String(item.mine_id) === String(mineId)) found.push(item); });
+    if (!mineId) { option(select, '', 'ابتدا سایت را انتخاب کنید'); select.prop('disabled', true); return; }
+    if (!found.length) { option(select, '', 'گمانه دارای گزارش یافت نشد'); select.prop('disabled', true); return; }
+    $.each(found, function (_, item) { option(select, item.id, item.borehole_code + (item.status && String(item.status).toLowerCase() !== 'active' ? ' — غیرفعال' : '')); });
+    select.prop('disabled', false).val(String(found[0].id));
+  }
+  function loadProgression() {
+    var mineId = $('#progressMine').val(), boreholeId = $('#progressBorehole').val();
+    if (!mineId || !boreholeId) {
+      $('#progressSummary,#progressChartScroll,#progressEmpty,#progressData').prop('hidden', true); $('#progressTableHost').empty();
+      setProgressStatus('سایت و گمانه را انتخاب کنید.', 'warning'); return;
+    }
+    $('#progressSummary,#progressChartScroll,#progressEmpty,#progressData').prop('hidden', true); $('#progressTableHost').empty(); hideProgressTooltip();
+    $('#progressBorehole,#progressMine').prop('disabled', true); setProgressStatus('در حال محاسبه کل سابقه پیشرفت گمانه…');
+    request(API, 'borehole_progression', { mine_id: mineId, borehole_id: boreholeId }).done(renderProgression).fail(function (xhr) {
+      $('#progressSummary,#progressChartScroll,#progressEmpty,#progressData').prop('hidden', true); $('#progressTableHost').empty(); setProgressStatus(errorText(xhr), 'error');
+    }).always(function () { $('#progressMine').prop('disabled', false); fillProgressBoreholes($('#progressMine').val()); $('#progressBorehole').val(String(boreholeId)); });
+  }
+  function loadProgressionLookups() {
+    return request(API, 'progression_lookups').done(function (response) {
+      progressionLookups = response.data || progressionLookups;
+      var mine = $('#progressMine').empty();
+      if (!(progressionLookups.mines || []).length) { option(mine, '', 'سایت دارای گزارش یافت نشد'); mine.prop('disabled', true); setProgressStatus('هیچ گمانه دارای گزارش حذف‌نشده‌ای یافت نشد.', 'warning'); return; }
+      $.each(progressionLookups.mines, function (_, item) { option(mine, item.id, item.mine_name); });
+      mine.prop('disabled', false).val(String(progressionLookups.mines[0].id)); fillProgressBoreholes(mine.val()); loadProgression();
+    }).fail(function (xhr) { $('#progressMine,#progressBorehole').prop('disabled', true); setProgressStatus(errorText(xhr), 'error'); });
   }
   function renderKpis(summary) {
     $('#kDrill').text(number(summary.drilled_meters));
@@ -372,7 +555,7 @@
   }
   function render(response) {
     var data = response.data || {}, summary = data.summary || {};
-    renderKpis(summary); dailyChart(data.daily || []);
+    renderKpis(summary);
     horizontalBars('#roleChart', data.people || [], function (row) {
       var labels = roleText(row.role_keys);
       return row.person_name + (labels ? ' — ' + labels : '');
@@ -657,6 +840,8 @@
   }
 
   $('#qMine').on('change', function () { fillBoreholes($(this).val(), '#qBorehole'); });
+  $('#progressMine').on('change', function () { fillProgressBoreholes($(this).val()); loadProgression(); });
+  $('#progressBorehole').on('change', loadProgression);
   $('#aMine').on('change', function () { fillBoreholes($(this).val(), '#aBorehole'); invalidateAttendance(); });
   $('#aBorehole').on('change', invalidateAttendance);
   $('#aYear').on('change', function () { fillAttendanceMonths(); invalidateAttendance(); });
@@ -671,6 +856,7 @@
   });
   $('#resetBtn').on('click', function () { $('#qMine,#qRig,#qShift,#qFrom,#qTo').val(''); fillBoreholes('', '#qBorehole'); loadDashboard(); });
   loadExcelLibrary();
+  loadProgressionLookups();
   loadAttendancePeriods();
   loadLookups().done(loadDashboard).fail(function (xhr) { setStatus(errorText(xhr), 'error'); });
 })(jQuery);

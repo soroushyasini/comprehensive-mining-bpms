@@ -290,9 +290,192 @@ function emcore_drilling_attendance_matrix($db)
     ]);
 }
 
-$action = emcore_action(['dashboard', 'attendance_lookups', 'attendance_matrix']);
+function emcore_drilling_borehole_progression($db)
+{
+    $mineId = emcore_drilling_analytics_filter_id('mine_id');
+    $boreholeId = emcore_drilling_analytics_filter_id('borehole_id');
+    if ($mineId === null || $boreholeId === null) {
+        throw new EmcoreHttpException(422, 'انتخاب سایت و گمانه الزامی است', [
+            'mine_id' => $mineId === null ? 'required' : null,
+            'borehole_id' => $boreholeId === null ? 'required' : null,
+        ]);
+    }
+
+    $scopeSql = "SELECT b.id AS borehole_id, b.borehole_code, b.status AS borehole_status,
+            b.mine_id, m.mine_name
+        FROM emcore_boreholes b
+        JOIN emcore_mines m ON m.id = b.mine_id AND m.deleted_at IS NULL
+        WHERE b.id = :progress_borehole_id
+          AND b.mine_id = :progress_mine_id
+          AND b.deleted_at IS NULL";
+    $scope = emcore_drilling_analytics_query($db, $scopeSql, [
+        ':progress_borehole_id' => $boreholeId,
+        ':progress_mine_id' => $mineId,
+    ])->fetch();
+    if (!$scope) {
+        throw new EmcoreHttpException(422, 'گمانه انتخاب‌شده متعلق به سایت انتخاب‌شده نیست یا حذف شده است', [
+            'borehole_id' => 'invalid_for_mine',
+        ]);
+    }
+
+    $progressParams = [':progress_report_borehole_id' => $boreholeId];
+    $reportWhere = 'r.borehole_id = :progress_report_borehole_id AND r.deleted_at IS NULL';
+    $summarySql = "SELECT COUNT(*) AS report_count,
+            COUNT(DISTINCT r.report_date_en) AS active_days,
+            COALESCE(SUM(r.drill_amount), 0) AS total_drilled,
+            COALESCE(SUM(CASE WHEN r.shift = 'DAY' THEN r.drill_amount ELSE 0 END), 0) AS day_drilled,
+            COALESCE(SUM(CASE WHEN r.shift = 'NIGHT' THEN r.drill_amount ELSE 0 END), 0) AS night_drilled,
+            COALESCE(SUM(CASE WHEN r.shift NOT IN ('DAY', 'NIGHT') THEN r.drill_amount ELSE 0 END), 0) AS unclassified_drilled,
+            SUM(CASE WHEN ABS((r.drill_end_depth - r.drill_start_depth) - r.drill_amount) > 0.01 THEN 1 ELSE 0 END) AS interval_mismatch_reports,
+            SUM(CASE WHEN r.shift NOT IN ('DAY', 'NIGHT') THEN 1 ELSE 0 END) AS invalid_shift_reports,
+            SUM(CASE WHEN r.drill_amount < 0 THEN 1 ELSE 0 END) AS negative_drill_reports
+        FROM emcore_drilling_reports r
+        WHERE {$reportWhere}";
+    $summary = emcore_drilling_analytics_query($db, $summarySql, $progressParams)->fetch();
+
+    $boundaryOrderAsc = "r.report_date_en ASC, COALESCE(r.start_time, r.end_time, '00:00:00') ASC,
+        CASE WHEN r.shift = 'DAY' THEN 1 WHEN r.shift = 'NIGHT' THEN 2 ELSE 3 END ASC, r.id ASC";
+    $boundaryOrderDesc = "r.report_date_en DESC, COALESCE(r.start_time, r.end_time, '00:00:00') DESC,
+        CASE WHEN r.shift = 'DAY' THEN 1 WHEN r.shift = 'NIGHT' THEN 2 ELSE 3 END DESC, r.id DESC";
+    $boundarySelect = "SELECT r.report_date_fa, r.report_date_en, r.drill_start_depth, r.drill_end_depth
+        FROM emcore_drilling_reports r WHERE {$reportWhere}";
+    $firstReport = emcore_drilling_analytics_query(
+        $db,
+        $boundarySelect . " ORDER BY {$boundaryOrderAsc} LIMIT 1",
+        $progressParams
+    )->fetch();
+    $lastReport = emcore_drilling_analytics_query(
+        $db,
+        $boundarySelect . " ORDER BY {$boundaryOrderDesc} LIMIT 1",
+        $progressParams
+    )->fetch();
+
+    $dailySql = "SELECT r.report_date_fa, r.report_date_en,
+            COALESCE(SUM(CASE WHEN r.shift = 'DAY' THEN r.drill_amount ELSE 0 END), 0) AS day_drilled,
+            COALESCE(SUM(CASE WHEN r.shift = 'NIGHT' THEN r.drill_amount ELSE 0 END), 0) AS night_drilled,
+            COALESCE(SUM(CASE WHEN r.shift NOT IN ('DAY', 'NIGHT') THEN r.drill_amount ELSE 0 END), 0) AS unclassified_drilled,
+            COALESCE(SUM(r.drill_amount), 0) AS daily_total,
+            COUNT(*) AS report_count,
+            SUM(CASE WHEN ABS((r.drill_end_depth - r.drill_start_depth) - r.drill_amount) > 0.01 THEN 1 ELSE 0 END) AS interval_mismatch_reports,
+            SUM(CASE WHEN r.shift NOT IN ('DAY', 'NIGHT') THEN 1 ELSE 0 END) AS invalid_shift_reports,
+            SUM(CASE WHEN r.drill_amount < 0 THEN 1 ELSE 0 END) AS negative_drill_reports
+        FROM emcore_drilling_reports r
+        WHERE {$reportWhere}
+        GROUP BY r.report_date_fa, r.report_date_en
+        ORDER BY r.report_date_en";
+    $dailyRows = emcore_drilling_analytics_query($db, $dailySql, $progressParams)->fetchAll();
+
+    $runningTotal = 0.0;
+    $missingCalendarDays = 0;
+    $previousDate = null;
+    foreach ($dailyRows as &$row) {
+        $row['day_drilled'] = (float)$row['day_drilled'];
+        $row['night_drilled'] = (float)$row['night_drilled'];
+        $row['unclassified_drilled'] = (float)$row['unclassified_drilled'];
+        $row['daily_total'] = (float)$row['daily_total'];
+        $row['report_count'] = (int)$row['report_count'];
+        $row['interval_mismatch_reports'] = (int)$row['interval_mismatch_reports'];
+        $row['invalid_shift_reports'] = (int)$row['invalid_shift_reports'];
+        $row['negative_drill_reports'] = (int)$row['negative_drill_reports'];
+        $runningTotal += $row['daily_total'];
+        $row['cumulative_drilled'] = round($runningTotal, 3);
+        if ($previousDate !== null) {
+            $gapDays = (int)$previousDate->diff(new DateTimeImmutable($row['report_date_en']))->format('%a') - 1;
+            if ($gapDays > 0) {
+                $missingCalendarDays += $gapDays;
+            }
+        }
+        $previousDate = new DateTimeImmutable($row['report_date_en']);
+    }
+    unset($row);
+
+    $reportCount = (int)$summary['report_count'];
+    $activeDays = (int)$summary['active_days'];
+    $summaryPayload = [
+        'report_count' => $reportCount,
+        'active_days' => $activeDays,
+        'total_drilled' => (float)$summary['total_drilled'],
+        'day_drilled' => (float)$summary['day_drilled'],
+        'night_drilled' => (float)$summary['night_drilled'],
+        'unclassified_drilled' => (float)$summary['unclassified_drilled'],
+        'average_per_active_day' => $activeDays > 0 ? round((float)$summary['total_drilled'] / $activeDays, 3) : null,
+        'first_report_date_fa' => $firstReport ? $firstReport['report_date_fa'] : null,
+        'last_report_date_fa' => $lastReport ? $lastReport['report_date_fa'] : null,
+        'first_start_depth' => $firstReport ? (float)$firstReport['drill_start_depth'] : null,
+        'latest_end_depth' => $lastReport ? (float)$lastReport['drill_end_depth'] : null,
+    ];
+    $quality = [
+        'interval_mismatch_reports' => (int)$summary['interval_mismatch_reports'],
+        'invalid_shift_reports' => (int)$summary['invalid_shift_reports'],
+        'negative_drill_reports' => (int)$summary['negative_drill_reports'],
+        'missing_calendar_days' => $missingCalendarDays,
+    ];
+
+    emcore_json([
+        'success' => true,
+        'data' => [
+            'scope' => [
+                'mine_id' => (int)$scope['mine_id'],
+                'mine_name' => $scope['mine_name'],
+                'borehole_id' => (int)$scope['borehole_id'],
+                'borehole_code' => $scope['borehole_code'],
+                'borehole_status' => $scope['borehole_status'],
+            ],
+            'summary' => $summaryPayload,
+            'daily' => $dailyRows,
+        ],
+        'meta' => [
+            'generated_at' => date(DATE_ATOM),
+            'filters' => ['mine_id' => $mineId, 'borehole_id' => $boreholeId],
+            'quality' => $quality,
+            'semantics' => [
+                'date_range' => 'all_non_deleted_reports_for_selected_borehole',
+                'daily_drilling' => 'sum_reported_drill_amount_by_report_date_and_shift',
+                'cumulative_drilling' => 'running_sum_reported_drill_amount_from_first_available_report',
+                'physical_depth' => 'latest_non_deleted_report_end_depth',
+                'missing_dates' => 'not_imputed_as_zero',
+            ],
+        ],
+    ]);
+}
+
+$action = emcore_action(['dashboard', 'attendance_lookups', 'attendance_matrix', 'progression_lookups', 'borehole_progression']);
 emcore_require_permission(EMCORE_DRILLING_MODULE, 'read');
 $db = emcore_db();
+
+if ($action === 'progression_lookups') {
+    $mines = $db->query(
+        "SELECT m.id, m.mine_name
+         FROM emcore_mines m
+         WHERE m.deleted_at IS NULL
+           AND EXISTS (SELECT 1 FROM emcore_boreholes b
+               JOIN emcore_drilling_reports r ON r.borehole_id = b.id AND r.deleted_at IS NULL
+               WHERE b.mine_id = m.id AND b.deleted_at IS NULL
+           )
+         ORDER BY m.mine_name"
+    )->fetchAll();
+    $boreholes = $db->query(
+        "SELECT b.id, b.mine_id, b.borehole_code, b.status,
+                MIN(r.report_date_fa) AS first_report_date_fa,
+                MAX(r.report_date_fa) AS last_report_date_fa,
+                COUNT(*) AS report_count
+         FROM emcore_boreholes b
+         JOIN emcore_mines m ON m.id = b.mine_id AND m.deleted_at IS NULL
+         JOIN emcore_drilling_reports r ON r.borehole_id = b.id AND r.deleted_at IS NULL
+         WHERE b.deleted_at IS NULL
+         GROUP BY b.id, b.mine_id, b.borehole_code, b.status
+         ORDER BY b.mine_id, b.borehole_code"
+    )->fetchAll();
+    emcore_json([
+        'success' => true,
+        'data' => ['mines' => $mines, 'boreholes' => $boreholes],
+        'meta' => ['generated_at' => date(DATE_ATOM)],
+    ]);
+}
+
+if ($action === 'borehole_progression') {
+    emcore_drilling_borehole_progression($db);
+}
 
 if ($action === 'attendance_lookups') {
     $periods = $db->query(

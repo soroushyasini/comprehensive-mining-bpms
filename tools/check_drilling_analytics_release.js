@@ -81,7 +81,7 @@ if (/SELECT\s+r\.\*/i.test(reportsApi)) failures.push('report detail exposes eve
 requireText(reportsPanel, "$('#checklist input').prop('checked', false);", 'new reports do not start with an unchecked safety checklist');
 
 requireText(analyticsApi, "emcore_require_permission(EMCORE_DRILLING_MODULE, 'read')", 'analytics read permission is missing');
-requireText(analyticsApi, "emcore_action(['dashboard', 'attendance_lookups', 'attendance_matrix'])", 'analytics action allow-list is missing attendance actions');
+requireText(analyticsApi, "emcore_action(['dashboard', 'attendance_lookups', 'attendance_matrix', 'progression_lookups', 'borehole_progression'])", 'analytics action allow-list is missing progression or attendance actions');
 requireText(analyticsApi, 'SUM(r.drill_amount)', 'analytics does not use reported production');
 requireText(analyticsApi, 'SUM(c.worked_hours)', 'analytics does not aggregate actual worked hours');
 requireText(analyticsApi, "'people' => $people", 'analytics does not return per-person hours');
@@ -97,6 +97,16 @@ requireText(analyticsApi, ':attendance_period', 'attendance period filter is not
 requireText(analyticsApi, 'duplicate_assignments', 'attendance does not disclose duplicate assignments');
 requireText(analyticsApi, 'hours_over_12', 'attendance does not flag implausible daily/shift hours');
 requireText(analyticsApi, 'reports_with_invalid_shift', 'attendance does not disclose invalid legacy shifts');
+requireText(analyticsApi, "if ($action === 'borehole_progression')", 'borehole progression endpoint is missing');
+requireText(analyticsApi, "if ($action === 'progression_lookups')", 'progression-specific historical borehole lookup is missing');
+requireText(analyticsApi, 'JOIN emcore_drilling_reports r ON r.borehole_id = b.id AND r.deleted_at IS NULL', 'progression lookups do not include historical boreholes with reports');
+requireText(analyticsApi, 'b.id = :progress_borehole_id', 'progression borehole filter is not parameterized by id');
+requireText(analyticsApi, 'b.mine_id = :progress_mine_id', 'progression does not validate the selected mine/borehole relationship');
+requireText(analyticsApi, "'date_range' => 'all_non_deleted_reports_for_selected_borehole'", 'progression lifecycle semantics are not explicit');
+requireText(analyticsApi, "'cumulative_drilled'", 'progression does not return cumulative reported drilling');
+requireText(analyticsApi, "'first_start_depth'", 'progression does not disclose its first recorded depth');
+requireText(analyticsApi, "'latest_end_depth'", 'progression does not return latest physical ending depth');
+requireText(analyticsApi, 'negative_drill_reports', 'progression does not disclose negative legacy drilling values');
 
 requireText(reportsPanel, 'crew-hours', 'report panel lacks worked-hours input');
 requireText(reportsPanel, 'lock_version', 'report panel does not send the edit version');
@@ -114,12 +124,23 @@ requireText(analyticsPanel, 'id="attendanceHost"', 'analytics panel lacks the at
 requireText(analyticsPanel, 'متراژ حفاری در شیفت‌های حضور', 'attendance production semantics are not disclosed');
 requireText(analyticsPanel, 'ساعت کارکرد واقعی', 'attendance matrix lacks actual worked hours');
 requireText(analyticsPanel, '/lib/xlsx.full.min_2.js', 'attendance export does not use the same-origin Excel library');
+requireText(analyticsPanel, 'id="progressMine"', 'progression module lacks a dedicated mine selector');
+requireText(analyticsPanel, 'id="progressBorehole"', 'progression module lacks a dedicated borehole selector');
+requireText(analyticsPanel, 'id="boreholeProgressChart"', 'progression module lacks the coordinated lifecycle SVG');
+requireText(analyticsPanel, 'id="progressTableHost"', 'progression module lacks an accessible data table');
+requireText(analyticsPanel, "request(API, 'borehole_progression'", 'progression module does not request the lifecycle endpoint');
+requireText(analyticsPanel, "request(API, 'progression_lookups'", 'progression module does not request historical borehole lookups');
+requireText(analyticsPanel, 'حفاری روزانه بر حسب شیفت', 'progression module lacks the daily panel');
+requireText(analyticsPanel, 'حفاری تجمعی ثبت‌شده', 'progression module lacks the cumulative panel');
+requireText(analyticsPanel, 'مستقل از بازه زمانی داشبورد', 'progression module does not disclose lifecycle filter independence');
 if (/prc_db_gozaresh_ruzane_copy2|@#/.test(analyticsApi + analyticsPanel)) failures.push('attendance implementation contains legacy ProcessMaker SQL or variables');
 
 requireText(docs, 'ساعت کارکرد واقعی', 'analytics documentation lacks actual worked-hours semantics');
 requireText(docs, 'داده نامشخص', 'analytics documentation does not define missing historical hours');
 requireText(docs, 'ماتریس حضور و کارکرد نفرات', 'analytics documentation lacks the attendance matrix contract');
 requireText(docs, 'متراژ حفاری در شیفت‌های حضور', 'analytics documentation lacks attendance-production semantics');
+requireText(docs, 'نمودار پیشرفت گمانه', 'analytics documentation lacks the full-lifecycle progression contract');
+requireText(docs, 'all_non_deleted_reports_for_selected_borehole', 'analytics documentation does not state progression date-range semantics');
 
 if (failures.length) {
   console.error('Drilling analytics release checks failed:');
