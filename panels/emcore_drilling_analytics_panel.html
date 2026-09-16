@@ -45,6 +45,11 @@
     .stamp strong, .stamp span { display: block; }
     .stamp span { margin-top: 3px; color: #cbd4cf; font-size: 10px; }
     main { padding: 18px; }
+    .tabs { display: flex; gap: 4px; margin-bottom: 14px; border-bottom: 2px solid var(--coal); }
+    .tab-button { min-height: 42px; padding: 9px 18px; border: 1px solid var(--line); border-bottom: 0; color: var(--muted); background: #ece8dd; }
+    .tab-button[aria-selected="true"] { color: #fff; background: var(--coal); border-color: var(--coal); }
+    .tab-button:focus-visible { outline: 3px solid rgba(223,169,54,.55); outline-offset: 2px; }
+    .view[hidden] { display: none; }
     .filters { display: grid; grid-template-columns: repeat(6, minmax(125px,1fr)); gap: 9px; padding: 13px; border: 1px solid var(--line); background: #f8f6ef; }
     .field { display: flex; flex-direction: column; gap: 5px; }
     .field label { color: var(--muted); font-size: 11px; }
@@ -54,6 +59,7 @@
     .toolbar-actions { display: flex; gap: 7px; }
     .btn { min-height: 36px; padding: 7px 14px; border: 1px solid transparent; border-radius: 2px; transition: transform .16s ease, filter .16s ease; }
     .btn:hover { transform: translateY(-1px); filter: brightness(.96); }
+    .btn:disabled { cursor: not-allowed; opacity: .55; transform: none; }
     .btn-dark { color: #fff; background: var(--coal); }
     .btn-light { color: var(--ink); background: #eee9dd; border-color: #d4cec1; }
     .status { min-height: 38px; margin-bottom: 12px; padding: 10px 12px; border-right: 4px solid var(--blue); background: #edf4f6; color: #315766; }
@@ -85,6 +91,30 @@
     td.num { direction: ltr; text-align: right; font-variant-numeric: tabular-nums; }
     .empty { display: flex; align-items: center; justify-content: center; min-height: 220px; color: var(--muted); direction: rtl; text-align: center; }
     .metric-note { color: var(--muted); }
+    .attendance-note { margin-bottom: 12px; padding: 12px 14px; border: 1px solid #d7c895; border-right: 4px solid var(--amber); background: #fff9e8; color: #63501f; line-height: 1.8; }
+    .attendance-site { margin-top: 14px; border: 1px solid var(--line); background: #fff; }
+    .attendance-site-head { display: flex; justify-content: space-between; gap: 12px; padding: 12px 14px; color: #fff; background: #1565c0; }
+    .attendance-site-head h2 { margin: 0; font-size: 14px; }
+    .attendance-site-head small { color: #e2efff; }
+    .attendance-table { min-width: max(980px, calc(var(--people-count, 1) * 150px + 150px)); border: 2px solid #333; }
+    .attendance-table th, .attendance-table td { min-width: 64px; padding: 6px 7px; border: 1px solid #aaa; text-align: center; }
+    .attendance-table .person-header { background: #2e7d32; }
+    .attendance-table .subheader th { background: #424242; text-align: center; }
+    .attendance-table .date-cell { min-width: 118px; color: #fff; background: #1976d2; font-weight: 700; }
+    .attendance-table .day-cell { background: #fff8e1; }
+    .attendance-table .night-cell { background: #e3f2fd; }
+    .attendance-table .absent-cell { color: #929a96; background: #fff; }
+    .attendance-table .zero-cell { color: #9a6500; background: #fff3b0; font-weight: 700; }
+    .attendance-table .cell-value { display: block; direction: ltr; font-weight: 700; }
+    .attendance-table .cell-hours { display: block; margin-top: 2px; color: var(--muted); font-size: 9px; direction: rtl; }
+    .attendance-table .presence-row td { color: #1565c0; background: #e3f2fd; font-weight: 700; border-top: 2px solid #1565c0; }
+    .attendance-table .presence-total-row td { color: #0d47a1; background: #bbdefb; font-weight: 700; }
+    .attendance-table .meters-row td { color: #6a1b9a; background: #f3e5f5; font-weight: 700; border-top: 2px solid #6a1b9a; }
+    .attendance-table .grand-total-row td { color: #4a148c; background: #e1bee7; font-weight: 700; }
+    .attendance-table .hours-row td { color: #276044; background: #dff1e6; font-weight: 700; border-top: 2px solid #467259; }
+    .attendance-table .unknown-row td { color: #8a5d00; background: #fff3cd; font-weight: 700; }
+    .attendance-signature { margin: 22px 16px 16px; padding-top: 10px; border-top: 2px solid #333; font-style: italic; }
+    .quality-list { margin: 0; padding-right: 18px; }
     @media (max-width: 1100px) { .filters { grid-template-columns: repeat(3,1fr); } .kpis { grid-template-columns: repeat(3,1fr); } }
     @media (max-width: 760px) { body { padding: 0; } .masthead { align-items: flex-start; flex-direction: column; } main { padding: 10px; } .chart-grid { grid-template-columns: 1fr; } .card-wide { grid-column: auto; } }
     @media (max-width: 560px) { .filters, .kpis { grid-template-columns: 1fr 1fr; } .masthead { padding: 20px 16px; } }
@@ -102,6 +132,12 @@
   </header>
 
   <main>
+    <nav class="tabs" role="tablist" aria-label="بخش‌های تحلیل حفاری">
+      <button id="overviewTab" class="tab-button" type="button" role="tab" aria-selected="true" aria-controls="overviewView">نمای کلی عملیات</button>
+      <button id="attendanceTab" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="attendanceView" tabindex="-1">حضور و کارکرد نفرات</button>
+    </nav>
+
+    <section id="overviewView" class="view" role="tabpanel" aria-labelledby="overviewTab">
     <div class="filters" aria-label="فیلترهای داشبورد">
       <div class="field"><label for="qMine">معدن</label><select id="qMine"></select></div>
       <div class="field"><label for="qBorehole">گمانه</label><select id="qBorehole"></select></div>
@@ -157,6 +193,28 @@
         <div id="peopleTableHost" class="table-wrap"></div>
       </article>
     </section>
+    </section>
+
+    <section id="attendanceView" class="view" role="tabpanel" aria-labelledby="attendanceTab" hidden>
+      <div class="filters" aria-label="فیلترهای حضور و کارکرد">
+        <div class="field"><label for="aMine">سایت حفاری</label><select id="aMine"></select></div>
+        <div class="field"><label for="aBorehole">گمانه</label><select id="aBorehole"></select></div>
+        <div class="field"><label for="aYear">سال</label><select id="aYear"></select></div>
+        <div class="field"><label for="aMonth">ماه</label><select id="aMonth"></select></div>
+      </div>
+      <div class="toolbar">
+        <div class="toolbar-actions">
+          <button id="attendanceLoadBtn" class="btn btn-dark" type="button">محاسبه کارکرد</button>
+          <button id="attendanceExportBtn" class="btn btn-light" type="button" disabled>خروجی اکسل</button>
+        </div>
+        <small class="metric-note">خروجی هر معدن در برگه جداگانه اکسل قرار می‌گیرد.</small>
+      </div>
+      <div class="attendance-note">
+        «حضور» برای هر نفر در هر تاریخ و شیفت فقط یک‌بار شمرده می‌شود. «متراژ حفاری در شیفت‌های حضور» تولید گزارش‌هایی است که نام فرد در آن‌ها ثبت شده و به معنی تولید انفرادی نیست. ساعت خالی، صفر یا ۱۲ فرض نمی‌شود و جداگانه با عنوان «ساعت نامشخص» نمایش داده می‌شود. نیروهای موقتِ فاقد پرونده پرسنلی با نام نرمال‌شده تطبیق می‌یابند؛ بنابراین هم‌نام‌ها باید در منبع داده بازبینی شوند.
+      </div>
+      <div id="attendanceStatus" class="status" role="status">سال و ماه را انتخاب کنید و «محاسبه کارکرد» را بزنید.</div>
+      <div id="attendanceHost"></div>
+    </section>
   </main>
 </div>
 
@@ -167,6 +225,11 @@
   var API = '/emcore_api/emcore_drilling_analytics.php';
   var LOOKUPS_API = '/emcore_api/emcore_drilling_reports.php';
   var lookups = { mines: [], boreholes: [], rigs: [] };
+  var attendancePeriods = [];
+  var currentAttendance = null;
+  var excelReady = false;
+  var overviewHeader = { scope: 'همه عملیات', generated: 'در حال دریافت داده…' };
+  var attendanceHeader = { scope: 'حضور و کارکرد نفرات', generated: 'دوره‌ای محاسبه نشده است' };
   var svgNamespace = 'http://www.w3.org/2000/svg';
   var roleNames = {
     supervisor: 'سرپرست', guard: 'نگهبان', geologist: 'زمین‌شناس', driver: 'راننده',
@@ -191,18 +254,21 @@
   }
   function setStatus(text, kind) { $('#status').removeClass('error warning').addClass(kind || '').prop('hidden', false).text(text); }
   function hideStatus() { $('#status').prop('hidden', true).text(''); }
-  function fillBoreholes(mineId) {
-    var select = $('#qBorehole').empty(); option(select, '', 'همه گمانه‌ها');
+  function fillBoreholes(mineId, selectId) {
+    var select = $(selectId || '#qBorehole').empty(); option(select, '', 'همه گمانه‌ها');
     $.each(lookups.boreholes, function (_, item) { if (!mineId || String(item.mine_id) === String(mineId)) option(select, item.id, item.borehole_code); });
   }
   function loadLookups() {
     return request(LOOKUPS_API, 'lookups').done(function (response) {
       lookups = response.data || lookups;
       var mine = $('#qMine').empty(); option(mine, '', 'همه معادن');
-      $.each(lookups.mines || [], function (_, item) { option(mine, item.id, item.mine_name); });
+      var attendanceMine = $('#aMine').empty(); option(attendanceMine, '', 'همه سایت‌ها');
+      $.each(lookups.mines || [], function (_, item) {
+        option(mine, item.id, item.mine_name); option(attendanceMine, item.id, item.mine_name);
+      });
       var rig = $('#qRig').empty(); option(rig, '', 'همه دستگاه‌ها');
       $.each(lookups.rigs || [], function (_, item) { option(rig, item.id, item.serial_number + (item.display_name ? ' — ' + item.display_name : '')); });
-      fillBoreholes('');
+      fillBoreholes('', '#qBorehole'); fillBoreholes('', '#aBorehole');
     });
   }
   function filters() {
@@ -314,8 +380,10 @@
     horizontalBars('#downtimeChart', data.downtime || [], function (row) { return row.stop_cause; }, function (row) { return row.report_count; }, '#dfa936', 'گزارش');
     horizontalBars('#rigChart', data.rigs || [], function (row) { return row.serial_number + (row.display_name ? ' — ' + row.display_name : ''); }, function (row) { return row.drilled_meters; }, '#486f82', 'متر');
     horizontalBars('#boreholeChart', data.boreholes || [], function (row) { return row.borehole_code; }, function (row) { return row.drilled_meters; }, '#b85d2e', 'متر');
-    renderTable(data.boreholes || []); renderPeopleTable(data.people || []); $('#scopeLabel').text(scopeText());
-    $('#generatedAt').text('به‌روزرسانی: ' + new Date((response.meta || {}).generated_at || Date.now()).toLocaleString('fa-IR'));
+    renderTable(data.boreholes || []); renderPeopleTable(data.people || []);
+    overviewHeader.scope = scopeText();
+    overviewHeader.generated = 'به‌روزرسانی: ' + new Date((response.meta || {}).generated_at || Date.now()).toLocaleString('fa-IR');
+    if ($('#overviewTab').attr('aria-selected') === 'true') updateHeader(overviewHeader);
     var missing = Number(summary.missing_worked_hours || 0), noCrew = Number(summary.reports_without_crew || 0), mismatches = Number(summary.interval_mismatch_reports || 0);
     if (missing > 0 || noCrew > 0 || mismatches > 0) {
       var notes = [];
@@ -330,9 +398,280 @@
     request(API, 'dashboard', filters()).done(render).fail(function (xhr) { setStatus(errorText(xhr), 'error'); }).always(function () { $('#applyBtn').prop('disabled', false); });
   }
 
-  $('#qMine').on('change', function () { fillBoreholes($(this).val()); });
+  function setAttendanceStatus(text, kind, hidden) {
+    $('#attendanceStatus').removeClass('error warning').addClass(kind || '').prop('hidden', !!hidden).text(text || '');
+  }
+  function monthName(month) {
+    var names = { '01':'فروردین', '02':'اردیبهشت', '03':'خرداد', '04':'تیر', '05':'مرداد', '06':'شهریور', '07':'مهر', '08':'آبان', '09':'آذر', '10':'دی', '11':'بهمن', '12':'اسفند' };
+    return names[month] || month;
+  }
+  function fillAttendanceMonths() {
+    var year = $('#aYear').val(), month = $('#aMonth').empty(), seen = {};
+    $.each(attendancePeriods, function (_, period) {
+      if (String(period.year_fa) === String(year) && !seen[period.month_fa]) {
+        seen[period.month_fa] = true;
+        option(month, period.month_fa, monthName(period.month_fa));
+      }
+    });
+    $('#attendanceLoadBtn').prop('disabled', !year || !month.val());
+  }
+  function loadAttendancePeriods() {
+    return request(API, 'attendance_lookups').done(function (response) {
+      attendancePeriods = (response.data || {}).periods || [];
+      var year = $('#aYear').empty(), seen = {};
+      $.each(attendancePeriods, function (_, period) {
+        if (!seen[period.year_fa]) { seen[period.year_fa] = true; option(year, period.year_fa, period.year_fa); }
+      });
+      fillAttendanceMonths();
+      if (!attendancePeriods.length) {
+        $('#attendanceLoadBtn').prop('disabled', true);
+        setAttendanceStatus('هیچ دوره شمسی معتبری در گزارش‌های حفاری موجود نیست.', 'warning');
+      }
+    }).fail(function (xhr) {
+      $('#attendanceLoadBtn').prop('disabled', true);
+      setAttendanceStatus(errorText(xhr), 'error');
+    });
+  }
+  function switchTab(tabId) {
+    var attendance = tabId === 'attendanceTab';
+    $('#overviewTab').attr('aria-selected', attendance ? 'false' : 'true').attr('tabindex', attendance ? '-1' : '0');
+    $('#attendanceTab').attr('aria-selected', attendance ? 'true' : 'false').attr('tabindex', attendance ? '0' : '-1');
+    $('#overviewView').prop('hidden', attendance);
+    $('#attendanceView').prop('hidden', !attendance);
+    updateHeader(attendance ? attendanceHeader : overviewHeader);
+  }
+  function updateHeader(header) {
+    $('#scopeLabel').text(header.scope);
+    $('#generatedAt').text(header.generated);
+  }
+  function shiftValue(value) { return Number(value || 0); }
+  function totalValue(total, first, second) { return shiftValue(total[first]) + shiftValue(total[second]); }
+  function summaryRow(label, people, rowClass, dayKey, nightKey, merge, formatter) {
+    var row = $('<tr>').addClass(rowClass).append($('<td>').text(label));
+    $.each(people, function (_, person) {
+      var total = person.total || {}, day = shiftValue(total[dayKey]), night = shiftValue(total[nightKey]);
+      if (merge) {
+        row.append($('<td>').attr('colspan', 2).addClass('num').text(formatter(day + night)));
+      } else {
+        row.append($('<td>').addClass('num').text(formatter(day)));
+        row.append($('<td>').addClass('num').text(formatter(night)));
+      }
+    });
+    return row;
+  }
+  function presenceText(value) { return value > 0 ? number(value, 0) : '—'; }
+  function measureText(value) { return value > 0 ? number(value, 2) : (value === 0 ? '۰' : '—'); }
+  function unknownText(value) { return value > 0 ? number(value, 0) : '—'; }
+  function attendanceCell(shift, shiftClass) {
+    shift = shift || {};
+    if (!shift.present) return $('<td>').addClass('absent-cell').text('—');
+    var meters = shiftValue(shift.drilled_meters), cell = $('<td>').addClass(shiftClass).addClass(meters === 0 ? 'zero-cell' : '');
+    cell.append($('<span>').addClass('cell-value').text(number(meters, 2) + ' متر'));
+    var actualHours = shiftValue(shift.actual_worked_hours), missingHours = Number(shift.missing_worked_hours || 0);
+    if (missingHours > 0 && actualHours > 0) {
+      cell.append($('<small>').addClass('cell-hours').text('ساعت: ' + number(actualHours, 2) + '؛ ' + number(missingHours, 0) + ' نامشخص'));
+    } else if (missingHours > 0) {
+      cell.append($('<small>').addClass('cell-hours').text('ساعت: نامشخص'));
+    } else {
+      cell.append($('<small>').addClass('cell-hours').text('ساعت: ' + number(actualHours, 2)));
+    }
+    return cell;
+  }
+  function renderAttendanceSite(site) {
+    var people = site.people || [], dates = site.dates || [];
+    var article = $('<article>').addClass('attendance-site');
+    var heading = $('<div>').addClass('attendance-site-head');
+    heading.append($('<h2>').text('نام سایت حفاری: ' + site.mine_name));
+    heading.append($('<small>').text(number(site.report_count, 0) + ' گزارش در دوره انتخابی'));
+    article.append(heading);
+    if (!people.length) {
+      article.append($('<div>').addClass('empty').text('برای گزارش‌های این سایت، نیرویی ثبت نشده است.'));
+      return article;
+    }
+    var wrap = $('<div>').addClass('table-wrap');
+    var table = $('<table>').addClass('attendance-table').css('--people-count', people.length);
+    var personRow = $('<tr>').append($('<th>').attr({ rowspan: 2, scope: 'col' }).text('تاریخ'));
+    $.each(people, function (_, person) {
+      var roles = $.map(person.role_keys || [], function (key) { return roleNames[key] || key; }).join('، ');
+      personRow.append($('<th>').addClass('person-header').attr({ colspan: 2, scope: 'colgroup', title: roles }).text(person.person_name));
+    });
+    var shiftRow = $('<tr>').addClass('subheader');
+    $.each(people, function () { shiftRow.append($('<th>').attr('scope','col').text('روز')); shiftRow.append($('<th>').attr('scope','col').text('شب')); });
+    table.append($('<thead>').append(personRow, shiftRow));
+    var body = $('<tbody>');
+    $.each(dates, function (_, date) {
+      var byPerson = {};
+      $.each(date.cells || [], function (__, cell) { byPerson[cell.person_key] = cell; });
+      var row = $('<tr>').addClass('data-row').append($('<td>').addClass('date-cell').text(date.report_date_fa));
+      $.each(people, function (__, person) {
+        var cell = byPerson[person.person_key] || {};
+        row.append(attendanceCell(cell.day, 'day-cell'), attendanceCell(cell.night, 'night-cell'));
+      });
+      body.append(row);
+    });
+    body.append(summaryRow('حضور', people, 'presence-row', 'day_presence', 'night_presence', false, presenceText));
+    body.append(summaryRow('جمع حضور', people, 'presence-total-row', 'day_presence', 'night_presence', true, presenceText));
+    body.append(summaryRow('متراژ حفاری در شیفت‌های حضور', people, 'meters-row', 'day_drilled_meters', 'night_drilled_meters', false, measureText));
+    body.append(summaryRow('جمع متراژ شیفت‌های حضور', people, 'grand-total-row', 'day_drilled_meters', 'night_drilled_meters', true, measureText));
+    body.append(summaryRow('ساعت کارکرد واقعی', people, 'hours-row', 'day_actual_worked_hours', 'night_actual_worked_hours', false, measureText));
+    body.append(summaryRow('جمع ساعت کارکرد واقعی', people, 'hours-row', 'day_actual_worked_hours', 'night_actual_worked_hours', true, measureText));
+    body.append(summaryRow('ساعت نامشخص', people, 'unknown-row', 'day_missing_worked_hours', 'night_missing_worked_hours', false, unknownText));
+    table.append(body); wrap.append(table); article.append(wrap);
+    article.append($('<div>').addClass('attendance-signature').text('امضای مسئول سایت:'));
+    return article;
+  }
+  function attendanceQualityText(quality) {
+    var notes = [];
+    if (Number(quality.missing_worked_hours || 0) > 0) notes.push(number(quality.missing_worked_hours, 0) + ' حضور با ساعت واقعی نامشخص');
+    if (Number(quality.reports_without_crew || 0) > 0) notes.push(number(quality.reports_without_crew, 0) + ' گزارش بدون نیروی ثبت‌شده');
+    if (Number(quality.reports_with_invalid_shift || 0) > 0) notes.push(number(quality.reports_with_invalid_shift, 0) + ' گزارش با شیفت نامعتبر که وارد ستون روز یا شب نشد');
+    if (Number(quality.duplicate_assignments || 0) > 0) notes.push(number(quality.duplicate_assignments, 0) + ' انتساب تکراری که در حضور و تولید دوباره شمرده نشد');
+    if (Number(quality.hours_over_12 || 0) > 0) notes.push(number(quality.hours_over_12, 0) + ' مورد مجموع ساعت بیش از ۱۲ در یک روز و شیفت');
+    return notes;
+  }
+  function renderAttendance(response) {
+    currentAttendance = response;
+    var sites = (response.data || {}).sites || [], host = $('#attendanceHost').empty();
+    var meta = response.meta || {}, period = meta.filters || {};
+    attendanceHeader.scope = ($('#aMine').val() ? $('#aMine option:selected').text() : 'همه سایت‌ها') + ' / ' + monthName(period.month_fa) + ' ' + String(period.year_fa || '');
+    attendanceHeader.generated = 'به‌روزرسانی: ' + new Date(meta.generated_at || Date.now()).toLocaleString('fa-IR');
+    if ($('#attendanceTab').attr('aria-selected') === 'true') updateHeader(attendanceHeader);
+    $.each(sites, function (_, site) { host.append(renderAttendanceSite(site)); });
+    $('#attendanceExportBtn').prop('disabled', !excelReady || !sites.length);
+    if (!sites.length) {
+      setAttendanceStatus('برای فیلتر و دوره انتخابی گزارشی پیدا نشد.', 'warning');
+      return;
+    }
+    var notes = attendanceQualityText((response.meta || {}).quality || {});
+    if (notes.length) setAttendanceStatus(notes.join('؛ ') + '.', 'warning');
+    else setAttendanceStatus('ماتریس حضور و کارکرد با موفقیت محاسبه شد.', '', false);
+  }
+  function attendanceFilters() {
+    return { mine_id: $('#aMine').val(), borehole_id: $('#aBorehole').val(), year_fa: $('#aYear').val(), month_fa: $('#aMonth').val() };
+  }
+  function invalidateAttendance() {
+    currentAttendance = null;
+    $('#attendanceHost').empty();
+    $('#attendanceExportBtn').prop('disabled', true);
+    if ($('#aYear').val() && $('#aMonth').val()) setAttendanceStatus('برای فیلتر جدید، «محاسبه کارکرد» را بزنید.');
+  }
+  function loadAttendance() {
+    if (!$('#aYear').val() || !$('#aMonth').val()) { setAttendanceStatus('سال و ماه را انتخاب کنید.', 'warning'); return; }
+    currentAttendance = null; $('#attendanceHost').empty(); $('#attendanceExportBtn').prop('disabled', true);
+    $('#attendanceLoadBtn').prop('disabled', true); setAttendanceStatus('در حال محاسبه ماتریس حضور و کارکرد…');
+    request(API, 'attendance_matrix', attendanceFilters()).done(renderAttendance).fail(function (xhr) {
+      setAttendanceStatus(errorText(xhr), 'error');
+    }).always(function () { $('#attendanceLoadBtn').prop('disabled', false); });
+  }
+  function loadExcelLibrary() {
+    if (window.XLSX) { excelReady = true; return; }
+    var script = document.createElement('script');
+    script.src = '/lib/xlsx.full.min_2.js';
+    script.async = true;
+    script.onload = function () { excelReady = !!window.XLSX; $('#attendanceExportBtn').prop('disabled', !excelReady || !currentAttendance); };
+    script.onerror = function () { excelReady = false; $('#attendanceExportBtn').prop('disabled', true); };
+    document.head.appendChild(script);
+  }
+  function safeSheetName(value, used) {
+    var base = String(value || 'سایت').replace(/[\\/?*\[\]:]/g, ' ').trim().slice(0, 31) || 'سایت';
+    var name = base, suffix = 2;
+    while (used[name]) { var tail = ' ' + suffix; name = base.slice(0, 31 - tail.length) + tail; suffix += 1; }
+    used[name] = true; return name;
+  }
+  function excelRows(site) {
+    var people = site.people || [], rows = [], totalColumns = 1 + people.length * 2;
+    rows.push(['نام سایت حفاری: ' + site.mine_name].concat(Array(totalColumns - 1).fill('')));
+    var names = ['تاریخ'], shifts = [''];
+    $.each(people, function (_, person) { names.push(person.person_name, ''); shifts.push('روز', 'شب'); });
+    rows.push(names, shifts);
+    $.each(site.dates || [], function (_, date) {
+      var byPerson = {}, row = [date.report_date_fa];
+      $.each(date.cells || [], function (__, cell) { byPerson[cell.person_key] = cell; });
+      $.each(people, function (__, person) {
+        var cell = byPerson[person.person_key] || {}, day = cell.day || {}, night = cell.night || {};
+        row.push(day.present ? shiftValue(day.drilled_meters) : '-', night.present ? shiftValue(night.drilled_meters) : '-');
+      });
+      rows.push(row);
+    });
+    function addSummary(label, first, second, merge, unknown) {
+      var row = [label];
+      $.each(people, function (_, person) {
+        var total = person.total || {}, day = shiftValue(total[first]), night = shiftValue(total[second]);
+        if (merge) row.push(day + night || '-', '');
+        else row.push(unknown ? (day || '-') : day, unknown ? (night || '-') : night);
+      });
+      rows.push(row);
+    }
+    addSummary('حضور', 'day_presence', 'night_presence', false, true);
+    addSummary('جمع حضور', 'day_presence', 'night_presence', true, true);
+    addSummary('متراژ حفاری در شیفت‌های حضور', 'day_drilled_meters', 'night_drilled_meters', false, false);
+    addSummary('جمع متراژ شیفت‌های حضور', 'day_drilled_meters', 'night_drilled_meters', true, false);
+    addSummary('ساعت کارکرد واقعی', 'day_actual_worked_hours', 'night_actual_worked_hours', false, false);
+    addSummary('جمع ساعت کارکرد واقعی', 'day_actual_worked_hours', 'night_actual_worked_hours', true, false);
+    addSummary('ساعت نامشخص', 'day_missing_worked_hours', 'night_missing_worked_hours', false, true);
+    return rows;
+  }
+  function styleAttendanceSheet(sheet, site, rows) {
+    var people = site.people || [], dateCount = (site.dates || []).length, lastColumn = people.length * 2;
+    var colors = ['1565C0','2E7D32','424242'], border = { style: 'thin', color: { rgb: '9E9E9E' } };
+    for (var row = 0; row < rows.length; row += 1) {
+      for (var column = 0; column <= lastColumn; column += 1) {
+        var address = window.XLSX.utils.encode_cell({ r: row, c: column }), cell = sheet[address];
+        if (!cell) { cell = { t: 's', v: '' }; sheet[address] = cell; }
+        var background = row < 3 ? colors[row] : 'FFFFFF', foreground = row < 3 ? 'FFFFFF' : '26322E';
+        if (row >= 3 + dateCount) {
+          var summaryColors = ['E3F2FD','BBDEFB','F3E5F5','E1BEE7','DFF1E6','DFF1E6','FFF3CD'];
+          background = summaryColors[row - 3 - dateCount] || 'FFFFFF'; foreground = '26322E';
+        } else if (row >= 3 && column > 0) background = column % 2 ? 'FFF8E1' : 'E3F2FD';
+        cell.s = { font: { name: 'Arial', sz: row === 0 ? 14 : 10, bold: row < 3 || row >= 3 + dateCount, color: { rgb: foreground } }, fill: { patternType: 'solid', fgColor: { rgb: background } }, alignment: { horizontal: 'center', vertical: 'center', wrapText: true }, border: { top: border, bottom: border, left: border, right: border } };
+      }
+    }
+    var merges = [{ s:{r:0,c:0}, e:{r:0,c:lastColumn} }];
+    for (var personIndex = 0; personIndex < people.length; personIndex += 1) {
+      var firstColumn = 1 + personIndex * 2;
+      merges.push({ s:{r:1,c:firstColumn}, e:{r:1,c:firstColumn + 1} });
+      merges.push({ s:{r:4 + dateCount,c:firstColumn}, e:{r:4 + dateCount,c:firstColumn + 1} });
+      merges.push({ s:{r:6 + dateCount,c:firstColumn}, e:{r:6 + dateCount,c:firstColumn + 1} });
+      merges.push({ s:{r:8 + dateCount,c:firstColumn}, e:{r:8 + dateCount,c:firstColumn + 1} });
+    }
+    sheet['!merges'] = merges;
+    sheet['!cols'] = [{ wch: 28 }].concat(Array(lastColumn).fill({ wch: 12 }));
+    sheet['!rows'] = rows.map(function (_, index) { return { hpt: index === 0 ? 26 : 20 }; });
+    sheet['!ref'] = window.XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:rows.length - 1,c:lastColumn} });
+  }
+  function exportAttendance() {
+    if (!excelReady || !window.XLSX || !currentAttendance) { setAttendanceStatus('کتابخانه خروجی اکسل هنوز آماده نیست.', 'warning'); return; }
+    var sites = (currentAttendance.data || {}).sites || [], used = {}, workbook = { SheetNames: [], Sheets: {} };
+    $.each(sites, function (_, site) {
+      var rows = excelRows(site), sheet = window.XLSX.utils.aoa_to_sheet(rows), sheetName = safeSheetName(site.mine_name, used);
+      styleAttendanceSheet(sheet, site, rows); workbook.SheetNames.push(sheetName); workbook.Sheets[sheetName] = sheet;
+    });
+    if (!workbook.SheetNames.length) { setAttendanceStatus('داده‌ای برای خروجی وجود ندارد.', 'warning'); return; }
+    var period = (currentAttendance.meta || {}).filters || {}, filename = 'drilling_attendance_' + String(period.year_fa || '') + '_' + String(period.month_fa || '') + '.xlsx';
+    try {
+      window.XLSX.writeFile(workbook, filename);
+    } catch (error) {
+      setAttendanceStatus('ساخت فایل اکسل ناموفق بود. جزئیات خطا در گزارش مرورگر ثبت شد.', 'error');
+      if (window.console && window.console.error) window.console.error('Attendance Excel export failed', error);
+    }
+  }
+
+  $('#qMine').on('change', function () { fillBoreholes($(this).val(), '#qBorehole'); });
+  $('#aMine').on('change', function () { fillBoreholes($(this).val(), '#aBorehole'); invalidateAttendance(); });
+  $('#aBorehole').on('change', invalidateAttendance);
+  $('#aYear').on('change', function () { fillAttendanceMonths(); invalidateAttendance(); });
+  $('#aMonth').on('change', invalidateAttendance);
   $('#applyBtn').on('click', loadDashboard);
-  $('#resetBtn').on('click', function () { $('#qMine,#qRig,#qShift,#qFrom,#qTo').val(''); fillBoreholes(''); loadDashboard(); });
+  $('#attendanceLoadBtn').on('click', loadAttendance);
+  $('#attendanceExportBtn').on('click', exportAttendance);
+  $('#overviewTab,#attendanceTab').on('click', function () { switchTab(this.id); });
+  $('.tab-button').on('keydown', function (event) {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    event.preventDefault(); var target = this.id === 'overviewTab' ? 'attendanceTab' : 'overviewTab'; switchTab(target); $('#' + target).trigger('focus');
+  });
+  $('#resetBtn').on('click', function () { $('#qMine,#qRig,#qShift,#qFrom,#qTo').val(''); fillBoreholes('', '#qBorehole'); loadDashboard(); });
+  loadExcelLibrary();
+  loadAttendancePeriods();
   loadLookups().done(loadDashboard).fail(function (xhr) { setStatus(errorText(xhr), 'error'); });
 })(jQuery);
 </script>

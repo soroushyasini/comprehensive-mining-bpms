@@ -81,7 +81,7 @@ if (/SELECT\s+r\.\*/i.test(reportsApi)) failures.push('report detail exposes eve
 requireText(reportsPanel, "$('#checklist input').prop('checked', false);", 'new reports do not start with an unchecked safety checklist');
 
 requireText(analyticsApi, "emcore_require_permission(EMCORE_DRILLING_MODULE, 'read')", 'analytics read permission is missing');
-requireText(analyticsApi, "emcore_action(['dashboard'])", 'analytics action allow-list is missing');
+requireText(analyticsApi, "emcore_action(['dashboard', 'attendance_lookups', 'attendance_matrix'])", 'analytics action allow-list is missing attendance actions');
 requireText(analyticsApi, 'SUM(r.drill_amount)', 'analytics does not use reported production');
 requireText(analyticsApi, 'SUM(c.worked_hours)', 'analytics does not aggregate actual worked hours');
 requireText(analyticsApi, "'people' => $people", 'analytics does not return per-person hours');
@@ -89,6 +89,14 @@ requireText(analyticsApi, 'r.deleted_at IS NULL', 'analytics includes deleted re
 requireText(analyticsApi, 'b.mine_id = :mine_id', 'analytics mine filter is not parameterized by id');
 requireText(analyticsApi, 'r.borehole_id = :borehole_id', 'analytics borehole filter is not parameterized by id');
 requireText(analyticsApi, 'missing_worked_hours', 'analytics does not expose missing-hour coverage');
+requireText(analyticsApi, "if ($action === 'attendance_lookups')", 'attendance period lookup endpoint is missing');
+requireText(analyticsApi, "if ($action === 'attendance_matrix')", 'attendance matrix endpoint is missing');
+requireText(analyticsApi, 'emcore_drilling_report_crew c', 'attendance does not use canonical crew assignments');
+requireText(analyticsApi, 'MAX(c.worked_hours)', 'attendance does not protect worked hours from duplicate assignments');
+requireText(analyticsApi, ':attendance_period', 'attendance period filter is not parameterized');
+requireText(analyticsApi, 'duplicate_assignments', 'attendance does not disclose duplicate assignments');
+requireText(analyticsApi, 'hours_over_12', 'attendance does not flag implausible daily/shift hours');
+requireText(analyticsApi, 'reports_with_invalid_shift', 'attendance does not disclose invalid legacy shifts');
 
 requireText(reportsPanel, 'crew-hours', 'report panel lacks worked-hours input');
 requireText(reportsPanel, 'lock_version', 'report panel does not send the edit version');
@@ -99,9 +107,19 @@ requireText(analyticsPanel, 'actual_worked_hours', 'analytics panel does not ren
 requireText(analyticsPanel, "data.people || []", 'analytics panel lacks per-person worked-hours visualization');
 requireText(analyticsPanel, 'id="peopleTableHost"', 'analytics panel lacks the complete per-person hours table');
 requireText(analyticsPanel, 'missing_worked_hours', 'analytics panel does not disclose missing hours');
+requireText(analyticsPanel, 'id="attendanceTab"', 'analytics panel lacks an attendance tab');
+requireText(analyticsPanel, 'id="attendanceView"', 'analytics panel lacks an attendance view');
+requireText(analyticsPanel, "request(API, 'attendance_matrix'", 'analytics panel does not request attendance matrix data');
+requireText(analyticsPanel, 'id="attendanceHost"', 'analytics panel lacks the attendance matrix host');
+requireText(analyticsPanel, 'متراژ حفاری در شیفت‌های حضور', 'attendance production semantics are not disclosed');
+requireText(analyticsPanel, 'ساعت کارکرد واقعی', 'attendance matrix lacks actual worked hours');
+requireText(analyticsPanel, '/lib/xlsx.full.min_2.js', 'attendance export does not use the same-origin Excel library');
+if (/prc_db_gozaresh_ruzane_copy2|@#/.test(analyticsApi + analyticsPanel)) failures.push('attendance implementation contains legacy ProcessMaker SQL or variables');
 
 requireText(docs, 'ساعت کارکرد واقعی', 'analytics documentation lacks actual worked-hours semantics');
 requireText(docs, 'داده نامشخص', 'analytics documentation does not define missing historical hours');
+requireText(docs, 'ماتریس حضور و کارکرد نفرات', 'analytics documentation lacks the attendance matrix contract');
+requireText(docs, 'متراژ حفاری در شیفت‌های حضور', 'analytics documentation lacks attendance-production semantics');
 
 if (failures.length) {
   console.error('Drilling analytics release checks failed:');
