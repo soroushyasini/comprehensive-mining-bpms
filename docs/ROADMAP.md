@@ -1,6 +1,6 @@
 # EMCORE security and feature roadmap
 
-Last updated: 2026-09-02
+Last updated: 2026-09-16
 
 ## Objective
 
@@ -64,7 +64,7 @@ Status: **implementation started — append-only audit logging added**
 
 Status: **partially implemented**
 
-Current module note: secured company, person, mine, mine-technical-manager, daily-drilling, visitor-log, and trade-document modules are implemented. Mines support owned, contractor, and personnel-related scopes plus merge lineage. The drilling production migration and API deployment are verified; panel acceptance remains. The arrival-only visitor log is ready for rollout. The PI-led trade-document module now includes independent issuer counters, six versioned Word-template slots, PI/CI/PL versions, private attachments, download logging, authorization, audit, panel, and deployment documentation; production rollout and acceptance remain.
+Current module note: secured company, person, mine, mine-technical-manager, daily-drilling, visitor-log, trade-document, and procurement-notice modules are implemented. Mines support owned, contractor, and personnel-related scopes plus merge lineage. The drilling production migration and API deployment are verified; panel acceptance remains. The arrival-only visitor log is ready for rollout. The PI-led trade-document module now includes independent issuer counters, six versioned Word-template slots, PI/CI/PL versions, private attachments, download logging, authorization, audit, panel, and deployment documentation; production rollout and acceptance remain. The tender/auction register replaces its legacy DynaForm/XCRUD implementation with live deadline calculation, optimistic concurrency, private attachments, and a dry-run-first backfill from the authoritative legacy database table that preserves every source row and file reference.
 
 Suggested order: companies, persons, company-person relations, mines, mine technical managers, memberships, internet services, attachments, tokens/email accounts after secrets-policy approval, then unified expiry alerts.
 
@@ -75,6 +75,8 @@ Drilling deployment is governed by `docs/DRILLING_DEPLOYMENT.md`. The source con
 Visitor-log deployment is governed by `docs/VISITOR_LOG_DEPLOYMENT.md`; its domain and API contract are documented in `docs/VISITOR_LOG_MODULE.md`.
 
 Trade-document deployment is governed by `docs/TRADE_DOCUMENTS_DEPLOYMENT.md`; numbering, lifecycle, storage, and API rules are documented in `docs/TRADE_DOCUMENTS_MODULE.md`.
+
+Tender/auction deployment is governed by `docs/PROCUREMENT_NOTICES_DEPLOYMENT.md`; its domain, deadline, storage, API, and legacy-mapping rules are documented in `docs/PROCUREMENT_NOTICES_MODULE.md`.
 
 ## Authorization design
 

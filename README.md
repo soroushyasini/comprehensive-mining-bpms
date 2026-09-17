@@ -14,6 +14,8 @@ ProcessMaker provides authentication, sessions, Dynaforms, and routed workflows.
 - [Visitor log deployment runbook](docs/VISITOR_LOG_DEPLOYMENT.md) — Windows migration, API/panel installation, permissions, and acceptance.
 - [Trade-document module reference](docs/TRADE_DOCUMENTS_MODULE.md) — PI-led cases, issuer counters, templates, versions, attachments, and security rules.
 - [Trade-document deployment runbook](docs/TRADE_DOCUMENTS_DEPLOYMENT.md) — private storage, counter cutover, migration, acceptance, and safe rollback.
+- [Tender and auction module reference](docs/PROCUREMENT_NOTICES_MODULE.md) — fields, deadline rules, API, files, and lossless legacy mapping.
+- [Tender and auction deployment runbook](docs/PROCUREMENT_NOTICES_DEPLOYMENT.md) — dry-run-first legacy-table backfill, private storage, acceptance, and rollback.
 - [Database/domain reference](db_schema.md) — core business tables and module specifications.
 - [Mines and expiry addendum](EMCORE_dev_reference_addendum.md) — mine-specific tables and expiry behavior.
 - [Panel deployment guide](panels/README.md) — ProcessMaker WebControl files and endpoint mapping.
@@ -31,5 +33,6 @@ ProcessMaker provides authentication, sessions, Dynaforms, and routed workflows.
 - Daily drilling operations with boreholes, movable rigs, crew, checklist, lossless legacy staging, and secured reports
 - Arrival-only visitor logging with active-user/manual hosts, live checkout, filtering, and audited corrections
 - PI-led export/import cases for EMIDCO and EMIDCO METAL, with atomic numbering, six Word templates, document versions, private attachments, and logged downloads
+- Tender and auction tracking with live deadline alerts, optimistic edits, private attachments, and traceable migration from the legacy DynaForm/XCRUD register
 
 For setup, module development, security invariants, deployment order, troubleshooting, and the definition of done, read `docs/DEVELOPER_GUIDE.md` before making changes.
