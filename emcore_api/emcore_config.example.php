@@ -9,4 +9,6 @@ return [
     // Must exist, be writable by PHP, and remain outside every web-served directory.
     'trade_storage_root' => 'C:\\pmlearning\\emcore-private\\trade-documents',
     'trade_max_upload_bytes' => 52428800,
+    'procurement_storage_root' => 'C:\\pmlearning\\emcore-private\\procurement-notices',
+    'procurement_max_upload_bytes' => 52428800,
 ];
