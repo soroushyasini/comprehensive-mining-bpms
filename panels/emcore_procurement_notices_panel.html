@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root {
+      --ink: #17221d;
+      --ink-soft: #59665f;
+      --paper: #f3f1ea;
+      --surface: #fffefa;
+      --surface-muted: #f8f7f2;
+      --line: #d9d7ce;
+      --green: #17664b;
+      --green-dark: #104936;
+      --green-soft: #dcece5;
+      --blue: #32627d;
+      --blue-soft: #deebf2;
+      --amber: #9f6813;
+      --amber-soft: #f4e6c7;
+      --red: #9f3b33;
+      --red-soft: #f3ddda;
+      --shadow: 0 14px 38px rgba(23, 34, 29, .10);
+      --radius: 10px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 18px;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: "Vazirmatn", Tahoma, "Segoe UI", sans-serif;
+      font-size: 14px;
+      line-height: 1.75;
+    }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    button:disabled { cursor: not-allowed; opacity: .56; }
+    :focus-visible { outline: 3px solid rgba(23, 102, 75, .24); outline-offset: 2px; }
+    .app-shell { max-width: 1580px; margin: 0 auto; }
+    .masthead {
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      min-height: 118px;
+      padding: 24px 28px;
+      color: #fff;
+      background: var(--ink);
+      border-radius: 18px 18px 6px 6px;
+      box-shadow: var(--shadow);
+    }
+    .masthead::after {
+      content: "";
+      position: absolute;
+      inset-inline-end: -62px;
+      inset-block-start: -108px;
+      width: 270px;
+      height: 270px;
+      border: 34px solid rgba(255, 255, 255, .05);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+    .eyebrow { margin-bottom: 2px; color: #aec2b7; font-size: 12px; }
+    h1 { margin: 0; font-size: 25px; line-height: 1.5; font-weight: 800; }
+    .subtitle { margin: 5px 0 0; color: #d4ded8; font-size: 13px; }
+    .btn {
+      min-height: 38px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      padding: 7px 14px;
+      color: var(--ink);
+      background: #fff;
+      transition: background .15s ease, border-color .15s ease, transform .15s ease;
+    }
+    .btn:hover:not(:disabled) { transform: translateY(-1px); }
+    .btn-primary { color: #fff; background: var(--green); border-color: var(--green); }
+    .btn-primary:hover:not(:disabled) { background: var(--green-dark); }
+    .btn-light { background: var(--surface); border-color: var(--line); }
+    .btn-danger { color: var(--red); background: var(--red-soft); border-color: #e6bcb6; }
+    .btn-small { min-height: 32px; padding: 4px 10px; font-size: 12px; }
+    .masthead .btn { position: relative; z-index: 1; min-width: 150px; }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .summary-card {
+      min-height: 86px;
+      padding: 13px 15px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-top: 3px solid var(--green);
+      border-radius: 6px 6px var(--radius) var(--radius);
+    }
+    .summary-card.urgent { border-top-color: var(--amber); }
+    .summary-card.expired { border-top-color: var(--red); }
+    .summary-card.won { border-top-color: var(--blue); }
+    .summary-label { display: block; color: var(--ink-soft); font-size: 12px; }
+    .summary-value { display: block; margin-top: 4px; font-size: 24px; font-weight: 800; line-height: 1.2; }
+    .toolbar {
+      margin-top: 12px;
+      padding: 14px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+    }
+    .filter-grid {
+      display: grid;
+      grid-template-columns: minmax(220px, 2fr) repeat(5, minmax(125px, 1fr));
+      gap: 10px;
+      align-items: end;
+    }
+    .field { min-width: 0; }
+    .field label { display: block; margin-bottom: 4px; color: var(--ink-soft); font-size: 12px; font-weight: 700; }
+    input, select, textarea {
+      width: 100%;
+      min-height: 40px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 8px 10px;
+      color: var(--ink);
+      background: #fff;
+    }
+    textarea { min-height: 88px; resize: vertical; }
+    input[disabled], select[disabled], textarea[disabled] { color: #6e7772; background: #efeee9; }
+    .ltr { direction: ltr; text-align: left; }
+    .filter-actions { display: flex; gap: 7px; }
+    .notice {
+      display: none;
+      margin-top: 12px;
+      padding: 10px 13px;
+      border: 1px solid;
+      border-radius: 8px;
+    }
+    .notice.error { display: block; color: #712a25; background: var(--red-soft); border-color: #e2b3ad; }
+    .notice.success { display: block; color: #15553f; background: var(--green-soft); border-color: #add4c5; }
+    .notice.warning { display: block; color: #714b11; background: var(--amber-soft); border-color: #dfc48d; }
+    .ledger {
+      margin-top: 12px;
+      overflow-x: auto;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+    }
+    table { width: 100%; min-width: 1120px; border-collapse: collapse; }
+    th, td { padding: 11px 12px; border-bottom: 1px solid #e5e3dc; text-align: right; vertical-align: top; }
+    th { position: sticky; top: 0; z-index: 1; color: #4b5851; background: #efeee9; font-size: 12px; white-space: nowrap; }
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody tr:hover { background: #faf9f5; }
+    tbody tr.row-urgent { background: #fffaf0; }
+    tbody tr.row-expired { background: #fff7f6; }
+    .title-cell { min-width: 260px; max-width: 390px; }
+    .record-title { display: block; font-weight: 800; line-height: 1.65; }
+    .secondary { display: block; margin-top: 2px; color: var(--ink-soft); font-size: 12px; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+      border-radius: 999px;
+      padding: 2px 9px;
+      font-size: 11px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .badge-tender, .badge-open { color: #1c5873; background: var(--blue-soft); }
+    .badge-auction, .badge-interested { color: #6e4b12; background: var(--amber-soft); }
+    .badge-urgent, .badge-documents-submitted { color: #704909; background: #f5e0b4; }
+    .badge-expired, .badge-lost { color: #7b2f29; background: var(--red-soft); }
+    .badge-no-deadline, .badge-registered, .badge-unknown { color: #515a55; background: #e9e9e5; }
+    .badge-won { color: #14513c; background: var(--green-soft); }
+    .row-actions { display: flex; flex-wrap: wrap; gap: 6px; min-width: 155px; }
+    .empty { padding: 42px 20px; color: var(--ink-soft); text-align: center; }
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .pagination-label { min-width: 150px; color: var(--ink-soft); text-align: center; }
+    .overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(12, 20, 16, .68);
+    }
+    .overlay.open { display: flex; }
+    .dialog {
+      display: flex;
+      flex-direction: column;
+      width: min(1120px, 100%);
+      max-height: calc(100vh - 40px);
+      overflow: hidden;
+      background: var(--surface);
+      border-radius: 12px;
+      box-shadow: 0 26px 75px rgba(0, 0, 0, .27);
+    }
+    .dialog-head, .dialog-foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 15px 20px;
+      border-bottom: 1px solid var(--line);
+    }
+    .dialog-foot { justify-content: flex-start; border-top: 1px solid var(--line); border-bottom: 0; }
+    .dialog-title { margin: 0; font-size: 19px; }
+    .icon-button { width: 36px; height: 36px; border: 0; border-radius: 7px; background: #efeee9; font-size: 20px; }
+    .dialog-body { overflow-y: auto; padding: 18px 20px 22px; }
+    .form-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 13px 14px; }
+    .span-2 { grid-column: span 2; }
+    .span-4 { grid-column: 1 / -1; }
+    .form-section {
+      grid-column: 1 / -1;
+      margin-top: 5px;
+      padding: 7px 0 3px;
+      color: var(--green-dark);
+      border-bottom: 1px solid var(--green-soft);
+      font-weight: 800;
+    }
+    .required { color: var(--red); }
+    .conditional { display: none; }
+    .form-error { display: none; margin-top: 12px; color: var(--red); font-weight: 700; }
+    .files-panel {
+      display: none;
+      grid-column: 1 / -1;
+      padding: 13px;
+      background: var(--surface-muted);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+    .upload-row { display: grid; grid-template-columns: 190px minmax(220px, 1fr) auto; gap: 9px; align-items: end; }
+    .file-list { display: grid; gap: 7px; margin-top: 12px; }
+    .file-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 9px 11px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+    }
+    .file-name { overflow-wrap: anywhere; font-weight: 700; }
+    .file-meta { color: var(--ink-soft); font-size: 11px; }
+    .file-actions { display: flex; flex-shrink: 0; gap: 6px; }
+    .read-only-note { display: none; color: var(--ink-soft); font-size: 12px; }
+    @media (max-width: 1180px) {
+      .summary-grid { grid-template-columns: repeat(3, 1fr); }
+      .filter-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 760px) {
+      body { padding: 9px; }
+      .masthead { align-items: flex-start; flex-direction: column; padding: 20px; }
+      .masthead .btn { width: 100%; }
+      .summary-grid { grid-template-columns: repeat(2, 1fr); }
+      .filter-grid, .form-grid { grid-template-columns: 1fr; }
+      .span-2, .span-4, .form-section, .files-panel { grid-column: 1; }
+      .filter-actions, .filter-actions .btn { width: 100%; }
+      .upload-row { grid-template-columns: 1fr; }
+      .file-item { align-items: flex-start; flex-direction: column; }
+      .dialog { max-height: calc(100vh - 16px); }
+      .overlay { padding: 8px; }
+    }
+  </style>
+</head>
+<body>
+<main class="app-shell">
+  <header class="masthead">
+    <div>
+      <div class="eyebrow">EMCORE · تدارکات و فرصت‌های تجاری</div>
+      <h1>مناقصات و مزایدات</h1>
+      <p class="subtitle">ثبت، پیگیری مهلت‌ها، وضعیت شرکت و اسناد هر فراخوان</p>
+    </div>
+    <button type="button" class="btn btn-primary" id="addButton" hidden>+ ثبت فراخوان جدید</button>
+  </header>
+
+  <section class="summary-grid" aria-label="خلاصه مناقصات و مزایدات">
+    <div class="summary-card"><span class="summary-label">کل فراخوان‌ها</span><strong class="summary-value" id="totalCount">—</strong></div>
+    <div class="summary-card"><span class="summary-label">مناقصه</span><strong class="summary-value" id="tenderCount">—</strong></div>
+    <div class="summary-card"><span class="summary-label">مزایده</span><strong class="summary-value" id="auctionCount">—</strong></div>
+    <div class="summary-card urgent"><span class="summary-label">نیازمند اقدام</span><strong class="summary-value" id="urgentCount">—</strong></div>
+    <div class="summary-card expired"><span class="summary-label">مهلت گذشته</span><strong class="summary-value" id="expiredCount">—</strong></div>
+    <div class="summary-card won"><span class="summary-label">برنده</span><strong class="summary-value" id="wonCount">—</strong></div>
+  </section>
+
+  <section class="toolbar" aria-label="فیلترها">
+    <div class="filter-grid">
+      <div class="field">
+        <label for="searchInput">جست‌وجو</label>
+        <input type="search" id="searchInput" maxlength="150" placeholder="عنوان، شماره، دستگاه اجرایی، کالا…">
+      </div>
+      <div class="field"><label for="typeFilter">نوع</label><select id="typeFilter"><option value="">همه</option><option value="tender">مناقصه</option><option value="auction">مزایده</option></select></div>
+      <div class="field"><label for="deadlineFilter">وضعیت مهلت</label><select id="deadlineFilter"><option value="">همه</option><option value="open">دارای فرصت</option><option value="urgent">نیازمند اقدام</option><option value="expired">مهلت گذشته</option><option value="no_deadline">بدون مهلت</option></select></div>
+      <div class="field"><label for="statusFilter">وضعیت شرکت</label><select id="statusFilter"><option value="">همه</option><option value="registered">ثبت اولیه</option><option value="interested">علاقه‌مند</option><option value="documents_submitted">ارسال مدارک</option><option value="won">برنده</option><option value="lost">شکست</option></select></div>
+      <div class="field"><label for="unitFilter">واحد مربوطه</label><select id="unitFilter"><option value="">همه واحدها</option></select></div>
+      <div class="filter-actions"><button type="button" class="btn btn-primary" id="filterButton">اعمال</button><button type="button" class="btn btn-light" id="resetButton">پاک‌کردن</button></div>
+    </div>
+  </section>
+
+  <div id="notice" class="notice" role="status" aria-live="polite"></div>
+  <section id="ledger" class="ledger" aria-live="polite" aria-busy="true"><div class="empty">در حال دریافت اطلاعات…</div></section>
+  <nav class="pagination" aria-label="صفحه‌بندی">
+    <button type="button" class="btn btn-light btn-small" id="previousButton">صفحه قبل</button>
+    <span class="pagination-label" id="pageLabel">—</span>
+    <button type="button" class="btn btn-light btn-small" id="nextButton">صفحه بعد</button>
+  </nav>
+</main>
+
+<div class="overlay" id="formOverlay" aria-hidden="true">
+  <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="dialogTitle">
+    <div class="dialog-head">
+      <div><h2 class="dialog-title" id="dialogTitle">ثبت فراخوان جدید</h2><span class="read-only-note" id="readOnlyNote">این رکورد فقط قابل مشاهده است.</span></div>
+      <button type="button" class="icon-button" id="closeButton" aria-label="بستن">×</button>
+    </div>
+    <div class="dialog-body">
+      <input type="hidden" id="recordId"><input type="hidden" id="lockVersion">
+      <div class="form-grid">
+        <div class="form-section">مشخصات اصلی</div>
+        <div class="field"><label for="noticeType">نوع <span class="required">*</span></label><select id="noticeType" data-editable><option value="tender">مناقصه</option><option value="auction">مزایده</option><option value="unknown" disabled>نامشخص — نیازمند اصلاح</option></select></div>
+        <div class="field"><label for="registeredOn">تاریخ ثبت <span class="required">*</span></label><input type="text" id="registeredOn" class="ltr" maxlength="10" inputmode="numeric" placeholder="1405/01/01" data-editable></div>
+        <div class="field"><label for="sourceName">اخذ شده از</label><input type="text" id="sourceName" maxlength="255" list="sourceOptions" data-editable></div>
+        <div class="field"><label for="supplierName">تأمین‌کننده</label><input type="text" id="supplierName" maxlength="255" data-editable></div>
+        <div class="field span-4"><label for="title">عنوان <span class="required">*</span></label><textarea id="title" maxlength="1000" data-editable></textarea></div>
+        <div class="field"><label for="referenceNumber">شماره فراخوان</label><input type="text" id="referenceNumber" maxlength="255" data-editable></div>
+        <div class="field"><label for="quantityText">تناژ / مقدار</label><input type="text" id="quantityText" maxlength="255" data-editable></div>
+        <div class="field"><label for="amountText">مبلغ / تضمین</label><input type="text" id="amountText" maxlength="255" data-editable></div>
+        <div class="field"><label for="currency">واحد پول</label><input type="text" id="currency" maxlength="32" list="currencyOptions" data-editable></div>
+        <div class="field span-2"><label for="contractingAuthority">مناقصه‌گزار / دستگاه اجرایی</label><input type="text" id="contractingAuthority" maxlength="255" list="authorityOptions" data-editable></div>
+        <div class="field"><label for="submissionMethod">نحوه ارسال اسناد</label><select id="submissionMethod" data-editable><option value="">انتخاب کنید</option><option value="physical">فیزیکی</option><option value="online">آنلاین</option><option value="other">سایر</option></select></div>
+        <div class="field"><label for="deliveryTerm">نحوه تحویل بار</label><input type="text" id="deliveryTerm" maxlength="32" list="deliveryOptions" placeholder="FOB، EXW…" data-editable></div>
+
+        <div class="form-section">مهلت‌ها و تضامین</div>
+        <div class="field"><label for="documentsDeadline">مهلت دریافت اسناد</label><input type="text" id="documentsDeadline" class="ltr" maxlength="10" inputmode="numeric" placeholder="1405/01/01" data-editable></div>
+        <div class="field"><label for="responseDeadline">مهلت پاسخ</label><input type="text" id="responseDeadline" class="ltr" maxlength="10" inputmode="numeric" placeholder="1405/01/01" data-editable></div>
+        <div class="field"><label for="alertLeadDays">هشدار از چند روز قبل</label><input type="number" id="alertLeadDays" min="0" max="365" value="5" data-editable></div>
+        <div class="field"><label for="extensionStatus">تمدید شده؟</label><select id="extensionStatus" data-editable><option value="">نامشخص</option><option value="1">بله</option><option value="0">خیر</option></select></div>
+        <div class="field span-2"><label for="primaryGuarantee">ضمانت‌نامه</label><input type="text" id="primaryGuarantee" maxlength="255" list="guaranteeOptions" data-editable></div>
+        <div class="field span-2"><label for="secondaryGuarantee">ضمانت‌نامه ثانویه</label><input type="text" id="secondaryGuarantee" maxlength="255" list="guaranteeOptions" data-editable></div>
+
+        <div class="form-section">مسئولیت و دسته‌بندی</div>
+        <div class="field"><label for="responsibleUnit">واحد مربوطه</label><input type="text" id="responsibleUnit" maxlength="64" list="unitOptions" data-editable></div>
+        <div class="field trade-field conditional"><label for="categoryName">گروه اصلی</label><input type="text" id="categoryName" maxlength="255" list="categoryOptions" data-editable></div>
+        <div class="field trade-field conditional"><label for="subcategoryName">زیرگروه</label><input type="text" id="subcategoryName" maxlength="255" list="subcategoryOptions" data-editable></div>
+        <div class="field trade-field conditional"><label for="productName">کالا</label><input type="text" id="productName" maxlength="255" list="productOptions" data-editable></div>
+        <div class="field span-4 drilling-field conditional"><label for="drillingArea">محدوده حفاری / معدنی</label><textarea id="drillingArea" maxlength="2000" data-editable></textarea></div>
+
+        <div class="form-section">نتیجه و پیگیری</div>
+        <div class="field"><label for="participationStatus">وضعیت شرکت</label><select id="participationStatus" data-editable><option value="registered">ثبت اولیه</option><option value="interested">علاقه‌مند</option><option value="documents_submitted">ارسال مدارک</option><option value="won">برنده</option><option value="lost">شکست</option><option value="unknown" disabled>نامشخص — نیازمند اصلاح</option></select></div>
+        <div class="field span-4 interest-field conditional"><label for="interestReason">دلیل علاقه</label><textarea id="interestReason" maxlength="5000" data-editable></textarea></div>
+
+        <div class="form-section files-panel-section">اسناد و فایل‌ها</div>
+        <section class="files-panel" id="filesPanel" aria-label="فایل‌های فراخوان">
+          <div class="upload-row" id="uploadControls">
+            <div class="field"><label for="fileRole">نوع فایل</label><select id="fileRole"><option value="notice_document">مدارک فراخوان</option><option value="final_submission">فایل ارسال نهایی</option></select></div>
+            <div class="field"><label for="fileInput">انتخاب فایل</label><input type="file" id="fileInput" accept=".doc,.docx,.pdf,.xls,.xlsx,.jpg,.jpeg,.png,.zip"></div>
+            <button type="button" class="btn btn-primary" id="uploadButton">بارگذاری</button>
+          </div>
+          <div class="file-list" id="fileList"></div>
+        </section>
+      </div>
+      <div id="formError" class="form-error" role="alert"></div>
+    </div>
+    <div class="dialog-foot"><button type="button" class="btn btn-primary" id="saveButton">ذخیره</button><button type="button" class="btn btn-light" id="cancelButton">بستن</button></div>
+  </section>
+</div>
+
+<datalist id="sourceOptions"></datalist><datalist id="authorityOptions"></datalist><datalist id="currencyOptions"></datalist>
+<datalist id="deliveryOptions"></datalist><datalist id="guaranteeOptions"></datalist><datalist id="unitOptions"></datalist>
+<datalist id="categoryOptions"></datalist><datalist id="subcategoryOptions"></datalist><datalist id="productOptions"></datalist>
+
+<script>
+(function ($) {
+  'use strict';
+
+  var API = '/emcore_api/emcore_procurement_notices.php';
+  var csrfToken = '';
+  var permissions = { can_create: 0, can_read: 0, can_update: 0, can_delete: 0 };
+  var lookups = {};
+  var page = 1;
+  var pageSize = 25;
+  var total = 0;
+  var activeFiles = [];
+  var dialogReadOnly = false;
+  var previousFocus = null;
+
+  var labels = {
+    noticeType: { tender: 'مناقصه', auction: 'مزایده', unknown: 'نامشخص' },
+    deadline: { open: 'دارای فرصت', urgent: 'نیازمند اقدام', expired: 'مهلت گذشته', no_deadline: 'بدون مهلت' },
+    status: { registered: 'ثبت اولیه', interested: 'علاقه‌مند', documents_submitted: 'ارسال مدارک', won: 'برنده', lost: 'شکست', unknown: 'نامشخص' },
+    fileRole: { notice_document: 'مدارک فراخوان', final_submission: 'فایل ارسال نهایی' },
+    method: { physical: 'فیزیکی', online: 'آنلاین', other: 'سایر' }
+  };
+
+  function api(action, data, options) {
+    data = data || {};
+    data.action = action;
+    options = options || {};
+    return $.ajax({
+      url: API,
+      method: 'POST',
+      dataType: 'json',
+      data: data,
+      headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
+      processData: options.processData !== false,
+      contentType: options.contentType === false ? false : 'application/x-www-form-urlencoded; charset=UTF-8'
+    });
+  }
+
+  function uploadApi(formData) {
+    formData.append('action', 'upload_file');
+    return $.ajax({ url: API, method: 'POST', dataType: 'json', data: formData, processData: false, contentType: false, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {} });
+  }
+
+  function errorText(xhr) {
+    if (xhr && xhr.responseJSON && xhr.responseJSON.error) return xhr.responseJSON.error;
+    if (xhr && xhr.status === 401) return 'نشست کاربری پایان یافته است. دوباره وارد سامانه شوید.';
+    if (xhr && xhr.status === 403) return 'دسترسی لازم برای این عملیات وجود ندارد.';
+    if (xhr && xhr.status === 409) return 'اطلاعات تغییر کرده است؛ دوباره تلاش کنید.';
+    return 'ارتباط با سرویس مناقصات و مزایدات ناموفق بود.';
+  }
+
+  function showNotice(text, type) { $('#notice').removeClass('error success warning').addClass(type || 'error').text(text).show(); }
+  function hideNotice() { $('#notice').hide().removeClass('error success warning').text(''); }
+  function faNumber(value) { return Number(value || 0).toLocaleString('fa-IR'); }
+  function toLatinDigits(value) {
+    var persian = '۰۱۲۳۴۵۶۷۸۹';
+    var arabic = '٠١٢٣٤٥٦٧٨٩';
+    return String(value || '').replace(/[۰-۹]/g, function (digit) { return persian.indexOf(digit); }).replace(/[٠-٩]/g, function (digit) { return arabic.indexOf(digit); });
+  }
+  function two(value) { return String(value).length < 2 ? '0' + value : String(value); }
+  function dateToJalali(date) {
+    try {
+      var formatter = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { year: 'numeric', month: '2-digit', day: '2-digit' });
+      var values = {};
+      $.each(formatter.formatToParts(date), function (_, part) { if (part.type !== 'literal') values[part.type] = toLatinDigits(part.value); });
+      return values.year + '/' + two(values.month) + '/' + two(values.day);
+    } catch (error) { return ''; }
+  }
+  function todayJalali() { return dateToJalali(new Date()); }
+  function displayText(value) { return value === null || value === undefined || value === '' ? '—' : String(value); }
+  function fileSize(bytes) {
+    bytes = Number(bytes || 0);
+    if (!bytes) return '';
+    if (bytes < 1024) return faNumber(bytes) + ' بایت';
+    if (bytes < 1048576) return faNumber((bytes / 1024).toFixed(1)) + ' کیلوبایت';
+    return faNumber((bytes / 1048576).toFixed(1)) + ' مگابایت';
+  }
+
+  function fillDatalist(id, values) {
+    var list = $(id).empty();
+    $.each(values || [], function (_, value) { if (value) list.append($('<option>').attr('value', value)); });
+  }
+
+  function fillSelect(id, values, firstLabel) {
+    var select = $(id).empty().append($('<option>').val('').text(firstLabel));
+    $.each(values || [], function (_, value) { if (value) select.append($('<option>').val(value).text(value)); });
+  }
+
+  function applyLookups() {
+    fillDatalist('#sourceOptions', lookups.source_name);
+    fillDatalist('#authorityOptions', lookups.contracting_authority);
+    fillDatalist('#currencyOptions', lookups.currency && lookups.currency.length ? lookups.currency : ['تومان', 'ریال', 'یورو', 'درهم']);
+    fillDatalist('#deliveryOptions', lookups.delivery_term && lookups.delivery_term.length ? lookups.delivery_term : ['FOB', 'EXW', 'FAS', 'FCA', 'DDP', 'CFR', 'FOT']);
+    fillDatalist('#guaranteeOptions', lookups.primary_guarantee);
+    fillDatalist('#unitOptions', lookups.responsible_unit && lookups.responsible_unit.length ? lookups.responsible_unit : ['بازرگانی', 'حفاری', 'اکتشاف', 'محدوده معدنی', 'استخراج']);
+    fillDatalist('#categoryOptions', lookups.category_name);
+    fillDatalist('#subcategoryOptions', lookups.subcategory_name);
+    fillDatalist('#productOptions', lookups.product_name);
+    fillSelect('#unitFilter', lookups.responsible_unit, 'همه واحدها');
+  }
+
+  function loadLookups() {
+    return api('lookups').done(function (response) {
+      lookups = response.data || {};
+      csrfToken = response.csrf_token || csrfToken;
+      permissions = response.permissions || permissions;
+      applyLookups();
+      $('#addButton').prop('hidden', Number(permissions.can_create) !== 1);
+      if (!lookups.storage_ready) showNotice('مخزن خصوصی فایل‌ها هنوز پیکربندی نشده است؛ اطلاعات قابل ثبت است اما بارگذاری فایل غیرفعال می‌ماند.', 'warning');
+    }).fail(function (xhr) { showNotice(errorText(xhr), 'error'); });
+  }
+
+  function filterData() {
+    return { search: $.trim($('#searchInput').val()), notice_type: $('#typeFilter').val(), deadline_state: $('#deadlineFilter').val(), participation_status: $('#statusFilter').val(), responsible_unit: $('#unitFilter').val(), page: page, page_size: pageSize, sort_by: 'response_deadline', sort_order: 'asc' };
+  }
+
+  function loadRows() {
+    $('#ledger').attr('aria-busy', 'true').empty().append($('<div>').addClass('empty').text('در حال دریافت اطلاعات…'));
+    return api('list', filterData()).done(function (response) {
+      csrfToken = response.csrf_token || csrfToken;
+      permissions = response.permissions || permissions;
+      total = Number((response.pagination && response.pagination.total) || 0);
+      renderSummary(response.summary || {});
+      renderTable(response.data || []);
+      renderPagination(response.pagination || {});
+      $('#addButton').prop('hidden', Number(permissions.can_create) !== 1);
+    }).fail(function (xhr) {
+      $('#ledger').empty().append($('<div>').addClass('empty').text('اطلاعات قابل نمایش نیست.'));
+      showNotice(errorText(xhr), 'error');
+    }).always(function () { $('#ledger').attr('aria-busy', 'false'); });
+  }
+
+  function renderSummary(summary) {
+    $('#totalCount').text(faNumber(summary.total)); $('#tenderCount').text(faNumber(summary.tender_count));
+    $('#auctionCount').text(faNumber(summary.auction_count)); $('#urgentCount').text(faNumber(summary.urgent_count));
+    $('#expiredCount').text(faNumber(summary.expired_count)); $('#wonCount').text(faNumber(summary.won_count));
+  }
+
+  function deadlineLabel(row) {
+    if (row.deadline_state === 'no_deadline') return 'بدون مهلت';
+    var days = Number(row.days_left || 0);
+    if (days < 0) return faNumber(Math.abs(days)) + ' روز گذشته';
+    if (days === 0) return 'امروز';
+    return faNumber(days) + ' روز مانده';
+  }
+
+  function renderTable(rows) {
+    var ledger = $('#ledger').empty();
+    if (!rows.length) { ledger.append($('<div>').addClass('empty').text('رکوردی با این فیلتر پیدا نشد.')); return; }
+    var table = $('<table>');
+    var head = $('<tr>');
+    $.each(['عنوان و شماره', 'نوع', 'دستگاه اجرایی', 'واحد / دسته', 'مهلت پاسخ', 'فرصت', 'وضعیت شرکت', 'فایل', 'عملیات'], function (_, label) { head.append($('<th>').text(label)); });
+    table.append($('<thead>').append(head));
+    var body = $('<tbody>');
+    $.each(rows, function (_, row) {
+      var tr = $('<tr>').addClass('row-' + row.deadline_state);
+      var title = $('<td>').addClass('title-cell').append($('<span>').addClass('record-title').text(row.title));
+      title.append($('<span>').addClass('secondary').attr('dir', 'ltr').text(row.reference_number ? 'شماره: ' + row.reference_number : 'بدون شماره'));
+      if (row.record_origin === 'legacy') title.append($('<span>').addClass('secondary').text('سابقه منتقل‌شده #' + faNumber(row.legacy_source_id)));
+      tr.append(title);
+      tr.append($('<td>').append($('<span>').addClass('badge badge-' + row.notice_type).text(labels.noticeType[row.notice_type] || row.notice_type)));
+      var authority = $('<td>').text(displayText(row.contracting_authority));
+      if (row.source_name) authority.append($('<span>').addClass('secondary').text('منبع: ' + row.source_name));
+      tr.append(authority);
+      var category = $('<td>').text(displayText(row.responsible_unit));
+      if (row.category_name || row.product_name) category.append($('<span>').addClass('secondary').text([row.category_name, row.product_name].filter(Boolean).join(' · ')));
+      tr.append(category);
+      tr.append($('<td>').attr('dir', 'ltr').text(displayText(row.response_deadline_fa)));
+      tr.append($('<td>').append($('<span>').addClass('badge badge-' + row.deadline_state).text(deadlineLabel(row))));
+      tr.append($('<td>').append($('<span>').addClass('badge badge-' + String(row.participation_status).replace(/_/g, '-')).text(labels.status[row.participation_status] || row.participation_status)));
+      tr.append($('<td>').text(faNumber(row.file_count || 0)));
+      var actions = $('<div>').addClass('row-actions');
+      actions.append($('<button>').attr('type', 'button').addClass('btn btn-light btn-small').text(Number(permissions.can_update) === 1 ? 'مشاهده / ویرایش' : 'مشاهده').on('click', function () { openRecord(row.id); }));
+      if (Number(permissions.can_delete) === 1) actions.append($('<button>').attr('type', 'button').addClass('btn btn-danger btn-small').text('حذف').on('click', function () { removeRecord(row); }));
+      tr.append($('<td>').append(actions));
+      body.append(tr);
+    });
+    ledger.append(table.append(body));
+  }
+
+  function renderPagination(pagination) {
+    var maxPage = Number(pagination.total_pages || Math.max(1, Math.ceil(total / pageSize)));
+    $('#pageLabel').text('صفحه ' + faNumber(page) + ' از ' + faNumber(maxPage));
+    $('#previousButton').prop('disabled', page <= 1);
+    $('#nextButton').prop('disabled', page >= maxPage);
+  }
+
+  function updateConditionalFields() {
+    var unit = $('#responsibleUnit').val();
+    $('.trade-field').toggle(unit === 'بازرگانی');
+    $('.drilling-field').toggle(unit === 'حفاری' || unit === 'محدوده معدنی');
+    $('.interest-field').toggle($('#participationStatus').val() === 'interested');
+  }
+
+  function resetForm() {
+    $('#recordId,#lockVersion,#sourceName,#supplierName,#title,#referenceNumber,#quantityText,#amountText,#currency,#contractingAuthority,#deliveryTerm,#documentsDeadline,#responseDeadline,#primaryGuarantee,#secondaryGuarantee,#responsibleUnit,#categoryName,#subcategoryName,#productName,#drillingArea,#interestReason').val('');
+    $('#noticeType').val('tender'); $('#registeredOn').val(todayJalali()); $('#submissionMethod').val('');
+    $('#alertLeadDays').val('5'); $('#extensionStatus').val(''); $('#participationStatus').val('registered');
+    $('#fileInput').val(''); $('#fileRole').val('notice_document'); $('#fileList').empty();
+    $('#formError').hide().text(''); activeFiles = []; updateConditionalFields();
+  }
+
+  function setDialogMode(readOnly) {
+    dialogReadOnly = readOnly;
+    $('[data-editable]').prop('disabled', readOnly);
+    $('#saveButton').toggle(!readOnly);
+    $('#readOnlyNote').toggle(readOnly);
+    $('#uploadControls').toggle(!readOnly && Boolean(lookups.storage_ready));
+  }
+
+  function openOverlay() {
+    previousFocus = document.activeElement;
+    $('#formOverlay').addClass('open').attr('aria-hidden', 'false');
+    setTimeout(function () { (dialogReadOnly ? $('#closeButton') : $('#noticeType')).trigger('focus'); }, 40);
+  }
+
+  function openCreate() {
+    resetForm(); setDialogMode(false); $('#dialogTitle').text('ثبت فراخوان جدید');
+    $('.files-panel-section,#filesPanel').hide(); openOverlay();
+  }
+
+  function openRecord(id) {
+    resetForm();
+    api('get', { id: id }).done(function (response) {
+      var row = response.data;
+      $('#recordId').val(row.id); $('#lockVersion').val(row.lock_version); $('#noticeType').val(row.notice_type);
+      $('#registeredOn').val(row.registered_on_fa); $('#sourceName').val(row.source_name || ''); $('#supplierName').val(row.supplier_name || '');
+      $('#title').val(row.title); $('#referenceNumber').val(row.reference_number || ''); $('#quantityText').val(row.quantity_text || '');
+      $('#amountText').val(row.amount_text || ''); $('#currency').val(row.currency || ''); $('#contractingAuthority').val(row.contracting_authority || '');
+      $('#submissionMethod').val(row.submission_method || ''); $('#deliveryTerm').val(row.delivery_term || '');
+      $('#documentsDeadline').val(row.documents_deadline_fa || ''); $('#responseDeadline').val(row.response_deadline_fa || '');
+      $('#alertLeadDays').val(row.alert_lead_days); $('#extensionStatus').val(row.is_extended === null ? '' : String(row.is_extended));
+      $('#primaryGuarantee').val(row.primary_guarantee || ''); $('#secondaryGuarantee').val(row.secondary_guarantee || '');
+      $('#responsibleUnit').val(row.responsible_unit || ''); $('#categoryName').val(row.category_name || ''); $('#subcategoryName').val(row.subcategory_name || '');
+      $('#productName').val(row.product_name || ''); $('#drillingArea').val(row.drilling_area || ''); $('#participationStatus').val(row.participation_status);
+      $('#interestReason').val(row.interest_reason || ''); activeFiles = row.files || []; updateConditionalFields(); renderFiles();
+      setDialogMode(Number(permissions.can_update) !== 1); $('#dialogTitle').text(dialogReadOnly ? 'مشاهده فراخوان' : 'ویرایش فراخوان');
+      $('.files-panel-section,#filesPanel').show(); openOverlay();
+    }).fail(function (xhr) { showNotice(errorText(xhr), 'error'); });
+  }
+
+  function formData() {
+    return {
+      id: $('#recordId').val(), lock_version: $('#lockVersion').val(), notice_type: $('#noticeType').val(), registered_on_fa: toLatinDigits($.trim($('#registeredOn').val())),
+      source_name: $.trim($('#sourceName').val()), supplier_name: $.trim($('#supplierName').val()), title: $.trim($('#title').val()),
+      reference_number: $.trim($('#referenceNumber').val()), quantity_text: $.trim($('#quantityText').val()), amount_text: $.trim($('#amountText').val()),
+      currency: $.trim($('#currency').val()), contracting_authority: $.trim($('#contractingAuthority').val()), submission_method: $('#submissionMethod').val(),
+      delivery_term: $.trim($('#deliveryTerm').val()), documents_deadline_fa: toLatinDigits($.trim($('#documentsDeadline').val())), response_deadline_fa: toLatinDigits($.trim($('#responseDeadline').val())),
+      alert_lead_days: $('#alertLeadDays').val(), primary_guarantee: $.trim($('#primaryGuarantee').val()), secondary_guarantee: $.trim($('#secondaryGuarantee').val()),
+      responsible_unit: $.trim($('#responsibleUnit').val()), category_name: $.trim($('#categoryName').val()), subcategory_name: $.trim($('#subcategoryName').val()),
+      product_name: $.trim($('#productName').val()), drilling_area: $.trim($('#drillingArea').val()), participation_status: $('#participationStatus').val(),
+      interest_reason: $.trim($('#interestReason').val()), is_extended: $('#extensionStatus').val()
+    };
+  }
+
+  function validateForm(data) {
+    var datePattern = /^1[34][0-9]{2}\/(0[1-9]|1[0-2])\/([0-2][0-9]|3[01])$/;
+    if (!data.title) return 'عنوان فراخوان را وارد کنید.';
+    if (data.notice_type !== 'tender' && data.notice_type !== 'auction') return 'نوع فراخوان را مشخص کنید.';
+    if (data.participation_status === 'unknown') return 'وضعیت شرکت را مشخص کنید.';
+    if (!datePattern.test(data.registered_on_fa)) return 'تاریخ ثبت را با قالب YYYY/MM/DD وارد کنید.';
+    if (data.documents_deadline_fa && !datePattern.test(data.documents_deadline_fa)) return 'مهلت دریافت اسناد معتبر نیست.';
+    if (data.response_deadline_fa && !datePattern.test(data.response_deadline_fa)) return 'مهلت پاسخ معتبر نیست.';
+    if (Number(data.alert_lead_days) < 0 || Number(data.alert_lead_days) > 365) return 'بازه هشدار باید بین صفر تا ۳۶۵ روز باشد.';
+    return '';
+  }
+
+  function saveRecord() {
+    var data = formData(); var validation = validateForm(data);
+    if (validation) { $('#formError').text(validation).show(); return; }
+    var action = data.id ? 'update' : 'create';
+    $('#saveButton').prop('disabled', true); $('#formError').hide().text('');
+    api(action, data).done(function (response) {
+      if (action === 'create') {
+        closeDialog(); loadRows().done(function () { showNotice('فراخوان جدید ثبت شد.', 'success'); });
+      } else {
+        $('#lockVersion').val(response.data.lock_version); closeDialog(); loadRows().done(function () { showNotice('تغییرات ذخیره شد.', 'success'); });
+      }
+    }).fail(function (xhr) { $('#formError').text(errorText(xhr)).show(); }).always(function () { $('#saveButton').prop('disabled', false); });
+  }
+
+  function renderFiles() {
+    var list = $('#fileList').empty();
+    if (!activeFiles.length) { list.append($('<div>').addClass('empty').text('فایلی برای این رکورد ثبت نشده است.')); return; }
+    $.each(activeFiles, function (_, file) {
+      var item = $('<div>').addClass('file-item');
+      var info = $('<div>');
+      var name = file.original_filename || ('مرجع قدیمی ' + file.legacy_reference);
+      info.append($('<div>').addClass('file-name').text(name));
+      var metaParts = [labels.fileRole[file.file_role] || file.file_role];
+      if (file.extension) metaParts.push(String(file.extension).toUpperCase());
+      if (file.file_size) metaParts.push(fileSize(file.file_size));
+      if (file.record_origin === 'legacy_reference') metaParts.push('فقط مرجع؛ فایل منتقل نشده');
+      info.append($('<div>').addClass('file-meta').text(metaParts.join(' · ')));
+      var actions = $('<div>').addClass('file-actions');
+      if (Number(file.is_downloadable) === 1) actions.append($('<button>').attr('type', 'button').addClass('btn btn-light btn-small').text('دانلود').on('click', function () { downloadFile(file.id); }));
+      if (Number(permissions.can_delete) === 1) actions.append($('<button>').attr('type', 'button').addClass('btn btn-danger btn-small').text('حذف').on('click', function () { removeFile(file); }));
+      item.append(info, actions); list.append(item);
+    });
+  }
+
+  function uploadFile() {
+    var recordId = $('#recordId').val(); var fileElement = $('#fileInput')[0];
+    if (!recordId || !fileElement.files || !fileElement.files.length) { $('#formError').text('ابتدا فایل را انتخاب کنید.').show(); return; }
+    var data = new FormData(); data.append('procurement_id', recordId); data.append('file_role', $('#fileRole').val()); data.append('file', fileElement.files[0]);
+    $('#uploadButton').prop('disabled', true); $('#formError').hide().text('');
+    uploadApi(data).done(function () { $('#fileInput').val(''); refreshFiles(recordId); }).fail(function (xhr) { $('#formError').text(errorText(xhr)).show(); }).always(function () { $('#uploadButton').prop('disabled', false); });
+  }
+
+  function refreshFiles(id) {
+    api('get', { id: id }).done(function (response) { activeFiles = response.data.files || []; $('#lockVersion').val(response.data.lock_version); renderFiles(); });
+  }
+
+  function downloadFile(fileId) {
+    var form = $('<form>').attr({ method: 'POST', action: API, target: '_blank' }).css('display', 'none');
+    form.append($('<input>').attr({ type: 'hidden', name: 'action', value: 'download_file' }));
+    form.append($('<input>').attr({ type: 'hidden', name: 'file_id', value: fileId }));
+    $('body').append(form); HTMLFormElement.prototype.submit.call(form[0]); setTimeout(function () { form.remove(); }, 1000);
+  }
+
+  function removeFile(file) {
+    if (!window.confirm('این فایل از فهرست فعال حذف شود؟ فایل فیزیکی برای ممیزی نگه‌داری خواهد شد.')) return;
+    api('delete_file', { file_id: file.id }).done(function () { refreshFiles($('#recordId').val()); }).fail(function (xhr) { $('#formError').text(errorText(xhr)).show(); });
+  }
+
+  function removeRecord(row) {
+    if (!window.confirm('رکورد «' + row.title + '» حذف شود؟ این حذف نرم و قابل ممیزی است.')) return;
+    api('delete', { id: row.id }).done(function () { loadRows().done(function () { showNotice('رکورد حذف شد.', 'success'); }); }).fail(function (xhr) { showNotice(errorText(xhr), 'error'); });
+  }
+
+  function closeDialog() {
+    $('#formOverlay').removeClass('open').attr('aria-hidden', 'true');
+    if (previousFocus && previousFocus.focus) previousFocus.focus();
+  }
+
+  $('#responsibleUnit,#participationStatus').on('input change', updateConditionalFields);
+  $('#addButton').on('click', openCreate); $('#saveButton').on('click', saveRecord); $('#uploadButton').on('click', uploadFile);
+  $('#cancelButton,#closeButton').on('click', closeDialog);
+  $('#formOverlay').on('click', function (event) { if (event.target === this) closeDialog(); });
+  $('#filterButton').on('click', function () { page = 1; hideNotice(); loadRows(); });
+  $('#resetButton').on('click', function () { $('#searchInput,#typeFilter,#deadlineFilter,#statusFilter,#unitFilter').val(''); page = 1; hideNotice(); loadRows(); });
+  $('#searchInput').on('keydown', function (event) { if (event.which === 13) { page = 1; loadRows(); } });
+  $('#previousButton').on('click', function () { if (page > 1) { page--; loadRows(); } });
+  $('#nextButton').on('click', function () { if (page * pageSize < total) { page++; loadRows(); } });
+  $(document).on('keydown', function (event) {
+    if (event.which === 27 && $('#formOverlay').hasClass('open')) closeDialog();
+    if (event.which === 9 && $('#formOverlay').hasClass('open')) {
+      var focusable = $('#formOverlay').find('button:visible:not(:disabled), input:visible:not(:disabled), select:visible:not(:disabled), textarea:visible:not(:disabled)');
+      if (!focusable.length) return;
+      var first = focusable[0]; var last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    }
+  });
+
+  loadLookups().done(loadRows);
+})(jQuery);
+</script>
+</body>
+</html>
