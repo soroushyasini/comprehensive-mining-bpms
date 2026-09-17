@@ -13,6 +13,7 @@ These are the deployable Panel WebControl files corresponding to the secured API
 | `emcore_visitor_log_panel.html` | `/emcore_api/emcore_visitor_log.php` | `visitor_log` |
 | `emcore_trade_documents_panel.html` | `/emcore_api/emcore_trade_documents.php` | `trade_documents` |
 | `emcore_procurement_notices_panel.html` | `/emcore_api/emcore_procurement_notices.php` | `procurement_notices` |
+| `emcore_procurement_analytics_panel.html` | `/emcore_api/emcore_procurement_analytics.php` | `procurement_notices` |
 
 ## Security integration
 

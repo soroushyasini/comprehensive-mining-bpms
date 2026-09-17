@@ -1,0 +1,583 @@
+<style>
+  #procurementAnalyticsApp {
+    --ink: #17221d;
+    --muted: #65716b;
+    --paper: #f3f1ea;
+    --panel: #fffefa;
+    --line: #d7d3c8;
+    --coal: #26332e;
+    --green: #17664b;
+    --blue: #32627d;
+    --amber: #b0781b;
+    --red: #a13f36;
+    --soft-green: #deeee6;
+    --soft-blue: #dfebf1;
+    --soft-amber: #f5e8cb;
+    --soft-red: #f3ddda;
+    direction: rtl;
+    width: 100%;
+    min-height: 100%;
+    padding: 12px;
+    color: var(--ink);
+    background: var(--paper);
+    font-family: "Vazirmatn", Tahoma, "Segoe UI", sans-serif;
+    box-sizing: border-box;
+  }
+  #procurementAnalyticsApp *, #procurementAnalyticsApp *::before, #procurementAnalyticsApp *::after { box-sizing: border-box; }
+  #procurementAnalyticsApp [hidden] { display: none !important; }
+  #procurementAnalyticsApp button, #procurementAnalyticsApp input, #procurementAnalyticsApp select { font: inherit; }
+  #procurementAnalyticsApp button { cursor: pointer; }
+  #procurementAnalyticsApp button:disabled { cursor: wait; opacity: .58; }
+  #procurementAnalyticsApp .shell { max-width: 1500px; margin: auto; border: 1px solid var(--line); background: var(--panel); }
+  #procurementAnalyticsApp .hero { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 20px 22px; color: #fff; background: var(--coal); border-right: 5px solid var(--amber); }
+  #procurementAnalyticsApp .hero h1 { margin: 0; font-size: 22px; line-height: 1.5; }
+  #procurementAnalyticsApp .hero p { margin: 4px 0 0; color: #d6ded9; font-size: 12px; }
+  #procurementAnalyticsApp .stamp { min-width: 230px; padding: 9px 12px; border-right: 2px solid var(--amber); background: rgba(255,255,255,.07); }
+  #procurementAnalyticsApp .stamp span { display: block; color: #c8d0cc; font-size: 10px; }
+  #procurementAnalyticsApp .stamp strong { display: block; margin-top: 3px; font-size: 12px; font-weight: 600; }
+  #procurementAnalyticsApp .content { padding: 16px; }
+  #procurementAnalyticsApp .filters { display: grid; grid-template-columns: repeat(5, minmax(145px, 1fr)); gap: 9px; padding: 13px; border: 1px solid var(--line); background: #f8f6ef; }
+  #procurementAnalyticsApp .field label { display: block; margin-bottom: 4px; color: var(--muted); font-size: 11px; font-weight: 700; }
+  #procurementAnalyticsApp .field input, #procurementAnalyticsApp .field select { width: 100%; min-height: 37px; padding: 7px 9px; color: var(--ink); background: #fff; border: 1px solid #c9c3b6; border-radius: 3px; }
+  #procurementAnalyticsApp .field input:focus, #procurementAnalyticsApp .field select:focus, #procurementAnalyticsApp button:focus-visible { outline: 3px solid rgba(176,120,27,.28); outline-offset: 1px; border-color: var(--amber); }
+  #procurementAnalyticsApp .date-field { direction: ltr; text-align: left; }
+  #procurementAnalyticsApp .filter-actions { display: flex; align-items: flex-end; gap: 7px; }
+  #procurementAnalyticsApp .btn { min-height: 37px; padding: 7px 14px; border: 1px solid transparent; border-radius: 3px; font-weight: 700; }
+  #procurementAnalyticsApp .btn-primary { color: #fff; background: var(--green); border-color: var(--green); }
+  #procurementAnalyticsApp .btn-light { color: var(--ink); background: #eee9dd; border-color: #d4cec1; }
+  #procurementAnalyticsApp .status { min-height: 40px; margin: 11px 0; padding: 10px 12px; border-right: 4px solid var(--blue); color: #315766; background: #edf4f6; line-height: 1.7; }
+  #procurementAnalyticsApp .status.error { color: #7d2925; border-color: var(--red); background: #fff0ed; }
+  #procurementAnalyticsApp .status.warning { color: #6e5319; border-color: var(--amber); background: #fff6dd; }
+  #procurementAnalyticsApp .tabs { display: flex; gap: 4px; margin-bottom: 12px; border-bottom: 2px solid var(--coal); }
+  #procurementAnalyticsApp .tab { min-height: 42px; padding: 9px 18px; color: var(--muted); background: #ece8dd; border: 1px solid var(--line); border-bottom: 0; }
+  #procurementAnalyticsApp .tab[aria-selected="true"] { color: #fff; background: var(--coal); border-color: var(--coal); }
+  #procurementAnalyticsApp .kpis { display: grid; grid-template-columns: repeat(4, minmax(130px, 1fr)); gap: 9px; margin-bottom: 12px; }
+  #procurementAnalyticsApp .kpi { min-height: 94px; padding: 13px; border: 1px solid var(--line); border-top: 4px solid var(--green); background: #fff; }
+  #procurementAnalyticsApp .kpi:nth-child(2n) { border-top-color: var(--blue); }
+  #procurementAnalyticsApp .kpi:nth-child(3n) { border-top-color: var(--amber); }
+  #procurementAnalyticsApp .kpi span { display: block; color: var(--muted); font-size: 11px; }
+  #procurementAnalyticsApp .kpi strong { display: block; margin-top: 9px; font-size: 24px; font-variant-numeric: tabular-nums; }
+  #procurementAnalyticsApp .kpi small { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; }
+  #procurementAnalyticsApp .grid-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+  #procurementAnalyticsApp .card { min-width: 0; border: 1px solid var(--line); background: #fff; }
+  #procurementAnalyticsApp .card-wide { grid-column: 1 / -1; }
+  #procurementAnalyticsApp .card-head { display: flex; justify-content: space-between; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--line); background: #faf8f2; }
+  #procurementAnalyticsApp .card-head h2 { margin: 0; font-size: 15px; }
+  #procurementAnalyticsApp .card-head p { margin: 3px 0 0; color: var(--muted); font-size: 10px; line-height: 1.6; }
+  #procurementAnalyticsApp .legend { display: flex; align-items: center; gap: 11px; color: var(--muted); font-size: 10px; white-space: nowrap; }
+  #procurementAnalyticsApp .swatch { display: inline-block; width: 10px; height: 10px; margin-left: 3px; vertical-align: -1px; }
+  #procurementAnalyticsApp .swatch-blue { background: var(--blue); }
+  #procurementAnalyticsApp .swatch-amber { background: var(--amber); }
+  #procurementAnalyticsApp .swatch-muted { background: #9aa39f; }
+  #procurementAnalyticsApp .chart-scroll { width: 100%; min-height: 270px; overflow-x: auto; }
+  #procurementAnalyticsApp svg { display: block; width: 100%; min-width: 620px; height: 310px; }
+  #procurementAnalyticsApp .compact-chart svg { min-width: 500px; }
+  #procurementAnalyticsApp .data-details { margin: 0 14px 14px; border: 1px solid var(--line); }
+  #procurementAnalyticsApp .data-details summary { padding: 9px 11px; cursor: pointer; color: var(--coal); background: #f4f1e8; font-size: 11px; font-weight: 700; }
+  #procurementAnalyticsApp .table-scroll { overflow: auto; }
+  #procurementAnalyticsApp table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  #procurementAnalyticsApp th { padding: 9px; color: #fff; background: var(--coal); text-align: right; white-space: nowrap; }
+  #procurementAnalyticsApp td { padding: 8px 9px; border-bottom: 1px solid #e7e2d8; vertical-align: top; }
+  #procurementAnalyticsApp tbody tr:nth-child(even) { background: #fbfaf6; }
+  #procurementAnalyticsApp .empty { display: flex; align-items: center; justify-content: center; min-height: 220px; padding: 24px; color: var(--muted); text-align: center; }
+  #procurementAnalyticsApp .crumbs { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 11px 14px; border-bottom: 1px solid var(--line); background: #f8f6ef; }
+  #procurementAnalyticsApp .crumb { padding: 6px 10px; border: 1px solid #cbc4b5; color: var(--coal); background: #fff; border-radius: 3px; }
+  #procurementAnalyticsApp .drill-button { padding: 3px 8px; color: #15533d; background: var(--soft-green); border: 1px solid #b8d8ca; border-radius: 3px; }
+  #procurementAnalyticsApp .quality-grid { display: grid; grid-template-columns: repeat(5, minmax(125px, 1fr)); gap: 1px; margin-bottom: 12px; background: var(--line); border: 1px solid var(--line); }
+  #procurementAnalyticsApp .quality-item { min-height: 112px; padding: 14px; background: #fff; }
+  #procurementAnalyticsApp .quality-item span { display: block; color: var(--muted); font-size: 11px; }
+  #procurementAnalyticsApp .quality-item strong { display: block; margin: 8px 0 4px; color: var(--red); font-size: 23px; }
+  #procurementAnalyticsApp .quality-item small { color: var(--muted); font-size: 10px; }
+  #procurementAnalyticsApp .quality-note { padding: 12px 14px; border-right: 4px solid var(--amber); color: #66501d; background: #fff8e6; line-height: 1.8; }
+  #procurementAnalyticsApp .quality-definition { margin-top: 12px; }
+  @media (max-width: 1100px) {
+    #procurementAnalyticsApp .filters { grid-template-columns: repeat(3, minmax(145px, 1fr)); }
+    #procurementAnalyticsApp .quality-grid { grid-template-columns: repeat(3, minmax(125px, 1fr)); }
+  }
+  @media (max-width: 760px) {
+    #procurementAnalyticsApp { padding: 0; }
+    #procurementAnalyticsApp .content { padding: 10px; }
+    #procurementAnalyticsApp .hero { align-items: flex-start; flex-direction: column; padding: 16px; }
+    #procurementAnalyticsApp .stamp { width: 100%; min-width: 0; }
+    #procurementAnalyticsApp .filters, #procurementAnalyticsApp .grid-two { grid-template-columns: 1fr; }
+    #procurementAnalyticsApp .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #procurementAnalyticsApp .quality-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #procurementAnalyticsApp .tabs { overflow-x: auto; }
+    #procurementAnalyticsApp .tab { flex: 0 0 auto; }
+    #procurementAnalyticsApp .card-head { align-items: flex-start; flex-direction: column; }
+    #procurementAnalyticsApp .legend { white-space: normal; flex-wrap: wrap; }
+  }
+  @media (max-width: 380px) {
+    #procurementAnalyticsApp .kpis, #procurementAnalyticsApp .quality-grid { grid-template-columns: 1fr; }
+    #procurementAnalyticsApp .filter-actions { flex-direction: column; align-items: stretch; }
+  }
+</style>
+
+<div id="procurementAnalyticsApp" dir="rtl">
+  <main class="shell">
+    <header class="hero">
+      <div>
+        <h1>تحلیل مناقصات و مزایدات</h1>
+        <p>نمای یکپارچهٔ فراخوان‌ها، مهلت‌ها، نتیجهٔ شرکت و طبقه‌بندی کالا</p>
+      </div>
+      <div class="stamp" aria-live="polite">
+        <span>آخرین محاسبه</span>
+        <strong id="generatedAt">—</strong>
+      </div>
+    </header>
+
+    <div class="content">
+      <form id="analyticsFilters" class="filters" aria-label="فیلترهای تحلیل مناقصات و مزایدات">
+        <div class="field"><label for="dateFrom">از تاریخ ثبت</label><input id="dateFrom" class="date-field" name="date_from_fa" maxlength="10" inputmode="numeric" placeholder="۱۴۰۴/۰۱/۰۱" autocomplete="off"></div>
+        <div class="field"><label for="dateTo">تا تاریخ ثبت</label><input id="dateTo" class="date-field" name="date_to_fa" maxlength="10" inputmode="numeric" placeholder="۱۴۰۴/۱۲/۲۹" autocomplete="off"></div>
+        <div class="field"><label for="noticeType">نوع فراخوان</label><select id="noticeType" name="notice_type"><option value="">همه انواع</option><option value="tender">مناقصه</option><option value="auction">مزایده</option><option value="unknown">نوع نامشخص</option></select></div>
+        <div class="field"><label for="participationStatus">وضعیت شرکت</label><select id="participationStatus" name="participation_status"><option value="">همه وضعیت‌ها</option><option value="registered">ثبت</option><option value="interested">علاقه‌مند</option><option value="documents_submitted">ارسال مدارک</option><option value="won">برنده</option><option value="lost">شکست</option><option value="unknown">وضعیت نامشخص</option></select></div>
+        <div class="field"><label for="sourceName">منبع اخذ</label><select id="sourceName" name="source_name"><option value="">همه منابع</option></select></div>
+        <div class="field"><label for="authority">دستگاه اجرایی</label><select id="authority" name="contracting_authority"><option value="">همه دستگاه‌ها</option></select></div>
+        <div class="field"><label for="responsibleUnit">واحد مربوطه</label><select id="responsibleUnit" name="responsible_unit"><option value="">همه واحدها</option></select></div>
+        <div class="field"><label for="category">دسته‌بندی</label><select id="category" name="category_name"><option value="">همه دسته‌ها</option></select></div>
+        <div class="field"><label for="minimumTotal">حداقل فراخوان هر دستگاه</label><input id="minimumTotal" name="minimum_authority_total" type="number" min="1" max="100000" value="5"></div>
+        <div class="field"><label for="topN">تعداد دستگاه‌های نمودار</label><select id="topN" name="top_n"><option value="8">۸</option><option value="12" selected>۱۲</option><option value="20">۲۰</option><option value="30">۳۰</option></select></div>
+        <div class="filter-actions"><button class="btn btn-primary" type="submit">اعمال فیلتر</button><button class="btn btn-light" id="resetFilters" type="button">پاک‌کردن</button></div>
+      </form>
+
+      <div id="statusMessage" class="status" role="status" aria-live="polite">در حال آماده‌سازی گزارش…</div>
+
+      <nav class="tabs" role="tablist" aria-label="بخش‌های گزارش">
+        <button class="tab" id="overviewTab" type="button" role="tab" aria-selected="true" aria-controls="overviewView" data-view="overviewView">نمای مدیریتی</button>
+        <button class="tab" id="categoriesTab" type="button" role="tab" aria-selected="false" aria-controls="categoriesView" data-view="categoriesView">کالا و دسته‌بندی</button>
+        <button class="tab" id="qualityTab" type="button" role="tab" aria-selected="false" aria-controls="qualityView" data-view="qualityView">کیفیت داده</button>
+      </nav>
+
+      <section id="overviewView" role="tabpanel" aria-labelledby="overviewTab">
+        <div class="kpis">
+          <article class="kpi"><span>کل فراخوان‌ها</span><strong id="kpiTotal">—</strong><small>در دامنه فیلتر جاری</small></article>
+          <article class="kpi"><span>مناقصه</span><strong id="kpiTender">—</strong><small id="kpiTenderShare">—</small></article>
+          <article class="kpi"><span>مزایده</span><strong id="kpiAuction">—</strong><small id="kpiAuctionShare">—</small></article>
+          <article class="kpi"><span>فرصت باز یا فوری</span><strong id="kpiActive">—</strong><small>محاسبه زنده از مهلت پاسخ</small></article>
+          <article class="kpi"><span>منقضی‌شده</span><strong id="kpiExpired">—</strong><small>مهلت پاسخ گذشته است</small></article>
+          <article class="kpi"><span>برنده</span><strong id="kpiWon">—</strong><small id="kpiWonShare">—</small></article>
+          <article class="kpi"><span>پوشش فایل</span><strong id="kpiFiles">—</strong><small>فایل فعال یا مرجع قدیمی</small></article>
+          <article class="kpi"><span>دستگاه اجرایی</span><strong id="kpiAuthorities">—</strong><small>تعداد نام‌های ثبت‌شدهٔ متمایز</small></article>
+        </div>
+
+        <div class="grid-two">
+          <article class="card card-wide">
+            <header class="card-head"><div><h2>روند ماهانه فراخوان‌ها</h2><p>حداکثر ۲۴ ماه شمسی دارای داده در دامنهٔ انتخابی</p></div><div class="legend"><span><i class="swatch swatch-blue"></i>مناقصه</span><span><i class="swatch swatch-amber"></i>مزایده</span><span><i class="swatch swatch-muted"></i>نامشخص</span></div></header>
+            <div class="chart-scroll"><svg id="monthlyChart" role="img" aria-label="نمودار روند ماهانه مناقصات و مزایدات"></svg></div>
+            <details class="data-details"><summary>جدول روند ماهانه</summary><div id="monthlyTableHost" class="table-scroll"></div></details>
+          </article>
+
+          <article class="card card-wide">
+            <header class="card-head"><div><h2>فراخوان‌ها به تفکیک دستگاه اجرایی</h2><p>معادل نمودار اصلی قدیمی با مرتب‌سازی بر اساس مجموع و کنترل حداقل نمایش</p></div><div class="legend"><span><i class="swatch swatch-blue"></i>مناقصه</span><span><i class="swatch swatch-amber"></i>مزایده</span><span><i class="swatch swatch-muted"></i>نامشخص</span></div></header>
+            <div class="chart-scroll"><svg id="authorityChart" role="img" aria-label="نمودار مناقصات و مزایدات به تفکیک دستگاه اجرایی"></svg></div>
+            <details class="data-details"><summary>جدول دادهٔ دستگاه‌های اجرایی</summary><div id="authorityTableHost" class="table-scroll"></div></details>
+          </article>
+
+          <article class="card compact-chart">
+            <header class="card-head"><div><h2>سلامت مهلت پاسخ</h2><p>وضعیت در لحظهٔ دریافت گزارش دوباره محاسبه می‌شود</p></div></header>
+            <div class="chart-scroll"><svg id="deadlineChart" role="img" aria-label="نمودار وضعیت مهلت پاسخ"></svg></div>
+            <details class="data-details"><summary>جدول وضعیت مهلت</summary><div id="deadlineTableHost" class="table-scroll"></div></details>
+          </article>
+
+          <article class="card compact-chart">
+            <header class="card-head"><div><h2>توزیع واحد مربوطه</h2><p>مقدار خالی با عنوان «نامشخص» حفظ شده است</p></div></header>
+            <div class="chart-scroll"><svg id="unitChart" role="img" aria-label="نمودار فراخوان‌ها به تفکیک واحد مربوطه"></svg></div>
+            <details class="data-details"><summary>جدول واحدهای مربوطه</summary><div id="unitTableHost" class="table-scroll"></div></details>
+          </article>
+
+          <article class="card compact-chart">
+            <header class="card-head"><div><h2>وضعیت شرکت در فراخوان</h2><p>ثبت، علاقه‌مندی، ارسال مدارک، نتیجه و وضعیت نامشخص</p></div></header>
+            <div class="chart-scroll"><svg id="statusChart" role="img" aria-label="نمودار وضعیت شرکت در مناقصات و مزایدات"></svg></div>
+            <details class="data-details"><summary>جدول وضعیت شرکت</summary><div id="statusTableHost" class="table-scroll"></div></details>
+          </article>
+
+          <article class="card compact-chart">
+            <header class="card-head"><div><h2>دسته‌بندی‌های اصلی</h2><p>نمای فشردهٔ دسته‌ها؛ جزئیات در تب کالا و دسته‌بندی</p></div></header>
+            <div class="chart-scroll"><svg id="categoryChart" role="img" aria-label="نمودار فراخوان‌ها بر اساس دسته‌بندی"></svg></div>
+            <details class="data-details"><summary>جدول دسته‌بندی‌های اصلی</summary><div id="categoryTableHost" class="table-scroll"></div></details>
+          </article>
+        </div>
+      </section>
+
+      <section id="categoriesView" role="tabpanel" aria-labelledby="categoriesTab" hidden>
+        <article class="card">
+          <header class="card-head"><div><h2>مرور سلسله‌مراتبی دسته، زیردسته و محصول</h2><p>برای رفتن به سطح بعد، از دکمه‌های جدول زیر نمودار استفاده کنید.</p></div></header>
+          <div id="hierarchyBreadcrumb" class="crumbs" aria-label="مسیر دسته‌بندی"></div>
+          <div class="chart-scroll"><svg id="hierarchyChart" role="img" aria-label="نمودار سلسله‌مراتبی دسته‌بندی کالا"></svg></div>
+          <div id="hierarchyTableHost" class="table-scroll"></div>
+        </article>
+      </section>
+
+      <section id="qualityView" role="tabpanel" aria-labelledby="qualityTab" hidden>
+        <div id="qualityHost" class="quality-grid"></div>
+        <div class="quality-note">شاخص‌های کیفیت ممکن است روی یک رکورد هم‌زمان رخ دهند؛ بنابراین جمع آن‌ها الزاماً برابر تعداد رکوردهای نیازمند بازبینی نیست. مقدار صفر به معنی نبود مورد در دامنهٔ فیلتر جاری است، نه حذف سابقهٔ قدیمی.</div>
+        <article class="card quality-definition">
+          <header class="card-head"><div><h2>تعریف کنترل‌های کیفیت</h2><p>این کنترل‌ها داده را اصلاح نمی‌کنند؛ فقط موارد قابل بررسی را آشکار می‌کنند.</p></div></header>
+          <div class="table-scroll"><table><thead><tr><th>کنترل</th><th>تعریف</th><th>اقدام پیشنهادی</th></tr></thead><tbody><tr><td>نوع نامشخص</td><td>نوع legacy به مناقصه یا مزایده نگاشت نشده است.</td><td>سند اولیه بررسی و نوع معتبر انتخاب شود.</td></tr><tr><td>وضعیت نامشخص</td><td>وضعیت شرکت legacy در نگاشت رسمی وجود نداشته است.</td><td>نتیجه یا مرحلهٔ واقعی مشخص شود.</td></tr><tr><td>تاریخ ثبت مفقود</td><td>تاریخ ثبت معتبر برای تحلیل زمانی وجود ندارد.</td><td>تاریخ سند منبع تکمیل شود.</td></tr><tr><td>ترتیب مهلت وارونه</td><td>مهلت دریافت اسناد پس از مهلت پاسخ ثبت شده است.</td><td>دو تاریخ با اصل آگهی تطبیق داده شوند.</td></tr><tr><td>دسته‌بندی مفقود</td><td>دسته‌بندی خالی است و در نمودار «نامشخص» دیده می‌شود.</td><td>در صورت ارتباط با بازرگانی، دسته تکمیل شود.</td></tr></tbody></table></div>
+        </article>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script>
+(function ($) {
+  'use strict';
+
+  var API = '/emcore_api/emcore_procurement_analytics.php';
+  var SVG_NS = 'http://www.w3.org/2000/svg';
+  var app = $('#procurementAnalyticsApp');
+  var currentHierarchy = [];
+  var hierarchyPath = [];
+  var isBusy = false;
+  var numberFormatter = new Intl.NumberFormat('fa-IR');
+  var percentFormatter = new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 1 });
+  var typeLabels = { tender: 'مناقصه', auction: 'مزایده', unknown: 'نوع نامشخص' };
+  var statusLabels = { registered: 'ثبت', interested: 'علاقه‌مند', documents_submitted: 'ارسال مدارک', won: 'برنده', lost: 'شکست', unknown: 'وضعیت نامشخص' };
+  var deadlineLabels = { open: 'باز', urgent: 'فوری', expired: 'منقضی', no_deadline: 'بدون مهلت' };
+  var palette = ['#17664b', '#32627d', '#b0781b', '#a13f36', '#6f5d86', '#4e7773', '#9a623f', '#68736e'];
+
+  function request(action, data) {
+    return $.ajax({
+      url: API,
+      method: 'POST',
+      dataType: 'json',
+      data: $.extend({ action: action }, data || {})
+    });
+  }
+
+  function formatNumber(value) { return numberFormatter.format(Number(value) || 0); }
+  function share(value, total) { return total > 0 ? percentFormatter.format((Number(value) || 0) * 100 / total) + '٪ از کل' : 'بدون داده'; }
+  function toLatinDigits(value) {
+    return String(value || '').replace(/[۰-۹]/g, function (digit) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(digit); }).replace(/[٠-٩]/g, function (digit) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(digit); });
+  }
+
+  function setBusy(busy) {
+    isBusy = busy;
+    app.find('#analyticsFilters :input, .tab').prop('disabled', busy);
+    app.attr('aria-busy', busy ? 'true' : 'false');
+  }
+
+  function showStatus(message, kind) {
+    $('#statusMessage').removeClass('error warning').addClass(kind || '').text(message);
+  }
+
+  function errorMessage(xhr) {
+    if (xhr && xhr.responseJSON && xhr.responseJSON.error) return xhr.responseJSON.error;
+    if (xhr && xhr.status === 401) return 'نشست شما معتبر نیست؛ دوباره وارد سامانه شوید.';
+    if (xhr && xhr.status === 403) return 'مجوز مشاهدهٔ گزارش مناقصات و مزایدات را ندارید.';
+    return 'دریافت گزارش ممکن نشد. اتصال و وضعیت سرویس را بررسی کنید.';
+  }
+
+  function svgElement(tag, attrs, textValue) {
+    var node = document.createElementNS(SVG_NS, tag);
+    Object.keys(attrs || {}).forEach(function (key) { node.setAttribute(key, attrs[key]); });
+    if (textValue !== undefined) node.textContent = textValue;
+    return node;
+  }
+
+  function prepareSvg(id, height, label) {
+    var svg = document.getElementById(id);
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    svg.setAttribute('viewBox', '0 0 920 ' + height);
+    svg.setAttribute('height', height);
+    svg.style.height = height + 'px';
+    svg.setAttribute('aria-label', label);
+    return svg;
+  }
+
+  function renderEmpty(id, message) {
+    var svg = prepareSvg(id, 240, message);
+    svg.appendChild(svgElement('rect', { x: 1, y: 1, width: 918, height: 238, fill: '#fbfaf6', stroke: '#e1ddd3' }));
+    svg.appendChild(svgElement('text', { x: 460, y: 122, 'text-anchor': 'middle', fill: '#65716b', 'font-size': 14, direction: 'rtl' }, message));
+  }
+
+  function compactSeries(rows, limit) {
+    rows = (rows || []).slice();
+    if (rows.length <= limit) return rows;
+    var visible = rows.slice(0, limit);
+    var other = rows.slice(limit).reduce(function (sum, row) { return sum + Number(row.notice_count || row.count || 0); }, 0);
+    visible.push({ label: 'سایر', notice_count: other });
+    return visible;
+  }
+
+  function renderBars(id, rows, options) {
+    rows = rows || [];
+    if (!rows.length) { renderEmpty(id, 'برای این نمودار داده‌ای در دامنهٔ انتخابی وجود ندارد.'); return; }
+    var rowHeight = 34;
+    var height = Math.max(245, rows.length * rowHeight + 48);
+    var svg = prepareSvg(id, height, options.ariaLabel);
+    var left = 88, right = 260, top = 20, plotWidth = 920 - left - right;
+    var maxValue = Math.max.apply(null, rows.map(function (row) { return Number(row[options.valueKey]) || 0; })) || 1;
+    rows.forEach(function (row, index) {
+      var y = top + index * rowHeight;
+      var value = Number(row[options.valueKey]) || 0;
+      var width = value * plotWidth / maxValue;
+      svg.appendChild(svgElement('text', { x: 920 - right + 12, y: y + 19, fill: '#37443e', 'font-size': 11, direction: 'rtl' }, String(row[options.labelKey] || 'نامشخص')));
+      svg.appendChild(svgElement('rect', { x: left, y: y + 5, width: plotWidth, height: 19, fill: '#f0ede5' }));
+      svg.appendChild(svgElement('rect', { x: left, y: y + 5, width: Math.max(width, value ? 2 : 0), height: 19, fill: options.colors ? options.colors[index % options.colors.length] : '#17664b' }));
+      svg.appendChild(svgElement('text', { x: left - 10, y: y + 19, 'text-anchor': 'end', fill: '#26332e', 'font-size': 11 }, formatNumber(value)));
+    });
+  }
+
+  function renderAuthority(rows) {
+    rows = rows || [];
+    if (!rows.length) { renderEmpty('authorityChart', 'هیچ دستگاه اجرایی به حداقل انتخاب‌شده نرسیده است.'); return; }
+    var rowHeight = 38;
+    var height = Math.max(270, rows.length * rowHeight + 48);
+    var svg = prepareSvg('authorityChart', height, 'تفکیک مناقصه، مزایده و نوع نامشخص بر اساس دستگاه اجرایی');
+    var left = 86, right = 310, top = 20, plotWidth = 920 - left - right;
+    var maxValue = Math.max.apply(null, rows.map(function (row) { return Number(row.total) || 0; })) || 1;
+    rows.forEach(function (row, index) {
+      var y = top + index * rowHeight;
+      var x = left;
+      var segments = [
+        { value: Number(row.tender_count) || 0, color: '#32627d' },
+        { value: Number(row.auction_count) || 0, color: '#b0781b' },
+        { value: Number(row.unknown_count) || 0, color: '#9aa39f' }
+      ];
+      svg.appendChild(svgElement('text', { x: 920 - right + 12, y: y + 21, fill: '#37443e', 'font-size': 10, direction: 'rtl' }, String(row.label || 'نامشخص')));
+      svg.appendChild(svgElement('rect', { x: left, y: y + 6, width: plotWidth, height: 21, fill: '#f0ede5' }));
+      segments.forEach(function (segment) {
+        var width = segment.value * plotWidth / maxValue;
+        if (segment.value) svg.appendChild(svgElement('rect', { x: x, y: y + 6, width: Math.max(2, width), height: 21, fill: segment.color }));
+        x += width;
+      });
+      svg.appendChild(svgElement('text', { x: left - 10, y: y + 21, 'text-anchor': 'end', fill: '#26332e', 'font-size': 11 }, formatNumber(row.total)));
+    });
+  }
+
+  function renderMonthly(rows) {
+    rows = rows || [];
+    if (!rows.length) { renderEmpty('monthlyChart', 'تاریخ ثبت معتبر برای نمایش روند وجود ندارد.'); return; }
+    var svg = prepareSvg('monthlyChart', 310, 'روند ماهانه فراخوان‌ها بر اساس ماه شمسی ثبت');
+    var left = 70, right = 28, top = 24, bottom = 60;
+    var plotWidth = 920 - left - right, plotHeight = 310 - top - bottom;
+    var maxValue = Math.max.apply(null, rows.map(function (row) { return Number(row.total) || 0; })) || 1;
+    var slot = plotWidth / rows.length;
+    [0, .25, .5, .75, 1].forEach(function (ratio) {
+      var y = top + plotHeight - ratio * plotHeight;
+      svg.appendChild(svgElement('line', { x1: left, x2: 920 - right, y1: y, y2: y, stroke: '#ded9ce', 'stroke-width': 1 }));
+      svg.appendChild(svgElement('text', { x: left - 9, y: y + 4, 'text-anchor': 'end', fill: '#65716b', 'font-size': 10 }, formatNumber(Math.round(maxValue * ratio))));
+    });
+    rows.forEach(function (row, index) {
+      var x = left + index * slot + slot * .18;
+      var barWidth = Math.max(4, slot * .64);
+      var yBottom = top + plotHeight;
+      [
+        { value: Number(row.tender_count) || 0, color: '#32627d' },
+        { value: Number(row.auction_count) || 0, color: '#b0781b' },
+        { value: Number(row.unknown_count) || 0, color: '#9aa39f' }
+      ].forEach(function (segment) {
+        var h = segment.value * plotHeight / maxValue;
+        yBottom -= h;
+        if (segment.value) svg.appendChild(svgElement('rect', { x: x, y: yBottom, width: barWidth, height: h, fill: segment.color }));
+      });
+      svg.appendChild(svgElement('text', { x: x + barWidth / 2, y: top + plotHeight + 17, 'text-anchor': 'middle', fill: '#4b5852', 'font-size': 9, transform: 'rotate(-32 ' + (x + barWidth / 2) + ' ' + (top + plotHeight + 17) + ')' }, String(row.period_fa)));
+    });
+  }
+
+  function createTable(headers, rows) {
+    var table = $('<table>');
+    var headRow = $('<tr>');
+    headers.forEach(function (header) { headRow.append($('<th>').text(header)); });
+    table.append($('<thead>').append(headRow));
+    var body = $('<tbody>');
+    rows.forEach(function (cells) {
+      var row = $('<tr>');
+      cells.forEach(function (cell) {
+        var td = $('<td>');
+        if (cell && cell.jquery) td.append(cell); else td.text(String(cell));
+        row.append(td);
+      });
+      body.append(row);
+    });
+    return table.append(body);
+  }
+
+  function renderAuthorityTable(rows) {
+    var host = $('#authorityTableHost').empty();
+    if (!rows.length) { host.append($('<div>').addClass('empty').text('داده‌ای برای جدول وجود ندارد.')); return; }
+    host.append(createTable(['دستگاه اجرایی', 'مناقصه', 'مزایده', 'نوع نامشخص', 'مجموع'], rows.map(function (row) {
+      return [row.label, formatNumber(row.tender_count), formatNumber(row.auction_count), formatNumber(row.unknown_count), formatNumber(row.total)];
+    })));
+  }
+
+  function renderSimpleTable(hostId, rows, labelHeader, labelKey, valueKey) {
+    var host = $('#' + hostId).empty();
+    if (!rows.length) { host.append($('<div>').addClass('empty').text('داده‌ای برای جدول وجود ندارد.')); return; }
+    host.append(createTable([labelHeader, 'تعداد فراخوان'], rows.map(function (row) {
+      return [row[labelKey] || 'نامشخص', formatNumber(row[valueKey])];
+    })));
+  }
+
+  function renderMonthlyTable(rows) {
+    var host = $('#monthlyTableHost').empty();
+    if (!rows.length) { host.append($('<div>').addClass('empty').text('داده‌ای برای جدول وجود ندارد.')); return; }
+    host.append(createTable(['ماه شمسی', 'مناقصه', 'مزایده', 'نوع نامشخص', 'مجموع'], rows.map(function (row) {
+      return [row.period_fa, formatNumber(row.tender_count), formatNumber(row.auction_count), formatNumber(row.unknown_count), formatNumber(row.total)];
+    })));
+  }
+
+  function populateSelect(id, values) {
+    var select = $(id);
+    var selected = select.val();
+    select.find('option:not(:first)').remove();
+    (values || []).forEach(function (value) { select.append($('<option>').attr('value', value).text(value)); });
+    if (selected && (values || []).indexOf(selected) !== -1) select.val(selected);
+  }
+
+  function filterData() {
+    var payload = {};
+    $('#analyticsFilters').serializeArray().forEach(function (item) { if (item.value !== '') payload[item.name] = item.value; });
+    if (payload.date_from_fa) payload.date_from_fa = toLatinDigits(payload.date_from_fa);
+    if (payload.date_to_fa) payload.date_to_fa = toLatinDigits(payload.date_to_fa);
+    return payload;
+  }
+
+  function renderKpis(summary) {
+    var total = Number(summary.total) || 0;
+    $('#kpiTotal').text(formatNumber(total));
+    $('#kpiTender').text(formatNumber(summary.tender_count));
+    $('#kpiTenderShare').text(share(summary.tender_count, total));
+    $('#kpiAuction').text(formatNumber(summary.auction_count));
+    $('#kpiAuctionShare').text(share(summary.auction_count, total));
+    $('#kpiActive').text(formatNumber(Number(summary.open_count) + Number(summary.urgent_count)));
+    $('#kpiExpired').text(formatNumber(summary.expired_count));
+    $('#kpiWon').text(formatNumber(summary.won_count));
+    $('#kpiWonShare').text(share(summary.won_count, total));
+    $('#kpiFiles').text(share(summary.file_coverage_count, total).replace(' از کل', ''));
+    $('#kpiAuthorities').text(formatNumber(summary.authority_count));
+  }
+
+  function renderQuality(quality) {
+    var metrics = [
+      ['نوع نامشخص', quality.unknown_type_count, 'نوع فراخوان قابل نگاشت نیست'],
+      ['وضعیت نامشخص', quality.unknown_status_count, 'مرحله یا نتیجه مشخص نیست'],
+      ['تاریخ ثبت مفقود', quality.missing_registration_date_count, 'در روند زمانی وارد نمی‌شود'],
+      ['ترتیب مهلت وارونه', quality.reversed_deadline_count, 'اسناد پس از پاسخ ثبت شده'],
+      ['دسته‌بندی مفقود', quality.missing_category_count, 'با عنوان نامشخص نمایش داده می‌شود']
+    ];
+    var host = $('#qualityHost').empty();
+    metrics.forEach(function (metric) {
+      host.append($('<article>').addClass('quality-item').append($('<span>').text(metric[0]), $('<strong>').text(formatNumber(metric[1])), $('<small>').text(metric[2])));
+    });
+  }
+
+  function hierarchyRows() {
+    if (hierarchyPath.length === 0) return currentHierarchy.map(function (item) { return { label: item.label, count: item.count, source: item }; });
+    var category = currentHierarchy.find(function (item) { return item.label === hierarchyPath[0]; });
+    if (!category) return [];
+    if (hierarchyPath.length === 1) return (category.subcategories || []).map(function (item) { return { label: item.label, count: item.count, source: item }; });
+    var subcategory = (category.subcategories || []).find(function (item) { return item.label === hierarchyPath[1]; });
+    return subcategory ? (subcategory.products || []).map(function (item) { return { label: item.label, count: item.count, source: item }; }) : [];
+  }
+
+  function renderHierarchyBreadcrumb() {
+    var host = $('#hierarchyBreadcrumb').empty();
+    var root = $('<button>').attr('type', 'button').addClass('crumb').text('همه دسته‌ها').on('click', function () { hierarchyPath = []; renderHierarchy(); });
+    host.append(root);
+    hierarchyPath.forEach(function (label, index) {
+      host.append($('<span>').attr('aria-hidden', 'true').text('←'));
+      host.append($('<button>').attr('type', 'button').addClass('crumb').text(label).on('click', function () { hierarchyPath = hierarchyPath.slice(0, index + 1); renderHierarchy(); }));
+    });
+  }
+
+  function renderHierarchy() {
+    var rows = hierarchyRows();
+    renderHierarchyBreadcrumb();
+    renderBars('hierarchyChart', rows.slice(0, 20), { labelKey: 'label', valueKey: 'count', colors: palette, ariaLabel: 'سطح جاری دسته‌بندی کالا' });
+    var host = $('#hierarchyTableHost').empty();
+    if (!rows.length) { host.append($('<div>').addClass('empty').text('در این سطح داده‌ای وجود ندارد.')); return; }
+    var tableRows = rows.map(function (row) {
+      var labelCell;
+      if (hierarchyPath.length < 2) {
+        labelCell = $('<button>').attr('type', 'button').addClass('drill-button').text(row.label).on('click', function () { hierarchyPath.push(row.label); renderHierarchy(); });
+      } else {
+        labelCell = $('<span>').text(row.label);
+      }
+      return [labelCell, formatNumber(row.count), hierarchyPath.length < 2 ? 'مشاهده سطح بعد' : 'محصول'];
+    });
+    host.append(createTable(['عنوان', 'تعداد فراخوان', 'سطح'], tableRows));
+  }
+
+  function renderDashboard(response) {
+    var data = response.data || {};
+    var meta = response.meta || {};
+    var summary = data.summary || {};
+    renderKpis(summary);
+    renderMonthly(data.monthly || []);
+    renderMonthlyTable(data.monthly || []);
+    renderAuthority(data.authorities || []);
+    renderAuthorityTable(data.authorities || []);
+    var deadlineRows = (data.deadline_states || []).map(function (row) { return { label: deadlineLabels[row.deadline_state] || row.deadline_state, notice_count: row.notice_count }; });
+    var unitRows = compactSeries(data.responsible_units || [], 7);
+    var statusRows = (data.participation_statuses || []).map(function (row) { return { label: statusLabels[row.status] || row.status, notice_count: row.notice_count }; });
+    var categoryRows = compactSeries(data.categories || [], 9);
+    renderBars('deadlineChart', deadlineRows, { labelKey: 'label', valueKey: 'notice_count', colors: ['#17664b', '#b0781b', '#a13f36', '#68736e'], ariaLabel: 'وضعیت مهلت پاسخ فراخوان‌ها' });
+    renderBars('unitChart', unitRows, { labelKey: 'label', valueKey: 'notice_count', colors: palette, ariaLabel: 'توزیع واحدهای مربوطه' });
+    renderBars('statusChart', statusRows, { labelKey: 'label', valueKey: 'notice_count', colors: palette, ariaLabel: 'توزیع وضعیت شرکت در فراخوان' });
+    renderBars('categoryChart', categoryRows, { labelKey: 'label', valueKey: 'notice_count', colors: palette, ariaLabel: 'توزیع دسته‌بندی‌های اصلی' });
+    renderSimpleTable('deadlineTableHost', deadlineRows, 'وضعیت مهلت', 'label', 'notice_count');
+    renderSimpleTable('unitTableHost', unitRows, 'واحد مربوطه', 'label', 'notice_count');
+    renderSimpleTable('statusTableHost', statusRows, 'وضعیت شرکت', 'label', 'notice_count');
+    renderSimpleTable('categoryTableHost', categoryRows, 'دسته‌بندی', 'label', 'notice_count');
+    currentHierarchy = data.category_hierarchy || [];
+    hierarchyPath = [];
+    renderHierarchy();
+    renderQuality(meta.quality || {});
+    $('#generatedAt').text(meta.generated_at ? new Date(meta.generated_at).toLocaleString('fa-IR') : '—');
+    var limits = meta.limits || {};
+    var warnings = [];
+    if (limits.authorities_truncated) warnings.push('فهرست دستگاه‌های اجرایی به تعداد انتخاب‌شده محدود شده است.');
+    if (limits.hierarchy_truncated) warnings.push('ترکیب‌های سلسله‌مراتبی بیش از سقف پاسخ هستند؛ جدول کامل نیست.');
+    if (limits.units_truncated || limits.categories_truncated) warnings.push('یکی از فهرست‌های با تنوع بالا برای کنترل اندازه پاسخ محدود شده است.');
+    if (warnings.length) showStatus('گزارش به‌روزرسانی شد. ' + warnings.join(' '), 'warning');
+    else if (Number(summary.total) === 0) showStatus('فیلترها معتبرند، اما هیچ فراخوانی در این دامنه وجود ندارد.', 'warning');
+    else showStatus('گزارش با ' + formatNumber(summary.total) + ' فراخوان به‌روزرسانی شد.');
+  }
+
+  function loadDashboard() {
+    if (isBusy) return;
+    setBusy(true);
+    showStatus('در حال محاسبهٔ شاخص‌ها و نمودارها…');
+    request('dashboard', filterData()).done(renderDashboard).fail(function (xhr) { showStatus(errorMessage(xhr), 'error'); }).always(function () { setBusy(false); });
+  }
+
+  function loadLookups() {
+    setBusy(true);
+    request('lookups').done(function (response) {
+      var data = response.data || {};
+      populateSelect('#sourceName', data.source_name);
+      populateSelect('#authority', data.contracting_authority);
+      populateSelect('#responsibleUnit', data.responsible_unit);
+      populateSelect('#category', data.category_name);
+      var bounds = data.date_bounds || {};
+      if (bounds.minimum_fa || bounds.maximum_fa) $('#dateFrom').attr('title', 'بازه داده: ' + (bounds.minimum_fa || '—') + ' تا ' + (bounds.maximum_fa || '—'));
+    }).fail(function (xhr) {
+      showStatus(errorMessage(xhr), 'error');
+    }).always(function () {
+      setBusy(false);
+      if (!$('#statusMessage').hasClass('error')) loadDashboard();
+    });
+  }
+
+  $('#analyticsFilters').on('submit', function (event) { event.preventDefault(); loadDashboard(); });
+  $('#resetFilters').on('click', function () {
+    document.getElementById('analyticsFilters').reset();
+    $('#minimumTotal').val('5');
+    $('#topN').val('12');
+    loadDashboard();
+  });
+  app.find('.tab').on('click', function () {
+    var target = $(this).data('view');
+    app.find('.tab').attr('aria-selected', 'false');
+    $(this).attr('aria-selected', 'true');
+    app.find('[role="tabpanel"]').attr('hidden', true);
+    $('#' + target).removeAttr('hidden');
+  });
+
+  loadLookups();
+})(jQuery);
+</script>

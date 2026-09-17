@@ -84,9 +84,20 @@ php tools\import_legacy_procurement_notices.php `
 
 - `emcore_api/_procurement_storage.php`
 - `emcore_api/emcore_procurement_notices.php`
+- `emcore_api/emcore_procurement_analytics.php`
 - `panels/emcore_procurement_notices_panel.html`
+- `panels/emcore_procurement_analytics_panel.html`
 
-Panel را در WebControl از نوع Panel جایگزین فرم/XCRUD قدیمی کنید. API و ProcessMaker باید same-origin و دارای نشست مشترک باشند.
+پنل CRUD را در WebControl از نوع Panel جایگزین فرم/XCRUD قدیمی کنید و برای گزارش، یک Panel WebControl جداگانه از فایل analytics بسازید. هر دو API و ProcessMaker باید same-origin و دارای نشست مشترک باشند. داشبورد analytics به migration جدیدی نیاز ندارد و مستقیماً از جدول‌های ایجادشده در مرحلهٔ ۲ می‌خواند.
+
+پیش از کپی، کنترل‌های release و lint را اجرا کنید:
+
+```cmd
+node tools\check_procurement_notices_release.js
+node tools\check_procurement_analytics_release.js
+php -n -l emcore_api\emcore_procurement_notices.php
+php -n -l emcore_api\emcore_procurement_analytics.php
+```
 
 ## ۷. کنترل پذیرش
 
@@ -101,6 +112,13 @@ Panel را در WebControl از نوع Panel جایگزین فرم/XCRUD قدی�
 9. فایل قدیمی بدون محتوای منتقل‌شده «فقط مرجع» نشان داده شود و دانلود آن با 409 رد شود.
 10. حذف رکورد و فایل نرم و در `emcore_audit_log` ثبت شود.
 11. رابط در عرض‌های ۳۲۰، ۷۶۸، ۱۰۲۴ و ۱۴۴۰ پیکسل و با صفحه‌کلید کنترل شود.
+12. endpoint تحلیلی بدون نشست 401، بدون مجوز read پاسخ 403 و با کاربر read-only پاسخ موفق بدهد.
+13. تعداد کل داشبورد بدون فیلتر با `COUNT(*)` ردیف‌های حذف‌نشده برابر باشد.
+14. بازهٔ تاریخ، نوع، وضعیت، منبع، دستگاه، واحد و دسته بر همهٔ نمودارها هم‌زمان اثر بگذارند.
+15. نمودار دستگاه اجرایی جمع مناقصه، مزایده و نوع نامشخص را بدون حذف پنهانی نمایش دهد.
+16. drill-down دسته‌بندی با صفحه‌کلید تا سطح محصول قابل استفاده باشد و هر نمودار جدول دادهٔ متناظر داشته باشد.
+17. مقادیر `unknown`، تاریخ ثبت مفقود، مهلت وارونه و دسته‌بندی مفقود در تب کیفیت داده آشکار باشند.
+18. حالت بدون داده پیام صریح نشان دهد و هیچ دادهٔ نمونه‌ای به نمودار تزریق نشود.
 
 ## ۸. تطبیق پس از مهاجرت
 
