@@ -84,7 +84,12 @@ requireText(api, "LOWER(TRIM(p.category_name)) = 'nan'", 'legacy NaN categories 
 if (/prc_db_mozayedat_monaghesat_copy1|LEFT_DAYS/.test(api)) failures.push('analytics API reads legacy runtime data');
 
 requireText(panel, "var API = '/emcore_api/emcore_procurement_analytics.php'", 'panel API URL is wrong');
-requireText(panel, '<svg', 'panel lacks self-contained SVG charts');
+requireText(panel, '<script src="/lib/js/chart-js/chart.umd.min.js"></script>', 'panel does not use the installed same-origin Chart.js bundle');
+if (/<svg\b/i.test(panel)) failures.push('panel still contains the superseded custom SVG chart implementation');
+requireText(panel, 'typeof Chart', 'panel does not guard against a missing Chart.js runtime');
+requireText(panel, 'Chart.getChart', 'panel does not destroy existing Chart.js instances before redraw');
+requireText(panel, 'حداقل مجموع مناقصات و مزایدات', 'legacy minimum-total filter is not visible with its original meaning');
+requireText(panel, 'name="minimum_authority_total"', 'minimum-total filter is not connected to the API contract');
 requireText(panel, 'id="authorityChart"', 'authority type chart is missing');
 requireText(panel, 'id="unitChart"', 'responsible-unit chart is missing');
 requireText(panel, 'id="statusChart"', 'participation-status chart is missing');
@@ -92,6 +97,13 @@ requireText(panel, 'id="categoryChart"', 'category chart is missing');
 requireText(panel, 'id="hierarchyChart"', 'hierarchy drill-down chart is missing');
 requireText(panel, 'id="monthlyChart"', 'monthly trend chart is missing');
 requireText(panel, 'id="deadlineChart"', 'deadline-health chart is missing');
+['authorityChart', 'unitChart', 'statusChart', 'categoryChart', 'hierarchyChart', 'monthlyChart', 'deadlineChart'].forEach((id) => {
+  if (!panel.includes(`<canvas id="${id}"`)) failures.push(`${id} is not a Chart.js canvas`);
+});
+requireText(panel, "type: 'bar'", 'legacy stacked bar chart type is missing');
+requireText(panel, "type: 'pie'", 'legacy pie chart type is missing');
+requireText(panel, "type: 'doughnut'", 'legacy hierarchy doughnut chart type is missing');
+requireText(panel, 'stacked: true', 'authority chart is not stacked like the legacy report');
 requireText(panel, 'id="qualityHost"', 'quality disclosure is missing');
 requireText(panel, 'id="authorityTableHost"', 'accessible authority data table is missing');
 requireText(panel, 'id="monthlyTableHost"', 'accessible monthly data table is missing');

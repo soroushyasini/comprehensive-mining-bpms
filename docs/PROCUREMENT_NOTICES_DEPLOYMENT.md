@@ -88,7 +88,7 @@ php tools\import_legacy_procurement_notices.php `
 - `panels/emcore_procurement_notices_panel.html`
 - `panels/emcore_procurement_analytics_panel.html`
 
-پنل CRUD را در WebControl از نوع Panel جایگزین فرم/XCRUD قدیمی کنید و برای گزارش، یک Panel WebControl جداگانه از فایل analytics بسازید. هر دو API و ProcessMaker باید same-origin و دارای نشست مشترک باشند. داشبورد analytics به migration جدیدی نیاز ندارد و مستقیماً از جدول‌های ایجادشده در مرحلهٔ ۲ می‌خواند.
+پنل CRUD را در WebControl از نوع Panel جایگزین فرم/XCRUD قدیمی کنید و برای گزارش، یک Panel WebControl جداگانه از فایل analytics بسازید. هر دو API و ProcessMaker باید same-origin و دارای نشست مشترک باشند. داشبورد analytics به migration جدیدی نیاز ندارد و مستقیماً از جدول‌های ایجادشده در مرحلهٔ ۲ می‌خواند. فایل Chart.js باید در مسیر عمومی `/lib/js/chart-js/chart.umd.min.js` موجود و برای مرورگر قابل خواندن باشد؛ چون این فایل از نصب فعلی ProcessMaker تأمین می‌شود، آن را از مخزن EMCORE کپی نکنید.
 
 پیش از کپی، کنترل‌های release و lint را اجرا کنید:
 
@@ -119,6 +119,8 @@ php -n -l emcore_api\emcore_procurement_analytics.php
 16. drill-down دسته‌بندی با صفحه‌کلید تا سطح محصول قابل استفاده باشد و هر نمودار جدول دادهٔ متناظر داشته باشد.
 17. مقادیر `unknown`، تاریخ ثبت مفقود، مهلت وارونه و دسته‌بندی مفقود در تب کیفیت داده آشکار باشند.
 18. حالت بدون داده پیام صریح نشان دهد و هیچ دادهٔ نمونه‌ای به نمودار تزریق نشود.
+19. فایل `/lib/js/chart-js/chart.umd.min.js` با وضعیت 200 بارگیری شود و Console مرورگر خطای `Chart is not defined` نداشته باشد.
+20. فیلتر «حداقل مجموع مناقصات و مزایدات» فقط دستگاه‌های زیر آستانه را از نمودار دستگاه اجرایی حذف کند و بر KPI کل یا نمودارهای دیگر اثر نگذارد.
 
 ## ۸. تطبیق پس از مهاجرت
 

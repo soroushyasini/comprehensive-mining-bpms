@@ -1,3 +1,4 @@
+<script src="/lib/js/chart-js/chart.umd.min.js"></script>
 <style>
   #procurementAnalyticsApp {
     --ink: #17221d;
@@ -40,6 +41,9 @@
   #procurementAnalyticsApp .field label { display: block; margin-bottom: 4px; color: var(--muted); font-size: 11px; font-weight: 700; }
   #procurementAnalyticsApp .field input, #procurementAnalyticsApp .field select { width: 100%; min-height: 37px; padding: 7px 9px; color: var(--ink); background: #fff; border: 1px solid #c9c3b6; border-radius: 3px; }
   #procurementAnalyticsApp .field input:focus, #procurementAnalyticsApp .field select:focus, #procurementAnalyticsApp button:focus-visible { outline: 3px solid rgba(176,120,27,.28); outline-offset: 1px; border-color: var(--amber); }
+  #procurementAnalyticsApp .primary-filter { padding: 8px; border: 1px solid #d5b876; background: #fff8e6; }
+  #procurementAnalyticsApp .primary-filter label { color: #664c16; }
+  #procurementAnalyticsApp .field-help { display: block; margin-top: 4px; color: var(--muted); font-size: 9px; line-height: 1.5; }
   #procurementAnalyticsApp .date-field { direction: ltr; text-align: left; }
   #procurementAnalyticsApp .filter-actions { display: flex; align-items: flex-end; gap: 7px; }
   #procurementAnalyticsApp .btn { min-height: 37px; padding: 7px 14px; border: 1px solid transparent; border-radius: 3px; font-weight: 700; }
@@ -69,9 +73,10 @@
   #procurementAnalyticsApp .swatch-blue { background: var(--blue); }
   #procurementAnalyticsApp .swatch-amber { background: var(--amber); }
   #procurementAnalyticsApp .swatch-muted { background: #9aa39f; }
-  #procurementAnalyticsApp .chart-scroll { width: 100%; min-height: 270px; overflow-x: auto; }
-  #procurementAnalyticsApp svg { display: block; width: 100%; min-width: 620px; height: 310px; }
-  #procurementAnalyticsApp .compact-chart svg { min-width: 500px; }
+  #procurementAnalyticsApp .chart-frame { position: relative; width: 100%; height: 440px; padding: 12px 16px; }
+  #procurementAnalyticsApp .compact-chart .chart-frame { height: 410px; }
+  #procurementAnalyticsApp .hierarchy-card .chart-frame { height: 500px; }
+  #procurementAnalyticsApp canvas { display: block; width: 100% !important; height: 100% !important; }
   #procurementAnalyticsApp .data-details { margin: 0 14px 14px; border: 1px solid var(--line); }
   #procurementAnalyticsApp .data-details summary { padding: 9px 11px; cursor: pointer; color: var(--coal); background: #f4f1e8; font-size: 11px; font-weight: 700; }
   #procurementAnalyticsApp .table-scroll { overflow: auto; }
@@ -106,6 +111,7 @@
     #procurementAnalyticsApp .tab { flex: 0 0 auto; }
     #procurementAnalyticsApp .card-head { align-items: flex-start; flex-direction: column; }
     #procurementAnalyticsApp .legend { white-space: normal; flex-wrap: wrap; }
+    #procurementAnalyticsApp .chart-frame, #procurementAnalyticsApp .compact-chart .chart-frame, #procurementAnalyticsApp .hierarchy-card .chart-frame { height: 380px; padding: 8px; }
   }
   @media (max-width: 380px) {
     #procurementAnalyticsApp .kpis, #procurementAnalyticsApp .quality-grid { grid-template-columns: 1fr; }
@@ -128,6 +134,7 @@
 
     <div class="content">
       <form id="analyticsFilters" class="filters" aria-label="فیلترهای تحلیل مناقصات و مزایدات">
+        <div class="field primary-filter"><label for="minimumTotal">حداقل مجموع مناقصات و مزایدات</label><select id="minimumTotal" name="minimum_authority_total"><option value="1">۱</option><option value="2">۲</option><option value="3">۳</option><option value="4">۴</option><option value="5" selected>۵</option><option value="6">۶</option><option value="7">۷</option><option value="8">۸</option><option value="9">۹</option><option value="10">۱۰</option><option value="11">۱۱</option><option value="12">۱۲</option></select><small class="field-help">فقط دستگاه‌هایی نمایش داده می‌شوند که مجموع فراخوانشان حداقل این مقدار باشد.</small></div>
         <div class="field"><label for="dateFrom">از تاریخ ثبت</label><input id="dateFrom" class="date-field" name="date_from_fa" maxlength="10" inputmode="numeric" placeholder="۱۴۰۴/۰۱/۰۱" autocomplete="off"></div>
         <div class="field"><label for="dateTo">تا تاریخ ثبت</label><input id="dateTo" class="date-field" name="date_to_fa" maxlength="10" inputmode="numeric" placeholder="۱۴۰۴/۱۲/۲۹" autocomplete="off"></div>
         <div class="field"><label for="noticeType">نوع فراخوان</label><select id="noticeType" name="notice_type"><option value="">همه انواع</option><option value="tender">مناقصه</option><option value="auction">مزایده</option><option value="unknown">نوع نامشخص</option></select></div>
@@ -136,7 +143,6 @@
         <div class="field"><label for="authority">دستگاه اجرایی</label><select id="authority" name="contracting_authority"><option value="">همه دستگاه‌ها</option></select></div>
         <div class="field"><label for="responsibleUnit">واحد مربوطه</label><select id="responsibleUnit" name="responsible_unit"><option value="">همه واحدها</option></select></div>
         <div class="field"><label for="category">دسته‌بندی</label><select id="category" name="category_name"><option value="">همه دسته‌ها</option></select></div>
-        <div class="field"><label for="minimumTotal">حداقل فراخوان هر دستگاه</label><input id="minimumTotal" name="minimum_authority_total" type="number" min="1" max="100000" value="5"></div>
         <div class="field"><label for="topN">تعداد دستگاه‌های نمودار</label><select id="topN" name="top_n"><option value="8">۸</option><option value="12" selected>۱۲</option><option value="20">۲۰</option><option value="30">۳۰</option></select></div>
         <div class="filter-actions"><button class="btn btn-primary" type="submit">اعمال فیلتر</button><button class="btn btn-light" id="resetFilters" type="button">پاک‌کردن</button></div>
       </form>
@@ -164,47 +170,47 @@
         <div class="grid-two">
           <article class="card card-wide">
             <header class="card-head"><div><h2>روند ماهانه فراخوان‌ها</h2><p>حداکثر ۲۴ ماه شمسی دارای داده در دامنهٔ انتخابی</p></div><div class="legend"><span><i class="swatch swatch-blue"></i>مناقصه</span><span><i class="swatch swatch-amber"></i>مزایده</span><span><i class="swatch swatch-muted"></i>نامشخص</span></div></header>
-            <div class="chart-scroll"><svg id="monthlyChart" role="img" aria-label="نمودار روند ماهانه مناقصات و مزایدات"></svg></div>
+            <div class="chart-frame"><canvas id="monthlyChart" role="img" aria-label="نمودار روند ماهانه مناقصات و مزایدات"></canvas></div>
             <details class="data-details"><summary>جدول روند ماهانه</summary><div id="monthlyTableHost" class="table-scroll"></div></details>
           </article>
 
           <article class="card card-wide">
             <header class="card-head"><div><h2>فراخوان‌ها به تفکیک دستگاه اجرایی</h2><p>معادل نمودار اصلی قدیمی با مرتب‌سازی بر اساس مجموع و کنترل حداقل نمایش</p></div><div class="legend"><span><i class="swatch swatch-blue"></i>مناقصه</span><span><i class="swatch swatch-amber"></i>مزایده</span><span><i class="swatch swatch-muted"></i>نامشخص</span></div></header>
-            <div class="chart-scroll"><svg id="authorityChart" role="img" aria-label="نمودار مناقصات و مزایدات به تفکیک دستگاه اجرایی"></svg></div>
+            <div class="chart-frame"><canvas id="authorityChart" role="img" aria-label="نمودار مناقصات و مزایدات به تفکیک دستگاه اجرایی"></canvas></div>
             <details class="data-details"><summary>جدول دادهٔ دستگاه‌های اجرایی</summary><div id="authorityTableHost" class="table-scroll"></div></details>
           </article>
 
           <article class="card compact-chart">
             <header class="card-head"><div><h2>سلامت مهلت پاسخ</h2><p>وضعیت در لحظهٔ دریافت گزارش دوباره محاسبه می‌شود</p></div></header>
-            <div class="chart-scroll"><svg id="deadlineChart" role="img" aria-label="نمودار وضعیت مهلت پاسخ"></svg></div>
+            <div class="chart-frame"><canvas id="deadlineChart" role="img" aria-label="نمودار وضعیت مهلت پاسخ"></canvas></div>
             <details class="data-details"><summary>جدول وضعیت مهلت</summary><div id="deadlineTableHost" class="table-scroll"></div></details>
           </article>
 
           <article class="card compact-chart">
             <header class="card-head"><div><h2>توزیع واحد مربوطه</h2><p>مقدار خالی با عنوان «نامشخص» حفظ شده است</p></div></header>
-            <div class="chart-scroll"><svg id="unitChart" role="img" aria-label="نمودار فراخوان‌ها به تفکیک واحد مربوطه"></svg></div>
+            <div class="chart-frame"><canvas id="unitChart" role="img" aria-label="نمودار فراخوان‌ها به تفکیک واحد مربوطه"></canvas></div>
             <details class="data-details"><summary>جدول واحدهای مربوطه</summary><div id="unitTableHost" class="table-scroll"></div></details>
           </article>
 
           <article class="card compact-chart">
             <header class="card-head"><div><h2>وضعیت شرکت در فراخوان</h2><p>ثبت، علاقه‌مندی، ارسال مدارک، نتیجه و وضعیت نامشخص</p></div></header>
-            <div class="chart-scroll"><svg id="statusChart" role="img" aria-label="نمودار وضعیت شرکت در مناقصات و مزایدات"></svg></div>
+            <div class="chart-frame"><canvas id="statusChart" role="img" aria-label="نمودار وضعیت شرکت در مناقصات و مزایدات"></canvas></div>
             <details class="data-details"><summary>جدول وضعیت شرکت</summary><div id="statusTableHost" class="table-scroll"></div></details>
           </article>
 
           <article class="card compact-chart">
             <header class="card-head"><div><h2>دسته‌بندی‌های اصلی</h2><p>نمای فشردهٔ دسته‌ها؛ جزئیات در تب کالا و دسته‌بندی</p></div></header>
-            <div class="chart-scroll"><svg id="categoryChart" role="img" aria-label="نمودار فراخوان‌ها بر اساس دسته‌بندی"></svg></div>
+            <div class="chart-frame"><canvas id="categoryChart" role="img" aria-label="نمودار فراخوان‌ها بر اساس دسته‌بندی"></canvas></div>
             <details class="data-details"><summary>جدول دسته‌بندی‌های اصلی</summary><div id="categoryTableHost" class="table-scroll"></div></details>
           </article>
         </div>
       </section>
 
       <section id="categoriesView" role="tabpanel" aria-labelledby="categoriesTab" hidden>
-        <article class="card">
+        <article class="card hierarchy-card">
           <header class="card-head"><div><h2>مرور سلسله‌مراتبی دسته، زیردسته و محصول</h2><p>برای رفتن به سطح بعد، از دکمه‌های جدول زیر نمودار استفاده کنید.</p></div></header>
           <div id="hierarchyBreadcrumb" class="crumbs" aria-label="مسیر دسته‌بندی"></div>
-          <div class="chart-scroll"><svg id="hierarchyChart" role="img" aria-label="نمودار سلسله‌مراتبی دسته‌بندی کالا"></svg></div>
+          <div class="chart-frame"><canvas id="hierarchyChart" role="img" aria-label="نمودار سلسله‌مراتبی دسته‌بندی کالا"></canvas></div>
           <div id="hierarchyTableHost" class="table-scroll"></div>
         </article>
       </section>
@@ -226,17 +232,26 @@
   'use strict';
 
   var API = '/emcore_api/emcore_procurement_analytics.php';
-  var SVG_NS = 'http://www.w3.org/2000/svg';
   var app = $('#procurementAnalyticsApp');
   var currentHierarchy = [];
   var hierarchyPath = [];
   var isBusy = false;
+  var chartInstances = {};
   var numberFormatter = new Intl.NumberFormat('fa-IR');
   var percentFormatter = new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 1 });
   var typeLabels = { tender: 'مناقصه', auction: 'مزایده', unknown: 'نوع نامشخص' };
   var statusLabels = { registered: 'ثبت', interested: 'علاقه‌مند', documents_submitted: 'ارسال مدارک', won: 'برنده', lost: 'شکست', unknown: 'وضعیت نامشخص' };
   var deadlineLabels = { open: 'باز', urgent: 'فوری', expired: 'منقضی', no_deadline: 'بدون مهلت' };
   var palette = ['#17664b', '#32627d', '#b0781b', '#a13f36', '#6f5d86', '#4e7773', '#9a623f', '#68736e'];
+  var tenderColor = 'rgba(0, 102, 204, 0.60)';
+  var auctionColor = 'rgba(205, 92, 92, 0.80)';
+  var unknownColor = 'rgba(120, 132, 126, 0.72)';
+
+  if (typeof Chart !== 'undefined') {
+    Chart.defaults.font.family = 'Tahoma, "Segoe UI", sans-serif';
+    Chart.defaults.color = '#37443e';
+    Chart.defaults.animation.duration = 360;
+  }
 
   function request(action, data) {
     return $.ajax({
@@ -270,27 +285,61 @@
     return 'دریافت گزارش ممکن نشد. اتصال و وضعیت سرویس را بررسی کنید.';
   }
 
-  function svgElement(tag, attrs, textValue) {
-    var node = document.createElementNS(SVG_NS, tag);
-    Object.keys(attrs || {}).forEach(function (key) { node.setAttribute(key, attrs[key]); });
-    if (textValue !== undefined) node.textContent = textValue;
-    return node;
+  var emptyStatePlugin = {
+    id: 'procurementEmptyState',
+    afterDraw: function (chart, args, options) {
+      if (!options || !options.message) return;
+      var hasData = (chart.data.datasets || []).some(function (dataset) {
+        return (dataset.data || []).some(function (value) { return Number(value) > 0; });
+      });
+      if (hasData) return;
+      var area = chart.chartArea;
+      var ctx = chart.ctx;
+      ctx.save();
+      ctx.fillStyle = '#65716b';
+      ctx.font = '14px Tahoma, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.direction = 'rtl';
+      ctx.fillText(options.message, (area.left + area.right) / 2, (area.top + area.bottom) / 2);
+      ctx.restore();
+    }
+  };
+
+  function destroyChart(id) {
+    var existing = Chart.getChart(id);
+    if (existing) existing.destroy();
+    delete chartInstances[id];
   }
 
-  function prepareSvg(id, height, label) {
-    var svg = document.getElementById(id);
-    while (svg.firstChild) svg.removeChild(svg.firstChild);
-    svg.setAttribute('viewBox', '0 0 920 ' + height);
-    svg.setAttribute('height', height);
-    svg.style.height = height + 'px';
-    svg.setAttribute('aria-label', label);
-    return svg;
+  function createChart(id, config) {
+    destroyChart(id);
+    var canvas = document.getElementById(id);
+    chartInstances[id] = new Chart(canvas.getContext('2d'), config);
+    return chartInstances[id];
   }
 
-  function renderEmpty(id, message) {
-    var svg = prepareSvg(id, 240, message);
-    svg.appendChild(svgElement('rect', { x: 1, y: 1, width: 918, height: 238, fill: '#fbfaf6', stroke: '#e1ddd3' }));
-    svg.appendChild(svgElement('text', { x: 460, y: 122, 'text-anchor': 'middle', fill: '#65716b', 'font-size': 14, direction: 'rtl' }, message));
+  function baseOptions(title, emptyMessage) {
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'nearest', intersect: true },
+      plugins: {
+        title: { display: Boolean(title), text: title, padding: { bottom: 16 }, font: { size: 14, weight: 'bold' } },
+        legend: { position: 'right', rtl: true, textDirection: 'rtl', labels: { boxWidth: 14, padding: 14 } },
+        tooltip: { rtl: true, textDirection: 'rtl', displayColors: true },
+        procurementEmptyState: { message: emptyMessage }
+      }
+    };
+  }
+
+  function renderEmpty(id, message, type) {
+    var options = baseOptions('', message);
+    options.plugins.legend.display = false;
+    if (type === 'bar') {
+      options.scales = { x: { display: false }, y: { display: false } };
+    }
+    createChart(id, { type: type || 'doughnut', data: { labels: [], datasets: [{ data: [] }] }, options: options, plugins: [emptyStatePlugin] });
   }
 
   function compactSeries(rows, limit) {
@@ -302,79 +351,84 @@
     return visible;
   }
 
-  function renderBars(id, rows, options) {
+  function pieLegendWithCounts(chart) {
+    var labels = Chart.overrides.pie.plugins.legend.labels.generateLabels(chart);
+    return labels.map(function (item) {
+      var value = Number(chart.data.datasets[0].data[item.index]) || 0;
+      item.text += ' (' + formatNumber(value) + ')';
+      return item;
+    });
+  }
+
+  function renderPie(id, rows, options) {
     rows = rows || [];
-    if (!rows.length) { renderEmpty(id, 'برای این نمودار داده‌ای در دامنهٔ انتخابی وجود ندارد.'); return; }
-    var rowHeight = 34;
-    var height = Math.max(245, rows.length * rowHeight + 48);
-    var svg = prepareSvg(id, height, options.ariaLabel);
-    var left = 88, right = 260, top = 20, plotWidth = 920 - left - right;
-    var maxValue = Math.max.apply(null, rows.map(function (row) { return Number(row[options.valueKey]) || 0; })) || 1;
-    rows.forEach(function (row, index) {
-      var y = top + index * rowHeight;
-      var value = Number(row[options.valueKey]) || 0;
-      var width = value * plotWidth / maxValue;
-      svg.appendChild(svgElement('text', { x: 920 - right + 12, y: y + 19, fill: '#37443e', 'font-size': 11, direction: 'rtl' }, String(row[options.labelKey] || 'نامشخص')));
-      svg.appendChild(svgElement('rect', { x: left, y: y + 5, width: plotWidth, height: 19, fill: '#f0ede5' }));
-      svg.appendChild(svgElement('rect', { x: left, y: y + 5, width: Math.max(width, value ? 2 : 0), height: 19, fill: options.colors ? options.colors[index % options.colors.length] : '#17664b' }));
-      svg.appendChild(svgElement('text', { x: left - 10, y: y + 19, 'text-anchor': 'end', fill: '#26332e', 'font-size': 11 }, formatNumber(value)));
+    if (!rows.length) { renderEmpty(id, 'برای این نمودار داده‌ای در دامنهٔ انتخابی وجود ندارد.', options.type); return; }
+    var chartOptions = baseOptions(options.title, '');
+    chartOptions.plugins.legend.labels.generateLabels = pieLegendWithCounts;
+    chartOptions.plugins.tooltip.callbacks = {
+      label: function (context) {
+        var total = context.dataset.data.reduce(function (sum, value) { return sum + Number(value || 0); }, 0);
+        var value = Number(context.raw) || 0;
+        var percentage = total ? percentFormatter.format(value * 100 / total) : '0';
+        return context.label + ': ' + formatNumber(value) + ' (' + percentage + '٪)';
+      }
+    };
+    createChart(id, {
+      type: options.type || 'pie',
+      data: {
+        labels: rows.map(function (row) { return row[options.labelKey] || 'نامشخص'; }),
+        datasets: [{ data: rows.map(function (row) { return Number(row[options.valueKey]) || 0; }), backgroundColor: options.colors || palette, borderColor: '#fffefa', borderWidth: 2, hoverOffset: 8 }]
+      },
+      options: chartOptions,
+      plugins: [emptyStatePlugin]
     });
   }
 
   function renderAuthority(rows) {
     rows = rows || [];
-    if (!rows.length) { renderEmpty('authorityChart', 'هیچ دستگاه اجرایی به حداقل انتخاب‌شده نرسیده است.'); return; }
-    var rowHeight = 38;
-    var height = Math.max(270, rows.length * rowHeight + 48);
-    var svg = prepareSvg('authorityChart', height, 'تفکیک مناقصه، مزایده و نوع نامشخص بر اساس دستگاه اجرایی');
-    var left = 86, right = 310, top = 20, plotWidth = 920 - left - right;
-    var maxValue = Math.max.apply(null, rows.map(function (row) { return Number(row.total) || 0; })) || 1;
-    rows.forEach(function (row, index) {
-      var y = top + index * rowHeight;
-      var x = left;
-      var segments = [
-        { value: Number(row.tender_count) || 0, color: '#32627d' },
-        { value: Number(row.auction_count) || 0, color: '#b0781b' },
-        { value: Number(row.unknown_count) || 0, color: '#9aa39f' }
-      ];
-      svg.appendChild(svgElement('text', { x: 920 - right + 12, y: y + 21, fill: '#37443e', 'font-size': 10, direction: 'rtl' }, String(row.label || 'نامشخص')));
-      svg.appendChild(svgElement('rect', { x: left, y: y + 6, width: plotWidth, height: 21, fill: '#f0ede5' }));
-      segments.forEach(function (segment) {
-        var width = segment.value * plotWidth / maxValue;
-        if (segment.value) svg.appendChild(svgElement('rect', { x: x, y: y + 6, width: Math.max(2, width), height: 21, fill: segment.color }));
-        x += width;
-      });
-      svg.appendChild(svgElement('text', { x: left - 10, y: y + 21, 'text-anchor': 'end', fill: '#26332e', 'font-size': 11 }, formatNumber(row.total)));
+    if (!rows.length) { renderEmpty('authorityChart', 'هیچ دستگاه اجرایی به حداقل انتخاب‌شده نرسیده است.', 'bar'); return; }
+    var options = baseOptions('مجموع مناقصات و مزایدات در بازه زمانی منتخب', '');
+    options.interaction = { mode: 'index', intersect: false };
+    options.scales = {
+      x: { stacked: true, ticks: { autoSkip: false, maxRotation: 42, minRotation: 0 }, grid: { display: false } },
+      y: { stacked: true, beginAtZero: true, title: { display: true, text: 'تعداد مزایدات و مناقصات' }, ticks: { precision: 0 } }
+    };
+    createChart('authorityChart', {
+      type: 'bar',
+      data: {
+        labels: rows.map(function (row) { return row.label || 'نامشخص'; }),
+        datasets: [
+          { label: 'مناقصه', data: rows.map(function (row) { return Number(row.tender_count) || 0; }), backgroundColor: tenderColor, borderColor: 'rgb(0, 102, 204)', borderWidth: 1 },
+          { label: 'مزایده', data: rows.map(function (row) { return Number(row.auction_count) || 0; }), backgroundColor: auctionColor, borderColor: 'rgb(205, 92, 92)', borderWidth: 1 },
+          { label: 'نوع نامشخص', data: rows.map(function (row) { return Number(row.unknown_count) || 0; }), backgroundColor: unknownColor, borderColor: 'rgb(120, 132, 126)', borderWidth: 1 }
+        ]
+      },
+      options: options,
+      plugins: [emptyStatePlugin]
     });
   }
 
   function renderMonthly(rows) {
     rows = rows || [];
-    if (!rows.length) { renderEmpty('monthlyChart', 'تاریخ ثبت معتبر برای نمایش روند وجود ندارد.'); return; }
-    var svg = prepareSvg('monthlyChart', 310, 'روند ماهانه فراخوان‌ها بر اساس ماه شمسی ثبت');
-    var left = 70, right = 28, top = 24, bottom = 60;
-    var plotWidth = 920 - left - right, plotHeight = 310 - top - bottom;
-    var maxValue = Math.max.apply(null, rows.map(function (row) { return Number(row.total) || 0; })) || 1;
-    var slot = plotWidth / rows.length;
-    [0, .25, .5, .75, 1].forEach(function (ratio) {
-      var y = top + plotHeight - ratio * plotHeight;
-      svg.appendChild(svgElement('line', { x1: left, x2: 920 - right, y1: y, y2: y, stroke: '#ded9ce', 'stroke-width': 1 }));
-      svg.appendChild(svgElement('text', { x: left - 9, y: y + 4, 'text-anchor': 'end', fill: '#65716b', 'font-size': 10 }, formatNumber(Math.round(maxValue * ratio))));
-    });
-    rows.forEach(function (row, index) {
-      var x = left + index * slot + slot * .18;
-      var barWidth = Math.max(4, slot * .64);
-      var yBottom = top + plotHeight;
-      [
-        { value: Number(row.tender_count) || 0, color: '#32627d' },
-        { value: Number(row.auction_count) || 0, color: '#b0781b' },
-        { value: Number(row.unknown_count) || 0, color: '#9aa39f' }
-      ].forEach(function (segment) {
-        var h = segment.value * plotHeight / maxValue;
-        yBottom -= h;
-        if (segment.value) svg.appendChild(svgElement('rect', { x: x, y: yBottom, width: barWidth, height: h, fill: segment.color }));
-      });
-      svg.appendChild(svgElement('text', { x: x + barWidth / 2, y: top + plotHeight + 17, 'text-anchor': 'middle', fill: '#4b5852', 'font-size': 9, transform: 'rotate(-32 ' + (x + barWidth / 2) + ' ' + (top + plotHeight + 17) + ')' }, String(row.period_fa)));
+    if (!rows.length) { renderEmpty('monthlyChart', 'تاریخ ثبت معتبر برای نمایش روند وجود ندارد.', 'bar'); return; }
+    var options = baseOptions('روند ماهانه فراخوان‌ها', '');
+    options.interaction = { mode: 'index', intersect: false };
+    options.scales = {
+      x: { stacked: true, grid: { display: false }, ticks: { maxRotation: 35, minRotation: 0 } },
+      y: { stacked: true, beginAtZero: true, title: { display: true, text: 'تعداد فراخوان' }, ticks: { precision: 0 } }
+    };
+    createChart('monthlyChart', {
+      type: 'bar',
+      data: {
+        labels: rows.map(function (row) { return row.period_fa; }),
+        datasets: [
+          { label: 'مناقصه', data: rows.map(function (row) { return Number(row.tender_count) || 0; }), backgroundColor: tenderColor, borderColor: 'rgb(0, 102, 204)', borderWidth: 1 },
+          { label: 'مزایده', data: rows.map(function (row) { return Number(row.auction_count) || 0; }), backgroundColor: auctionColor, borderColor: 'rgb(205, 92, 92)', borderWidth: 1 },
+          { label: 'نوع نامشخص', data: rows.map(function (row) { return Number(row.unknown_count) || 0; }), backgroundColor: unknownColor, borderColor: 'rgb(120, 132, 126)', borderWidth: 1 }
+        ]
+      },
+      options: options,
+      plugins: [emptyStatePlugin]
     });
   }
 
@@ -487,7 +541,31 @@
   function renderHierarchy() {
     var rows = hierarchyRows();
     renderHierarchyBreadcrumb();
-    renderBars('hierarchyChart', rows.slice(0, 20), { labelKey: 'label', valueKey: 'count', colors: palette, ariaLabel: 'سطح جاری دسته‌بندی کالا' });
+    var visibleRows = rows.slice(0, 20);
+    if (!visibleRows.length) {
+      renderEmpty('hierarchyChart', 'در این سطح داده‌ای وجود ندارد.', 'doughnut');
+    } else {
+      var title = hierarchyPath.length === 0 ? 'توزیع دسته‌های اصلی' : (hierarchyPath.length === 1 ? 'زیردسته‌های ' + hierarchyPath[0] : 'محصولات ' + hierarchyPath[1]);
+      var chartOptions = baseOptions(title, '');
+      chartOptions.plugins.legend.labels.generateLabels = pieLegendWithCounts;
+      chartOptions.onClick = function (event, elements) {
+        if (!elements.length || hierarchyPath.length >= 2) return;
+        hierarchyPath.push(visibleRows[elements[0].index].label);
+        renderHierarchy();
+      };
+      chartOptions.onHover = function (event, elements) {
+        if (event.native && event.native.target) event.native.target.style.cursor = elements.length && hierarchyPath.length < 2 ? 'pointer' : 'default';
+      };
+      createChart('hierarchyChart', {
+        type: 'doughnut',
+        data: {
+          labels: visibleRows.map(function (row) { return row.label; }),
+          datasets: [{ data: visibleRows.map(function (row) { return Number(row.count) || 0; }), backgroundColor: palette, borderColor: '#fffefa', borderWidth: 2, hoverOffset: 8 }]
+        },
+        options: chartOptions,
+        plugins: [emptyStatePlugin]
+      });
+    }
     var host = $('#hierarchyTableHost').empty();
     if (!rows.length) { host.append($('<div>').addClass('empty').text('در این سطح داده‌ای وجود ندارد.')); return; }
     var tableRows = rows.map(function (row) {
@@ -515,10 +593,10 @@
     var unitRows = compactSeries(data.responsible_units || [], 7);
     var statusRows = (data.participation_statuses || []).map(function (row) { return { label: statusLabels[row.status] || row.status, notice_count: row.notice_count }; });
     var categoryRows = compactSeries(data.categories || [], 9);
-    renderBars('deadlineChart', deadlineRows, { labelKey: 'label', valueKey: 'notice_count', colors: ['#17664b', '#b0781b', '#a13f36', '#68736e'], ariaLabel: 'وضعیت مهلت پاسخ فراخوان‌ها' });
-    renderBars('unitChart', unitRows, { labelKey: 'label', valueKey: 'notice_count', colors: palette, ariaLabel: 'توزیع واحدهای مربوطه' });
-    renderBars('statusChart', statusRows, { labelKey: 'label', valueKey: 'notice_count', colors: palette, ariaLabel: 'توزیع وضعیت شرکت در فراخوان' });
-    renderBars('categoryChart', categoryRows, { labelKey: 'label', valueKey: 'notice_count', colors: palette, ariaLabel: 'توزیع دسته‌بندی‌های اصلی' });
+    renderPie('deadlineChart', deadlineRows, { labelKey: 'label', valueKey: 'notice_count', colors: ['#17664b', '#b0781b', '#a13f36', '#68736e'], type: 'doughnut', title: 'وضعیت مهلت پاسخ' });
+    renderPie('unitChart', unitRows, { labelKey: 'label', valueKey: 'notice_count', colors: palette, type: 'pie', title: 'فراخوان‌ها بر اساس واحد مربوطه' });
+    renderPie('statusChart', statusRows, { labelKey: 'label', valueKey: 'notice_count', colors: palette, type: 'pie', title: 'وضعیت شرکت در فراخوان' });
+    renderPie('categoryChart', categoryRows, { labelKey: 'label', valueKey: 'notice_count', colors: palette, type: 'pie', title: 'فراخوان‌ها بر اساس دسته‌بندی' });
     renderSimpleTable('deadlineTableHost', deadlineRows, 'وضعیت مهلت', 'label', 'notice_count');
     renderSimpleTable('unitTableHost', unitRows, 'واحد مربوطه', 'label', 'notice_count');
     renderSimpleTable('statusTableHost', statusRows, 'وضعیت شرکت', 'label', 'notice_count');
@@ -576,8 +654,18 @@
     $(this).attr('aria-selected', 'true');
     app.find('[role="tabpanel"]').attr('hidden', true);
     $('#' + target).removeAttr('hidden');
+    window.setTimeout(function () {
+      Object.keys(chartInstances).forEach(function (id) {
+        var chart = Chart.getChart(id);
+        if (chart) chart.resize();
+      });
+    }, 0);
   });
 
-  loadLookups();
+  if (typeof Chart === 'undefined') {
+    showStatus('کتابخانه Chart.js بارگیری نشد. مسیر /lib/js/chart-js/chart.umd.min.js را بررسی کنید.', 'error');
+  } else {
+    loadLookups();
+  }
 })(jQuery);
 </script>
