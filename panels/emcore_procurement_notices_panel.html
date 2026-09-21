@@ -259,7 +259,8 @@
       border: 1px solid var(--line);
       border-radius: 8px;
     }
-    .upload-row { display: grid; grid-template-columns: 190px minmax(220px, 1fr) auto; gap: 9px; align-items: end; }
+    .upload-row { display: grid; grid-template-columns: 190px minmax(220px, 1fr) auto; gap: 9px; align-items: start; }
+    .upload-button { align-self: start; margin-block-start: 25px; white-space: nowrap; }
     .file-selection-status { display: block; min-height: 20px; margin-block-start: 3px; color: var(--ink-soft); font-size: 11px; }
     .upload-progress { margin-block-start: 12px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 7px; }
     .upload-progress[hidden] { display: none; }
@@ -351,6 +352,7 @@
       .span-2, .span-4, .form-section, .files-panel { grid-column: 1; }
       .filter-actions, .filter-actions .btn { width: 100%; }
       .upload-row { grid-template-columns: 1fr; }
+      .upload-button { width: 100%; margin-block-start: 0; }
       .file-item { align-items: flex-start; flex-direction: column; }
       .dialog { max-height: calc(100vh - 16px); }
       .overlay { padding: 8px; }
@@ -452,7 +454,7 @@
           <div class="upload-row" id="uploadControls">
             <div class="field"><label for="fileRole">نوع فایل</label><select id="fileRole"><option value="notice_document">مدارک فراخوان</option><option value="final_submission">فایل ارسال نهایی</option></select></div>
             <div class="field"><label for="fileInput">انتخاب فایل‌ها</label><input type="file" id="fileInput" accept=".doc,.docx,.pdf,.xls,.xlsx,.jpg,.jpeg,.png,.zip" multiple><small class="file-selection-status" id="fileSelectionStatus" aria-live="polite">می‌توانید چند فایل را هم‌زمان انتخاب کنید.</small></div>
-            <button type="button" class="btn btn-primary" id="uploadButton">بارگذاری فایل‌ها</button>
+            <button type="button" class="btn btn-primary upload-button" id="uploadButton">بارگذاری فایل‌ها</button>
           </div>
           <div class="upload-progress" id="uploadProgress" role="status" aria-live="polite" hidden><div class="upload-progress-head"><span class="upload-progress-label" id="uploadProgressLabel">آمادهٔ بارگذاری</span><strong class="upload-progress-value" id="uploadProgressValue">۰٪</strong></div><progress id="uploadProgressBar" max="100" value="0" aria-label="پیشرفت بارگذاری فایل‌ها">۰٪</progress></div>
           <div class="file-list" id="fileList"></div>
@@ -550,8 +552,12 @@
     }
     function toJalaali(dateOrYear, month, day) {
       var year = dateOrYear;
-      if (Object.prototype.toString.call(dateOrYear) === '[object Date]') { year = dateOrYear.getFullYear(); month = dateOrYear.getMonth() + 1; day = dateOrYear.getDate(); }
-      return d2j(g2d(Number(year), Number(month), Number(day)));
+      if (dateOrYear && typeof dateOrYear.getFullYear === 'function' && typeof dateOrYear.getMonth === 'function' && typeof dateOrYear.getDate === 'function') {
+        year = dateOrYear.getFullYear(); month = dateOrYear.getMonth() + 1; day = dateOrYear.getDate();
+      }
+      year = Number(year); month = Number(month); day = Number(day);
+      if (!isFinite(year) || !isFinite(month) || !isFinite(day)) throw new Error('تاریخ میلادی معتبر نیست.');
+      return d2j(g2d(year, month, day));
     }
     function toGregorian(year, month, day) { return d2g(j2d(Number(year), Number(month), Number(day))); }
     function isLeapJalaaliYear(year) { return jalCal(Number(year), false).leap === 0; }
@@ -1025,7 +1031,7 @@
   }
 
   function refreshFiles(id) {
-    api('get', { id: id }).done(function (response) { activeFiles = response.data.files || []; $('#lockVersion').val(response.data.lock_version); renderFiles(); });
+    return api('get', { id: id }).done(function (response) { activeFiles = response.data.files || []; $('#lockVersion').val(response.data.lock_version); renderFiles(); });
   }
 
   function downloadFile(fileId) {
