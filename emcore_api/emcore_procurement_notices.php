@@ -355,18 +355,24 @@ if ($action === 'list') {
     $offset = ($page - 1) * $pageSize;
     $whereSql = implode(' AND ', $where);
 
-    $sortBy = isset($_POST['sort_by']) ? trim((string)$_POST['sort_by']) : 'response_deadline';
+    $sortBy = isset($_POST['sort_by']) ? trim((string)$_POST['sort_by']) : 'created_at';
     $sortColumns = [
         'response_deadline' => 'p.response_deadline_en IS NULL, p.response_deadline_en',
+        'days_left' => 'p.response_deadline_en IS NULL, p.response_deadline_en',
         'registered_on' => 'p.registered_on_en',
         'created_at' => 'p.created_at',
         'title' => 'p.title',
+        'notice_type' => 'p.notice_type',
+        'contracting_authority' => 'p.contracting_authority IS NULL, p.contracting_authority',
+        'responsible_unit' => 'p.responsible_unit IS NULL, p.responsible_unit',
+        'participation_status' => 'p.participation_status',
+        'file_count' => 'file_count',
         'id' => 'p.id',
     ];
     if (!isset($sortColumns[$sortBy])) {
         throw new EmcoreHttpException(422, 'مرتب‌سازی نامعتبر است', ['sort_by' => 'invalid_value']);
     }
-    $sortOrder = isset($_POST['sort_order']) ? strtolower(trim((string)$_POST['sort_order'])) : 'asc';
+    $sortOrder = isset($_POST['sort_order']) ? strtolower(trim((string)$_POST['sort_order'])) : 'desc';
     if (!in_array($sortOrder, ['asc', 'desc'], true)) {
         throw new EmcoreHttpException(422, 'جهت مرتب‌سازی نامعتبر است', ['sort_order' => 'invalid_value']);
     }

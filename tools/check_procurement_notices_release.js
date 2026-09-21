@@ -73,6 +73,16 @@ requireText(endpoint, 'lock_version = lock_version + 1', 'optimistic version inc
 requireText(endpoint, "throw new EmcoreHttpException(409", 'concurrency/file conflicts do not return 409');
 requireText(endpoint, 'shamsi_slash_to_gregorian_date', 'server-side Jalali conversion is missing');
 requireText(endpoint, 'DATEDIFF(p.response_deadline_en, CURDATE())', 'deadline state is not derived live');
+requireText(endpoint, ": 'created_at';", 'list API does not default to newest records');
+requireText(endpoint, ": 'desc';", 'list API default sort direction is not descending');
+[
+  "'notice_type' => 'p.notice_type'",
+  "'contracting_authority' => 'p.contracting_authority",
+  "'responsible_unit' => 'p.responsible_unit",
+  "'days_left' => 'p.response_deadline_en",
+  "'participation_status' => 'p.participation_status'",
+  "'file_count' => 'file_count'",
+].forEach((mapping) => requireText(endpoint, mapping, `missing safe list sort mapping ${mapping}`));
 if (/\bLEFT_DAYS\b/.test(endpoint)) failures.push('endpoint depends on the legacy stored LEFT_DAYS column');
 
 requireText(storage, "getenv('EMCORE_PROCUREMENT_STORAGE_ROOT')", 'storage environment configuration is missing');
@@ -97,6 +107,11 @@ requireText(panel, "HTMLFormElement.prototype.submit.call", 'controlled file dow
 requireText(panel, "data-editable", 'read-only field handling is missing');
 requireText(panel, "response_deadline_fa", 'response deadline form field is not submitted');
 requireText(panel, "lock_version", 'panel does not send an optimistic lock version');
+requireText(panel, "var sortBy = 'created_at'", 'panel does not request newest records by default');
+requireText(panel, "var sortOrder = 'desc'", 'panel default sort direction is not descending');
+requireText(panel, 'function sortableHeader', 'clickable table-header sorting is missing');
+requireText(panel, "attr('aria-sort'", 'sortable headers do not expose their state accessibly');
+requireText(panel, 'sort-button', 'sortable header controls are missing');
 if (/\son(?:click|change|submit)\s*=/.test(panel)) failures.push('panel contains an inline event handler');
 if (/\.html\s*\(/.test(panel)) failures.push('panel uses .html() for generated content');
 const panelIds = [...panel.matchAll(/\sid="([^"]+)"/g)].map((match) => match[1]);

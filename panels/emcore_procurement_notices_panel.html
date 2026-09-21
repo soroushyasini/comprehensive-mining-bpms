@@ -149,6 +149,28 @@
     table { width: 100%; min-width: 1120px; border-collapse: collapse; }
     th, td { padding: 11px 12px; border-bottom: 1px solid #e5e3dc; text-align: right; vertical-align: top; }
     th { position: sticky; top: 0; z-index: 1; color: #4b5851; background: #efeee9; font-size: 12px; white-space: nowrap; }
+    th.sortable { padding: 0; }
+    .sort-button {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      width: 100%;
+      min-height: 42px;
+      padding: 11px 12px;
+      color: inherit;
+      background: transparent;
+      border: 0;
+      font: inherit;
+      font-weight: 800;
+      text-align: right;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .sort-button:hover { color: var(--green); background: #e5e7df; }
+    .sort-button:focus-visible { position: relative; z-index: 2; outline: 3px solid rgba(23,102,75,.24); outline-offset: -3px; }
+    .sort-indicator { min-width: 15px; color: #7b847f; font-size: 13px; text-align: center; }
+    th[aria-sort="ascending"] .sort-indicator, th[aria-sort="descending"] .sort-indicator { color: var(--green); }
     tbody tr:last-child td { border-bottom: 0; }
     tbody tr:hover { background: #faf9f5; }
     tbody tr.row-urgent { background: #fffaf0; }
@@ -388,6 +410,8 @@
   var page = 1;
   var pageSize = 25;
   var total = 0;
+  var sortBy = 'created_at';
+  var sortOrder = 'desc';
   var activeFiles = [];
   var dialogReadOnly = false;
   var previousFocus = null;
@@ -490,7 +514,7 @@
   }
 
   function filterData() {
-    return { search: $.trim($('#searchInput').val()), notice_type: $('#typeFilter').val(), deadline_state: $('#deadlineFilter').val(), participation_status: $('#statusFilter').val(), responsible_unit: $('#unitFilter').val(), page: page, page_size: pageSize, sort_by: 'response_deadline', sort_order: 'asc' };
+    return { search: $.trim($('#searchInput').val()), notice_type: $('#typeFilter').val(), deadline_state: $('#deadlineFilter').val(), participation_status: $('#statusFilter').val(), responsible_unit: $('#unitFilter').val(), page: page, page_size: pageSize, sort_by: sortBy, sort_order: sortOrder };
   }
 
   function loadRows() {
@@ -523,12 +547,38 @@
     return faNumber(days) + ' روز مانده';
   }
 
+  function sortableHeader(label, key, preferredOrder) {
+    var active = sortBy === key;
+    var nextOrder = active && sortOrder === 'asc' ? 'desc' : (active ? 'asc' : (preferredOrder || 'asc'));
+    var currentLabel = sortOrder === 'asc' ? 'صعودی' : 'نزولی';
+    var nextLabel = nextOrder === 'asc' ? 'صعودی' : 'نزولی';
+    var th = $('<th>').addClass('sortable').attr('scope', 'col').attr('aria-sort', active ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none');
+    var button = $('<button>').attr({ type: 'button', 'data-sort-key': key, 'aria-label': active ? label + '؛ مرتب‌سازی فعلی ' + currentLabel + '؛ تغییر به ' + nextLabel : label + '؛ مرتب‌سازی ' + nextLabel }).addClass('sort-button');
+    button.append($('<span>').text(label));
+    button.append($('<span>').addClass('sort-indicator').attr('aria-hidden', 'true').text(active ? (sortOrder === 'asc' ? '↑' : '↓') : '↕'));
+    button.on('click', function () {
+      if (sortBy === key) sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+      else { sortBy = key; sortOrder = preferredOrder || 'asc'; }
+      page = 1;
+      loadRows();
+    });
+    return th.append(button);
+  }
+
   function renderTable(rows) {
     var ledger = $('#ledger').empty();
     if (!rows.length) { ledger.append($('<div>').addClass('empty').text('رکوردی با این فیلتر پیدا نشد.')); return; }
     var table = $('<table>');
     var head = $('<tr>');
-    $.each(['عنوان و شماره', 'نوع', 'دستگاه اجرایی', 'واحد / دسته', 'مهلت پاسخ', 'فرصت', 'وضعیت شرکت', 'فایل', 'عملیات'], function (_, label) { head.append($('<th>').text(label)); });
+    head.append(sortableHeader('عنوان و شماره', 'title', 'asc'));
+    head.append(sortableHeader('نوع', 'notice_type', 'asc'));
+    head.append(sortableHeader('دستگاه اجرایی', 'contracting_authority', 'asc'));
+    head.append(sortableHeader('واحد / دسته', 'responsible_unit', 'asc'));
+    head.append(sortableHeader('مهلت پاسخ', 'response_deadline', 'asc'));
+    head.append(sortableHeader('فرصت', 'days_left', 'asc'));
+    head.append(sortableHeader('وضعیت شرکت', 'participation_status', 'asc'));
+    head.append(sortableHeader('فایل', 'file_count', 'desc'));
+    head.append($('<th>').attr('scope', 'col').text('عملیات'));
     table.append($('<thead>').append(head));
     var body = $('<tbody>');
     $.each(rows, function (_, row) {
@@ -717,7 +767,7 @@
   $('#cancelButton,#closeButton').on('click', closeDialog);
   $('#formOverlay').on('click', function (event) { if (event.target === this) closeDialog(); });
   $('#filterButton').on('click', function () { page = 1; hideNotice(); loadRows(); });
-  $('#resetButton').on('click', function () { $('#searchInput,#typeFilter,#deadlineFilter,#statusFilter,#unitFilter').val(''); page = 1; hideNotice(); loadRows(); });
+  $('#resetButton').on('click', function () { $('#searchInput,#typeFilter,#deadlineFilter,#statusFilter,#unitFilter').val(''); page = 1; sortBy = 'created_at'; sortOrder = 'desc'; hideNotice(); loadRows(); });
   $('#searchInput').on('keydown', function (event) { if (event.which === 13) { page = 1; loadRows(); } });
   $('#previousButton').on('click', function () { if (page > 1) { page--; loadRows(); } });
   $('#nextButton').on('click', function () { if (page * pageSize < total) { page++; loadRows(); } });

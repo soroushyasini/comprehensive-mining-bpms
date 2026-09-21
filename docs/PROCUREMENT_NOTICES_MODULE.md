@@ -52,7 +52,9 @@ Endpoint: `/emcore_api/emcore_procurement_notices.php`
 | `delete_file` | delete | بله | حذف نرم فایل |
 | `delete` | delete | بله | حذف نرم فراخوان |
 
-فیلترهای `list` شامل `search`، `notice_type`، `deadline_state`، `participation_status`، `responsible_unit` و `source_name` هستند. پاسخ دارای `pagination.total_pages` و `summary` است.
+فیلترهای `list` شامل `search`، `notice_type`، `deadline_state`، `participation_status`، `responsible_unit` و `source_name` هستند. پاسخ دارای `pagination.total_pages` و `summary` است. مرتب‌سازی سمت سرور و پیش از صفحه‌بندی انجام می‌شود؛ `sort_by` فقط مقادیر allowlist‌شدهٔ `created_at`، `registered_on`، `title`، `notice_type`، `contracting_authority`، `responsible_unit`، `response_deadline`، `days_left`، `participation_status`، `file_count` و `id` را می‌پذیرد و `sort_order` فقط `asc` یا `desc` است. اگر این دو پارامتر ارسال نشوند، فهرست با `created_at DESC, id DESC` جدیدترین رکوردها را ابتدا نمایش می‌دهد.
+
+در پنل، همهٔ سرستون‌های داده‌ای با کلیک یا صفحه‌کلید قابل مرتب‌سازی‌اند؛ جهت فعال با فلش و `aria-sort` اعلام می‌شود. ستون «عملیات» معنای داده‌ای ندارد و قابل مرتب‌سازی نیست. پاک‌کردن فیلترها، ترتیب را نیز به «جدیدترین رکوردها در بالا» بازمی‌گرداند.
 
 ## فایل‌ها
 
