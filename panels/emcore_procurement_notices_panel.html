@@ -260,6 +260,16 @@
       border-radius: 8px;
     }
     .upload-row { display: grid; grid-template-columns: 190px minmax(220px, 1fr) auto; gap: 9px; align-items: end; }
+    .file-selection-status { display: block; min-height: 20px; margin-block-start: 3px; color: var(--ink-soft); font-size: 11px; }
+    .upload-progress { margin-block-start: 12px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 7px; }
+    .upload-progress[hidden] { display: none; }
+    .upload-progress-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-block-end: 7px; color: var(--ink-soft); font-size: 12px; }
+    .upload-progress-label { overflow-wrap: anywhere; }
+    .upload-progress-value { flex: 0 0 auto; color: var(--green); font-variant-numeric: tabular-nums; }
+    .upload-progress progress { display: block; width: 100%; height: 10px; overflow: hidden; accent-color: var(--green); background: var(--surface-muted); border: 0; border-radius: 999px; }
+    .upload-progress progress::-webkit-progress-bar { background: var(--surface-muted); }
+    .upload-progress progress::-webkit-progress-value { background: var(--green); transition: inline-size .2s ease; }
+    .upload-progress progress::-moz-progress-bar { background: var(--green); }
     .file-list { display: grid; gap: 7px; margin-top: 12px; }
     .file-item {
       display: flex;
@@ -275,6 +285,59 @@
     .file-meta { color: var(--ink-soft); font-size: 11px; }
     .file-actions { display: flex; flex-shrink: 0; gap: 6px; }
     .read-only-note { display: none; color: var(--ink-soft); font-size: 12px; }
+    .date-input-wrap { position: relative; display: flex; align-items: stretch; }
+    .date-input-wrap input { min-width: 0; padding-inline-end: 44px; text-align: start; }
+    .date-trigger {
+      position: absolute;
+      inset-inline-end: 4px;
+      inset-block-start: 4px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      color: var(--green);
+      background: var(--surface-muted);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+    }
+    .date-trigger svg, .calendar-nav svg { width: 17px; height: 17px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .jalali-datepicker {
+      position: absolute;
+      inset-inline-start: 0;
+      inset-block-start: calc(100% + 6px);
+      z-index: 20;
+      width: min(320px, calc(100vw - 36px));
+      padding: 12px;
+      color: var(--ink);
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      direction: rtl;
+    }
+    .jalali-datepicker[hidden] { display: none; }
+    .calendar-head { display: grid; grid-template-columns: 36px 1fr 36px; align-items: center; gap: 8px; margin-block-end: 10px; }
+    .calendar-title { color: var(--ink); font-weight: 800; text-align: center; }
+    .calendar-nav { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; color: var(--ink); background: var(--surface-muted); border: 1px solid var(--line); border-radius: 7px; }
+    .calendar-week, .calendar-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
+    .calendar-week { margin-block-end: 4px; color: var(--ink-soft); font-size: 11px; font-weight: 800; text-align: center; }
+    .calendar-week [role="columnheader"] { min-height: 26px; }
+    .calendar-day, .calendar-blank { display: inline-flex; align-items: center; justify-content: center; min-width: 34px; min-height: 34px; padding: 0; }
+    .calendar-day { color: var(--ink); background: transparent; border: 1px solid transparent; border-radius: 7px; transition: background .18s ease, color .18s ease, border-color .18s ease; }
+    .calendar-day:hover { background: var(--surface-muted); border-color: var(--line); }
+    .calendar-day.friday { color: var(--ink-soft); }
+    .calendar-day.today { box-shadow: inset 0 0 0 2px var(--green); }
+    .calendar-day[aria-selected="true"] { color: var(--surface); background: var(--green); border-color: var(--green); box-shadow: none; }
+    .calendar-actions { display: flex; justify-content: space-between; gap: 8px; margin-block-start: 10px; padding-block-start: 10px; border-top: 1px solid var(--line); }
+    .calendar-action { min-height: 34px; padding: 5px 10px; color: var(--green); background: var(--surface); border: 1px solid var(--line); border-radius: 7px; }
+    @supports (-webkit-touch-callout: none) {
+      input, select, textarea, .jalali-datepicker button { font-size: 16px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .btn, .calendar-day, .upload-progress progress::-webkit-progress-value { transition: none; }
+    }
     @media (max-width: 1180px) {
       .summary-grid { grid-template-columns: repeat(3, 1fr); }
       .filter-grid { grid-template-columns: repeat(3, 1fr); }
@@ -348,7 +411,7 @@
       <div class="form-grid">
         <div class="form-section">مشخصات اصلی</div>
         <div class="field"><label for="noticeType">نوع <span class="required">*</span></label><select id="noticeType" data-editable><option value="tender">مناقصه</option><option value="auction">مزایده</option><option value="unknown" disabled>نامشخص — نیازمند اصلاح</option></select></div>
-        <div class="field"><label for="registeredOn">تاریخ ثبت <span class="required">*</span></label><input type="text" id="registeredOn" class="ltr" maxlength="10" inputmode="numeric" placeholder="1405/01/01" data-editable></div>
+        <div class="field"><label for="registeredOn">تاریخ ثبت <span class="required">*</span></label><input type="text" id="registeredOn" maxlength="10" inputmode="numeric" placeholder="۱۴۰۵/۰۱/۰۱" data-editable></div>
         <div class="field"><label for="sourceName">اخذ شده از</label><input type="text" id="sourceName" maxlength="255" list="sourceOptions" data-editable></div>
         <div class="field"><label for="supplierName">تأمین‌کننده</label><input type="text" id="supplierName" maxlength="255" data-editable></div>
         <div class="field span-4"><label for="title">عنوان <span class="required">*</span></label><textarea id="title" maxlength="1000" data-editable></textarea></div>
@@ -361,8 +424,13 @@
         <div class="field"><label for="deliveryTerm">نحوه تحویل بار</label><input type="text" id="deliveryTerm" maxlength="32" list="deliveryOptions" placeholder="FOB، EXW…" data-editable></div>
 
         <div class="form-section">مهلت‌ها و تضامین</div>
-        <div class="field"><label for="documentsDeadline">مهلت دریافت اسناد</label><input type="text" id="documentsDeadline" class="ltr" maxlength="10" inputmode="numeric" placeholder="1405/01/01" data-editable></div>
-        <div class="field"><label for="responseDeadline">مهلت پاسخ</label><input type="text" id="responseDeadline" class="ltr" maxlength="10" inputmode="numeric" placeholder="1405/01/01" data-editable></div>
+        <div class="field"><label for="documentsDeadline">مهلت دریافت اسناد</label><div class="date-input-wrap"><input type="text" id="documentsDeadline" maxlength="10" inputmode="numeric" placeholder="۱۴۰۵/۰۱/۰۱" autocomplete="off" data-editable><button type="button" class="date-trigger" data-date-target="documentsDeadline" aria-label="انتخاب مهلت دریافت اسناد از تقویم" aria-haspopup="dialog" aria-expanded="false" aria-controls="jalaliDatepicker"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"></path><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"></path></svg></button></div></div>
+        <div class="field"><label for="responseDeadline">مهلت پاسخ</label><div class="date-input-wrap"><input type="text" id="responseDeadline" maxlength="10" inputmode="numeric" placeholder="۱۴۰۵/۰۱/۰۱" autocomplete="off" data-editable><button type="button" class="date-trigger" data-date-target="responseDeadline" aria-label="انتخاب مهلت پاسخ از تقویم" aria-haspopup="dialog" aria-expanded="false" aria-controls="jalaliDatepicker"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"></path><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"></path></svg></button></div></div>
+        <div id="jalaliDatepicker" class="jalali-datepicker" role="dialog" aria-modal="false" aria-label="انتخاب تاریخ شمسی" dir="rtl" hidden>
+          <div class="calendar-head"><button type="button" class="calendar-nav" id="jalaliPrevMonth" aria-label="ماه قبل"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg></button><div class="calendar-title" id="jalaliMonthLabel" aria-live="polite"></div><button type="button" class="calendar-nav" id="jalaliNextMonth" aria-label="ماه بعد"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg></button></div>
+          <div id="jalaliCalendarGrid" role="grid" aria-labelledby="jalaliMonthLabel"><div class="calendar-week" role="row" id="jalaliWeekdays"></div><div id="jalaliDays" role="presentation"></div></div>
+          <div class="calendar-actions"><button type="button" class="calendar-action" id="jalaliToday">امروز</button><button type="button" class="calendar-action" id="jalaliClear">پاک‌کردن تاریخ</button></div>
+        </div>
         <div class="field"><label for="alertLeadDays">هشدار از چند روز قبل</label><input type="number" id="alertLeadDays" min="0" max="365" value="5" data-editable></div>
         <div class="field"><label for="extensionStatus">تمدید شده؟</label><select id="extensionStatus" data-editable><option value="">نامشخص</option><option value="1">بله</option><option value="0">خیر</option></select></div>
         <div class="field span-2"><label for="primaryGuarantee">ضمانت‌نامه</label><input type="text" id="primaryGuarantee" maxlength="255" list="guaranteeOptions" data-editable></div>
@@ -383,9 +451,10 @@
         <section class="files-panel" id="filesPanel" aria-label="فایل‌های فراخوان">
           <div class="upload-row" id="uploadControls">
             <div class="field"><label for="fileRole">نوع فایل</label><select id="fileRole"><option value="notice_document">مدارک فراخوان</option><option value="final_submission">فایل ارسال نهایی</option></select></div>
-            <div class="field"><label for="fileInput">انتخاب فایل</label><input type="file" id="fileInput" accept=".doc,.docx,.pdf,.xls,.xlsx,.jpg,.jpeg,.png,.zip"></div>
-            <button type="button" class="btn btn-primary" id="uploadButton">بارگذاری</button>
+            <div class="field"><label for="fileInput">انتخاب فایل‌ها</label><input type="file" id="fileInput" accept=".doc,.docx,.pdf,.xls,.xlsx,.jpg,.jpeg,.png,.zip" multiple><small class="file-selection-status" id="fileSelectionStatus" aria-live="polite">می‌توانید چند فایل را هم‌زمان انتخاب کنید.</small></div>
+            <button type="button" class="btn btn-primary" id="uploadButton">بارگذاری فایل‌ها</button>
           </div>
+          <div class="upload-progress" id="uploadProgress" role="status" aria-live="polite" hidden><div class="upload-progress-head"><span class="upload-progress-label" id="uploadProgressLabel">آمادهٔ بارگذاری</span><strong class="upload-progress-value" id="uploadProgressValue">۰٪</strong></div><progress id="uploadProgressBar" max="100" value="0" aria-label="پیشرفت بارگذاری فایل‌ها">۰٪</progress></div>
           <div class="file-list" id="fileList"></div>
         </section>
       </div>
@@ -415,6 +484,12 @@
   var activeFiles = [];
   var dialogReadOnly = false;
   var previousFocus = null;
+  var uploadInProgress = false;
+  var activeDateTarget = '';
+  var activeDateTrigger = null;
+  var calendarYear = 0;
+  var calendarMonth = 0;
+  var calendarFocusDay = 1;
 
   var labels = {
     noticeType: { tender: 'مناقصه', auction: 'مزایده', unknown: 'نامشخص' },
@@ -423,6 +498,74 @@
     fileRole: { notice_document: 'مدارک فراخوان', final_submission: 'فایل ارسال نهایی' },
     method: { physical: 'فیزیکی', online: 'آنلاین', other: 'سایر' }
   };
+
+  var jalaali = (function () {
+    var breaks = [-61, 9, 38, 199, 426, 686, 756, 818, 1111, 1181, 1210, 1635, 2060, 2097, 2192, 2262, 2324, 2394, 2456, 3178];
+    function div(a, b) { return ~~(a / b); }
+    function mod(a, b) { return a - ~~(a / b) * b; }
+    function jalCal(jy, withoutLeap) {
+      var bl = breaks.length; var gy = jy + 621; var leapJ = -14; var jp = breaks[0];
+      var jm; var jump; var leap; var leapG; var march; var n; var i;
+      if (jy < jp || jy >= breaks[bl - 1]) throw new Error('سال شمسی خارج از محدوده است.');
+      for (i = 1; i < bl; i += 1) { jm = breaks[i]; jump = jm - jp; if (jy < jm) break; leapJ += div(jump, 33) * 8 + div(mod(jump, 33), 4); jp = jm; }
+      n = jy - jp;
+      leapJ += div(n, 33) * 8 + div(mod(n, 33) + 3, 4);
+      if (mod(jump, 33) === 4 && jump - n === 4) leapJ += 1;
+      leapG = div(gy, 4) - div((div(gy, 100) + 1) * 3, 4) - 150;
+      march = 20 + leapJ - leapG;
+      if (withoutLeap) return { gy: gy, march: march };
+      if (jump - n < 6) n = n - jump + div(jump + 4, 33) * 33;
+      leap = mod(mod(n + 1, 33) - 1, 4);
+      if (leap === -1) leap = 4;
+      return { leap: leap, gy: gy, march: march };
+    }
+    function g2d(gy, gm, gd) {
+      var value = div((gy + div(gm - 8, 6) + 100100) * 1461, 4) + div(153 * mod(gm + 9, 12) + 2, 5) + gd - 34840408;
+      return value - div(div(gy + 100100 + div(gm - 8, 6), 100) * 3, 4) + 752;
+    }
+    function d2g(jdn) {
+      var j = 4 * jdn + 139361631;
+      j = j + div(div(4 * jdn + 183187720, 146097) * 3, 4) * 4 - 3908;
+      var i = div(mod(j, 1461), 4) * 5 + 308;
+      var gd = div(mod(i, 153), 5) + 1;
+      var gm = mod(div(i, 153), 12) + 1;
+      var gy = div(j, 1461) - 100100 + div(8 - gm, 6);
+      return { gy: gy, gm: gm, gd: gd };
+    }
+    function j2d(jy, jm, jd) {
+      var result = jalCal(jy, true);
+      return g2d(result.gy, 3, result.march) + (jm - 1) * 31 - div(jm, 7) * (jm - 7) + jd - 1;
+    }
+    function d2j(jdn) {
+      var gregorian = d2g(jdn); var jy = gregorian.gy - 621; var result = jalCal(jy, false);
+      var firstFarvardin = g2d(gregorian.gy, 3, result.march); var k = jdn - firstFarvardin; var jm; var jd;
+      if (k >= 0) {
+        if (k <= 185) return { jy: jy, jm: 1 + div(k, 31), jd: mod(k, 31) + 1 };
+        k -= 186;
+      } else {
+        jy -= 1; k += 179; if (result.leap === 1) k += 1;
+      }
+      jm = 7 + div(k, 30); jd = mod(k, 30) + 1;
+      return { jy: jy, jm: jm, jd: jd };
+    }
+    function toJalaali(dateOrYear, month, day) {
+      var year = dateOrYear;
+      if (Object.prototype.toString.call(dateOrYear) === '[object Date]') { year = dateOrYear.getFullYear(); month = dateOrYear.getMonth() + 1; day = dateOrYear.getDate(); }
+      return d2j(g2d(Number(year), Number(month), Number(day)));
+    }
+    function toGregorian(year, month, day) { return d2g(j2d(Number(year), Number(month), Number(day))); }
+    function isLeapJalaaliYear(year) { return jalCal(Number(year), false).leap === 0; }
+    function jalaaliMonthLength(year, month) { if (month <= 6) return 31; if (month <= 11) return 30; return isLeapJalaaliYear(year) ? 30 : 29; }
+    function isValidJalaaliDate(year, month, day) {
+      return year >= -61 && year <= 3177 && month >= 1 && month <= 12 && day >= 1 && day <= jalaaliMonthLength(year, month);
+    }
+    function toDate(year, month, day) {
+      if (!isValidJalaaliDate(year, month, day)) throw new Error('تاریخ شمسی معتبر نیست.');
+      var gregorian = toGregorian(year, month, day);
+      return new Date(gregorian.gy, gregorian.gm - 1, gregorian.gd, 12, 0, 0, 0);
+    }
+    return { toJalaali: toJalaali, toGregorian: toGregorian, toDate: toDate, isValidJalaaliDate: isValidJalaaliDate, jalaaliMonthLength: jalaaliMonthLength };
+  }());
 
   function api(action, data, options) {
     data = data || {};
@@ -439,9 +582,22 @@
     });
   }
 
-  function uploadApi(formData) {
+  function uploadApi(formData, onProgress) {
     formData.append('action', 'upload_file');
-    return $.ajax({ url: API, method: 'POST', dataType: 'json', data: formData, processData: false, contentType: false, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {} });
+    return $.ajax({
+      url: API,
+      method: 'POST',
+      dataType: 'json',
+      data: formData,
+      processData: false,
+      contentType: false,
+      headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
+      xhr: function () {
+        var xhr = $.ajaxSettings.xhr();
+        if (xhr.upload && onProgress) xhr.upload.addEventListener('progress', onProgress);
+        return xhr;
+      }
+    });
   }
 
   function errorText(xhr) {
@@ -460,16 +616,98 @@
     var arabic = '٠١٢٣٤٥٦٧٨٩';
     return String(value || '').replace(/[۰-۹]/g, function (digit) { return persian.indexOf(digit); }).replace(/[٠-٩]/g, function (digit) { return arabic.indexOf(digit); });
   }
+  function toPersianDigits(value) { return String(value === null || value === undefined ? '' : value).replace(/[0-9]/g, function (digit) { return '۰۱۲۳۴۵۶۷۸۹'[Number(digit)]; }); }
   function two(value) { return String(value).length < 2 ? '0' + value : String(value); }
+  function formatJalali(year, month, day) { return toPersianDigits(year + '/' + two(month) + '/' + two(day)); }
   function dateToJalali(date) {
-    try {
-      var formatter = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { year: 'numeric', month: '2-digit', day: '2-digit' });
-      var values = {};
-      $.each(formatter.formatToParts(date), function (_, part) { if (part.type !== 'literal') values[part.type] = toLatinDigits(part.value); });
-      return values.year + '/' + two(values.month) + '/' + two(values.day);
-    } catch (error) { return ''; }
+    try { var value = jalaali.toJalaali(date); return formatJalali(value.jy, value.jm, value.jd); } catch (error) { return ''; }
   }
   function todayJalali() { return dateToJalali(new Date()); }
+  function parseJalali(value) {
+    var normalized = toLatinDigits($.trim(value));
+    var match = /^(1[34][0-9]{2})\/(0[1-9]|1[0-2])\/([0-2][0-9]|3[01])$/.exec(normalized);
+    if (!match) return null;
+    var year = Number(match[1]); var month = Number(match[2]); var day = Number(match[3]);
+    if (!jalaali.isValidJalaaliDate(year, month, day)) return null;
+    return { jy: year, jm: month, jd: day, date: jalaali.toDate(year, month, day) };
+  }
+
+  function renderCalendar(focusDay) {
+    var monthNames = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'];
+    var weekdays = ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'];
+    var selected = activeDateTarget ? parseJalali($('#' + activeDateTarget).val()) : null;
+    var today = jalaali.toJalaali(new Date());
+    $('#jalaliMonthLabel').text(monthNames[calendarMonth - 1] + ' ' + toPersianDigits(calendarYear));
+    var weekHost = $('#jalaliWeekdays').empty();
+    $.each(weekdays, function (index, label) { weekHost.append($('<span>').attr('role', 'columnheader').addClass(index === 6 ? 'friday' : '').text(label)); });
+    var host = $('#jalaliDays').empty();
+    var firstDate = jalaali.toDate(calendarYear, calendarMonth, 1);
+    var offset = (firstDate.getDay() + 1) % 7;
+    var monthLength = jalaali.jalaaliMonthLength(calendarYear, calendarMonth);
+    var cell = 0; var day = 1;
+    for (var rowIndex = 0; rowIndex < 6; rowIndex += 1) {
+      var row = $('<div>').addClass('calendar-row').attr('role', 'row');
+      for (var column = 0; column < 7; column += 1) {
+        if (cell < offset || day > monthLength) {
+          row.append($('<span>').addClass('calendar-blank').attr({ role: 'gridcell', 'aria-hidden': 'true' }));
+        } else {
+          var isSelected = Boolean(selected && selected.jy === calendarYear && selected.jm === calendarMonth && selected.jd === day);
+          var isToday = today.jy === calendarYear && today.jm === calendarMonth && today.jd === day;
+          var label = formatJalali(calendarYear, calendarMonth, day);
+          var button = $('<button>').attr({ type: 'button', role: 'gridcell', 'data-day': day, 'data-column': column, 'aria-label': label, 'aria-selected': isSelected ? 'true' : 'false', tabindex: day === calendarFocusDay ? '0' : '-1' }).addClass('calendar-day').text(toPersianDigits(day));
+          if (column === 6) button.addClass('friday');
+          if (isToday) button.addClass('today').attr('aria-current', 'date');
+          button.on('click', function () { selectJalaliDate(calendarYear, calendarMonth, Number($(this).data('day'))); });
+          row.append(button); day += 1;
+        }
+        cell += 1;
+      }
+      host.append(row);
+    }
+    if (focusDay) window.setTimeout(function () { $('#jalaliDays .calendar-day[data-day="' + calendarFocusDay + '"]').trigger('focus'); }, 0);
+  }
+
+  function openJalaliDatepicker(targetId, trigger) {
+    if (dialogReadOnly || uploadInProgress) return;
+    var selected = parseJalali($('#' + targetId).val());
+    var basis = selected || jalaali.toJalaali(new Date());
+    activeDateTarget = targetId; activeDateTrigger = $(trigger); calendarYear = basis.jy; calendarMonth = basis.jm; calendarFocusDay = basis.jd;
+    $('.date-trigger').attr('aria-expanded', 'false');
+    activeDateTrigger.attr('aria-expanded', 'true');
+    $('#jalaliDatepicker').appendTo(activeDateTrigger.closest('.date-input-wrap')).prop('hidden', false);
+    renderCalendar(true);
+  }
+
+  function closeJalaliDatepicker(restoreFocus) {
+    $('#jalaliDatepicker').prop('hidden', true);
+    $('.date-trigger').attr('aria-expanded', 'false');
+    if (restoreFocus && activeDateTrigger) activeDateTrigger.trigger('focus');
+    activeDateTarget = ''; activeDateTrigger = null;
+  }
+
+  function selectJalaliDate(year, month, day) {
+    var selectedDate = jalaali.toDate(year, month, day);
+    var input = $('#' + activeDateTarget);
+    input.val(formatJalali(year, month, day)).data('selected-date', selectedDate).trigger('change');
+    closeJalaliDatepicker(false); input.trigger('focus');
+    return selectedDate;
+  }
+
+  function changeCalendarMonth(delta, focusDay) {
+    calendarMonth += delta;
+    if (calendarMonth < 1) { calendarMonth = 12; calendarYear -= 1; }
+    if (calendarMonth > 12) { calendarMonth = 1; calendarYear += 1; }
+    calendarFocusDay = Math.min(focusDay || calendarFocusDay, jalaali.jalaaliMonthLength(calendarYear, calendarMonth));
+    renderCalendar(true);
+  }
+
+  function moveCalendarFocus(delta) {
+    var current = jalaali.toDate(calendarYear, calendarMonth, calendarFocusDay);
+    current.setDate(current.getDate() + delta);
+    var next = jalaali.toJalaali(current);
+    calendarYear = next.jy; calendarMonth = next.jm; calendarFocusDay = next.jd;
+    renderCalendar(true);
+  }
   function displayText(value) { return value === null || value === undefined || value === '' ? '—' : String(value); }
   function fileSize(bytes) {
     bytes = Number(bytes || 0);
@@ -594,7 +832,7 @@
       var category = $('<td>').text(displayText(row.responsible_unit));
       if (row.category_name || row.product_name) category.append($('<span>').addClass('secondary').text([row.category_name, row.product_name].filter(Boolean).join(' · ')));
       tr.append(category);
-      tr.append($('<td>').attr('dir', 'ltr').text(displayText(row.response_deadline_fa)));
+      tr.append($('<td>').text(row.response_deadline_fa ? toPersianDigits(row.response_deadline_fa) : '—'));
       tr.append($('<td>').append($('<span>').addClass('badge badge-' + row.deadline_state).text(deadlineLabel(row))));
       tr.append($('<td>').append($('<span>').addClass('badge badge-' + String(row.participation_status).replace(/_/g, '-')).text(labels.status[row.participation_status] || row.participation_status)));
       tr.append($('<td>').text(faNumber(row.file_count || 0)));
@@ -622,16 +860,20 @@
   }
 
   function resetForm() {
+    closeJalaliDatepicker(false);
     $('#recordId,#lockVersion,#sourceName,#supplierName,#title,#referenceNumber,#quantityText,#amountText,#currency,#contractingAuthority,#deliveryTerm,#documentsDeadline,#responseDeadline,#primaryGuarantee,#secondaryGuarantee,#responsibleUnit,#categoryName,#subcategoryName,#productName,#drillingArea,#interestReason').val('');
     $('#noticeType').val('tender'); $('#registeredOn').val(todayJalali()); $('#submissionMethod').val('');
     $('#alertLeadDays').val('5'); $('#extensionStatus').val(''); $('#participationStatus').val('registered');
     $('#fileInput').val(''); $('#fileRole').val('notice_document'); $('#fileList').empty();
-    $('#formError').hide().text(''); activeFiles = []; updateConditionalFields();
+    $('#fileSelectionStatus').text('می‌توانید چند فایل را هم‌زمان انتخاب کنید.');
+    $('#uploadProgress').prop('hidden', true); $('#uploadProgressBar').val(0); $('#uploadProgressValue').text('۰٪'); $('#uploadProgressLabel').text('آمادهٔ بارگذاری');
+    $('#formError').hide().text(''); activeFiles = []; uploadInProgress = false; updateConditionalFields();
   }
 
   function setDialogMode(readOnly) {
     dialogReadOnly = readOnly;
     $('[data-editable]').prop('disabled', readOnly);
+    $('.date-trigger').prop('disabled', readOnly);
     $('#saveButton').toggle(!readOnly);
     $('#readOnlyNote').toggle(readOnly);
     $('#uploadControls').toggle(!readOnly && Boolean(lookups.storage_ready));
@@ -653,11 +895,11 @@
     api('get', { id: id }).done(function (response) {
       var row = response.data;
       $('#recordId').val(row.id); $('#lockVersion').val(row.lock_version); $('#noticeType').val(row.notice_type);
-      $('#registeredOn').val(row.registered_on_fa); $('#sourceName').val(row.source_name || ''); $('#supplierName').val(row.supplier_name || '');
+      $('#registeredOn').val(toPersianDigits(row.registered_on_fa)); $('#sourceName').val(row.source_name || ''); $('#supplierName').val(row.supplier_name || '');
       $('#title').val(row.title); $('#referenceNumber').val(row.reference_number || ''); $('#quantityText').val(row.quantity_text || '');
       $('#amountText').val(row.amount_text || ''); $('#currency').val(row.currency || ''); $('#contractingAuthority').val(row.contracting_authority || '');
       $('#submissionMethod').val(row.submission_method || ''); $('#deliveryTerm').val(row.delivery_term || '');
-      $('#documentsDeadline').val(row.documents_deadline_fa || ''); $('#responseDeadline').val(row.response_deadline_fa || '');
+      $('#documentsDeadline').val(toPersianDigits(row.documents_deadline_fa || '')); $('#responseDeadline').val(toPersianDigits(row.response_deadline_fa || ''));
       $('#alertLeadDays').val(row.alert_lead_days); $('#extensionStatus').val(row.is_extended === null ? '' : String(row.is_extended));
       $('#primaryGuarantee').val(row.primary_guarantee || ''); $('#secondaryGuarantee').val(row.secondary_guarantee || '');
       $('#responsibleUnit').val(row.responsible_unit || ''); $('#categoryName').val(row.category_name || ''); $('#subcategoryName').val(row.subcategory_name || '');
@@ -683,13 +925,12 @@
   }
 
   function validateForm(data) {
-    var datePattern = /^1[34][0-9]{2}\/(0[1-9]|1[0-2])\/([0-2][0-9]|3[01])$/;
     if (!data.title) return 'عنوان فراخوان را وارد کنید.';
     if (data.notice_type !== 'tender' && data.notice_type !== 'auction') return 'نوع فراخوان را مشخص کنید.';
     if (data.participation_status === 'unknown') return 'وضعیت شرکت را مشخص کنید.';
-    if (!datePattern.test(data.registered_on_fa)) return 'تاریخ ثبت را با قالب YYYY/MM/DD وارد کنید.';
-    if (data.documents_deadline_fa && !datePattern.test(data.documents_deadline_fa)) return 'مهلت دریافت اسناد معتبر نیست.';
-    if (data.response_deadline_fa && !datePattern.test(data.response_deadline_fa)) return 'مهلت پاسخ معتبر نیست.';
+    if (!parseJalali(data.registered_on_fa)) return 'تاریخ ثبت را با قالب YYYY/MM/DD وارد کنید.';
+    if (data.documents_deadline_fa && !parseJalali(data.documents_deadline_fa)) return 'مهلت دریافت اسناد معتبر نیست.';
+    if (data.response_deadline_fa && !parseJalali(data.response_deadline_fa)) return 'مهلت پاسخ معتبر نیست.';
     if (Number(data.alert_lead_days) < 0 || Number(data.alert_lead_days) > 365) return 'بازه هشدار باید بین صفر تا ۳۶۵ روز باشد.';
     return '';
   }
@@ -730,10 +971,57 @@
 
   function uploadFile() {
     var recordId = $('#recordId').val(); var fileElement = $('#fileInput')[0];
-    if (!recordId || !fileElement.files || !fileElement.files.length) { $('#formError').text('ابتدا فایل را انتخاب کنید.').show(); return; }
-    var data = new FormData(); data.append('procurement_id', recordId); data.append('file_role', $('#fileRole').val()); data.append('file', fileElement.files[0]);
-    $('#uploadButton').prop('disabled', true); $('#formError').hide().text('');
-    uploadApi(data).done(function () { $('#fileInput').val(''); refreshFiles(recordId); }).fail(function (xhr) { $('#formError').text(errorText(xhr)).show(); }).always(function () { $('#uploadButton').prop('disabled', false); });
+    if (!recordId || !fileElement.files || !fileElement.files.length) { $('#formError').text('ابتدا یک یا چند فایل را انتخاب کنید.').show(); return; }
+    if (uploadInProgress) return;
+    var files = Array.prototype.slice.call(fileElement.files);
+    var maxBytes = Number(lookups.max_upload_bytes || 0);
+    var oversized = files.find(function (file) { return maxBytes > 0 && file.size > maxBytes; });
+    if (oversized) { $('#formError').text('حجم فایل «' + oversized.name + '» از سقف مجاز ' + fileSize(maxBytes) + ' بیشتر است.').show(); return; }
+    var totalBytes = files.reduce(function (sum, file) { return sum + Number(file.size || 0); }, 0);
+    var uploadedBytes = 0; var successful = 0; var role = $('#fileRole').val();
+    uploadInProgress = true;
+    $('#fileInput,#fileRole,#uploadButton,#saveButton,#cancelButton,#closeButton').prop('disabled', true);
+    $('#formError').hide().text(''); $('#uploadProgress').prop('hidden', false);
+
+    function updateProgress(percent, label) {
+      var safePercent = Math.max(0, Math.min(100, Math.round(percent || 0)));
+      $('#uploadProgressBar').val(safePercent).text(toPersianDigits(safePercent) + '٪');
+      $('#uploadProgressValue').text(toPersianDigits(safePercent) + '٪');
+      $('#uploadProgressLabel').text(label);
+    }
+
+    function releaseUploadControls() {
+      uploadInProgress = false;
+      $('#fileInput,#fileRole,#uploadButton,#cancelButton,#closeButton').prop('disabled', false);
+      $('#saveButton').prop('disabled', dialogReadOnly);
+    }
+
+    function uploadNext(index) {
+      if (index >= files.length) {
+        updateProgress(100, toPersianDigits(successful) + ' فایل با موفقیت بارگذاری شد.');
+        $('#fileInput').val(''); $('#fileSelectionStatus').text('می‌توانید چند فایل را هم‌زمان انتخاب کنید.');
+        refreshFiles(recordId).always(releaseUploadControls);
+        return;
+      }
+      var file = files[index]; var data = new FormData();
+      data.append('procurement_id', recordId); data.append('file_role', role); data.append('file', file);
+      updateProgress(totalBytes ? uploadedBytes * 100 / totalBytes : index * 100 / files.length, 'در حال بارگذاری فایل ' + toPersianDigits(index + 1) + ' از ' + toPersianDigits(files.length) + ': ' + file.name);
+      uploadApi(data, function (event) {
+        if (!event.lengthComputable) return;
+        var currentLoaded = totalBytes ? Math.min(Number(file.size || 0), event.loaded) : event.loaded / event.total;
+        var percent = totalBytes ? (uploadedBytes + currentLoaded) * 100 / totalBytes : (index + currentLoaded) * 100 / files.length;
+        updateProgress(percent, 'در حال بارگذاری فایل ' + toPersianDigits(index + 1) + ' از ' + toPersianDigits(files.length) + ': ' + file.name);
+      }).done(function () {
+        successful += 1; uploadedBytes += Number(file.size || 0); uploadNext(index + 1);
+      }).fail(function (xhr) {
+        updateProgress(totalBytes ? uploadedBytes * 100 / totalBytes : successful * 100 / files.length, 'بارگذاری در فایل «' + file.name + '» متوقف شد.');
+        $('#formError').text(toPersianDigits(successful) + ' فایل بارگذاری شد؛ فایل «' + file.name + '» ناموفق بود و ادامهٔ صف ارسال نشد. ' + errorText(xhr)).show();
+        $('#fileInput').val(''); $('#fileSelectionStatus').text('برای تلاش دوباره، فایل‌های باقی‌مانده را انتخاب کنید.');
+        refreshFiles(recordId).always(releaseUploadControls);
+      });
+    }
+
+    uploadNext(0);
   }
 
   function refreshFiles(id) {
@@ -758,12 +1046,57 @@
   }
 
   function closeDialog() {
+    if (uploadInProgress) { $('#formError').text('تا پایان بارگذاری فایل‌ها امکان بستن این پنجره وجود ندارد.').show(); return; }
+    closeJalaliDatepicker(false);
     $('#formOverlay').removeClass('open').attr('aria-hidden', 'true');
     if (previousFocus && previousFocus.focus) previousFocus.focus();
   }
 
   $('#responsibleUnit,#participationStatus').on('input change', updateConditionalFields);
   $('#addButton').on('click', openCreate); $('#saveButton').on('click', saveRecord); $('#uploadButton').on('click', uploadFile);
+  $('#fileInput').on('change', function () {
+    var files = this.files ? Array.prototype.slice.call(this.files) : [];
+    if (!files.length) { $('#fileSelectionStatus').text('می‌توانید چند فایل را هم‌زمان انتخاب کنید.'); return; }
+    var totalSize = files.reduce(function (sum, file) { return sum + Number(file.size || 0); }, 0);
+    $('#fileSelectionStatus').text(toPersianDigits(files.length) + ' فایل انتخاب شد · ' + fileSize(totalSize));
+    $('#uploadProgress').prop('hidden', true); $('#formError').hide().text('');
+  });
+  $('.date-trigger').on('click', function () {
+    var target = String($(this).data('date-target'));
+    if (activeDateTarget === target && !$('#jalaliDatepicker').prop('hidden')) closeJalaliDatepicker(true);
+    else openJalaliDatepicker(target, this);
+  });
+  $('#jalaliPrevMonth').on('click', function () { changeCalendarMonth(-1); });
+  $('#jalaliNextMonth').on('click', function () { changeCalendarMonth(1); });
+  $('#jalaliToday').on('click', function () { var today = jalaali.toJalaali(new Date()); selectJalaliDate(today.jy, today.jm, today.jd); });
+  $('#jalaliClear').on('click', function () {
+    var input = $('#' + activeDateTarget); input.val('').removeData('selected-date').trigger('change'); closeJalaliDatepicker(false); input.trigger('focus');
+  });
+  $('#documentsDeadline,#responseDeadline').on('keydown', function (event) {
+    if (event.altKey && event.key === 'ArrowDown') { event.preventDefault(); openJalaliDatepicker(this.id, $('.date-trigger[data-date-target="' + this.id + '"]')[0]); }
+    if (event.key === 'Escape' && !$('#jalaliDatepicker').prop('hidden')) { event.preventDefault(); closeJalaliDatepicker(false); $(this).trigger('focus'); }
+  });
+  $('#jalaliDays').on('keydown', '.calendar-day', function (event) {
+    calendarFocusDay = Number($(this).data('day'));
+    var column = Number($(this).data('column')); var handled = true;
+    if (event.key === 'ArrowRight') moveCalendarFocus(-1);
+    else if (event.key === 'ArrowLeft') moveCalendarFocus(1);
+    else if (event.key === 'ArrowUp') moveCalendarFocus(-7);
+    else if (event.key === 'ArrowDown') moveCalendarFocus(7);
+    else if (event.key === 'Home') moveCalendarFocus(-column);
+    else if (event.key === 'End') moveCalendarFocus(6 - column);
+    else if (event.key === 'PageUp') changeCalendarMonth(-1, calendarFocusDay);
+    else if (event.key === 'PageDown') changeCalendarMonth(1, calendarFocusDay);
+    else if (event.key === 'Escape') { closeJalaliDatepicker(true); event.stopPropagation(); }
+    else handled = false;
+    if (handled) event.preventDefault();
+  });
+  $('#jalaliDatepicker').on('keydown', function (event) {
+    if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeJalaliDatepicker(true); }
+  });
+  $(document).on('mousedown', function (event) {
+    if (!$('#jalaliDatepicker').prop('hidden') && !$(event.target).closest('.date-input-wrap').length) closeJalaliDatepicker(false);
+  });
   $('#cancelButton,#closeButton').on('click', closeDialog);
   $('#formOverlay').on('click', function (event) { if (event.target === this) closeDialog(); });
   $('#filterButton').on('click', function () { page = 1; hideNotice(); loadRows(); });

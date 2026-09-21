@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const vm = require('vm');
 
 const root = path.resolve(__dirname, '..');
 const failures = [];
@@ -112,6 +113,23 @@ requireText(panel, "var sortOrder = 'desc'", 'panel default sort direction is no
 requireText(panel, 'function sortableHeader', 'clickable table-header sorting is missing');
 requireText(panel, "attr('aria-sort'", 'sortable headers do not expose their state accessibly');
 requireText(panel, 'sort-button', 'sortable header controls are missing');
+requireText(panel, 'id="fileInput"', 'file picker is missing');
+requireText(panel, 'multiple', 'file picker does not support selecting multiple files');
+requireText(panel, 'id="uploadProgressBar"', 'upload progress bar is missing');
+requireText(panel, "xhr.upload.addEventListener('progress'", 'upload progress is not connected to XMLHttpRequest upload events');
+requireText(panel, 'function uploadNext', 'multiple files are not uploaded as a controlled queue');
+requireText(panel, 'uploadInProgress', 'dialog does not guard an active upload queue');
+requireText(panel, 'var jalaali', 'local Jalali conversion helper is missing');
+requireText(panel, 'function openJalaliDatepicker', 'Jalali datepicker behavior is missing');
+requireText(panel, 'jalaali.toDate', 'datepicker does not return a JavaScript Date through the Jalali helper');
+requireText(panel, "['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج']", 'datepicker week does not start on Saturday');
+requireText(panel, "aria-label=\"ماه قبل\"", 'datepicker previous-month control is missing');
+requireText(panel, "aria-label=\"ماه بعد\"", 'datepicker next-month control is missing');
+requireText(panel, "role=\"grid\"", 'datepicker calendar grid semantics are missing');
+requireText(panel, "event.key === 'ArrowRight'", 'datepicker keyboard navigation is missing');
+requireText(panel, '@supports (-webkit-touch-callout: none)', 'iOS form-control zoom protection is missing');
+requireText(panel, '@media (prefers-reduced-motion: reduce)', 'reduced-motion support is missing');
+if (/<script[^>]+src=["']https?:\/\//i.test(panel)) failures.push('panel introduces a remote JavaScript dependency');
 if (/\son(?:click|change|submit)\s*=/.test(panel)) failures.push('panel contains an inline event handler');
 if (/\.html\s*\(/.test(panel)) failures.push('panel uses .html() for generated content');
 const panelIds = [...panel.matchAll(/\sid="([^"]+)"/g)].map((match) => match[1]);
@@ -122,6 +140,26 @@ if (!scripts.length) failures.push('panel script block is missing');
 scripts.forEach((script, index) => {
   try { new Function(script); } catch (error) { failures.push(`panel script ${index + 1} syntax error: ${error.message}`); }
 });
+
+const jalaaliStart = panel.indexOf('var jalaali =');
+const jalaaliEndMarker = '  }());';
+const jalaaliEnd = panel.indexOf(jalaaliEndMarker, jalaaliStart);
+if (jalaaliStart >= 0 && jalaaliEnd > jalaaliStart) {
+  try {
+    const context = {};
+    const helperSource = panel.slice(jalaaliStart, jalaaliEnd + jalaaliEndMarker.length);
+    vm.runInNewContext(`${helperSource}\nresult = jalaali;`, context);
+    const nowruz = context.result.toGregorian(1403, 1, 1);
+    if (nowruz.gy !== 2024 || nowruz.gm !== 3 || nowruz.gd !== 20) failures.push('Jalali helper converts 1403/01/01 incorrectly');
+    const roundTrip = context.result.toJalaali(2026, 3, 21);
+    if (roundTrip.jy !== 1405 || roundTrip.jm !== 1 || roundTrip.jd !== 1) failures.push('Jalali helper converts 2026-03-21 incorrectly');
+    const selectedDate = context.result.toDate(1405, 1, 1);
+    if (Object.prototype.toString.call(selectedDate) !== '[object Date]' || selectedDate.getFullYear() !== 2026 || selectedDate.getMonth() !== 2 || selectedDate.getDate() !== 21) failures.push('Jalali helper does not return the expected Date');
+    if (!context.result.isValidJalaaliDate(1399, 12, 30) || context.result.isValidJalaaliDate(1400, 12, 30)) failures.push('Jalali leap-year validation is incorrect');
+  } catch (error) {
+    failures.push(`Jalali helper runtime error: ${error.message}`);
+  }
+}
 
 if (failures.length) {
   console.error('Procurement-notices release checks failed:');
