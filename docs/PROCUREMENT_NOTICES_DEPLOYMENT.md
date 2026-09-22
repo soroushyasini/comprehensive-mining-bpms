@@ -25,19 +25,29 @@ FROM prc_db_mozayedat_monaghesat_copy1;
 
 ## ۲. اعمال migration
 
-فایل زیر را روی همان schema که جدول‌های EMCORE و `USERS` قرار دارند اجرا کنید:
+برای استقرار اولیه، migrationهای زیر را به‌ترتیب روی همان schema که جدول‌های EMCORE و `USERS` قرار دارند اجرا کنید:
 
 ```text
 database/migrations/010_emcore_procurement_notices.sql
+database/migrations/011_emcore_procurement_classification.sql
 ```
 
-سپس وجود چهار جدول جدید و module key زیر را کنترل کنید:
+اگر migration `010` قبلاً اعمال شده است، فقط `011` را یک‌بار اجرا کنید. این migration ستون `estimated_amount`، سه جدول master data و seed دقیق ۵ گروه، ۱۵ زیرگروه و ۳۲ کالا را اضافه می‌کند و داده‌های فعلی فراخوان یا ضمانت‌نامه ثانویه را تغییر نمی‌دهد.
+
+سپس وجود جدول‌های ماژول، master data و module key را کنترل کنید:
 
 ```sql
 SELECT module_key, is_active
 FROM emcore_modules
 WHERE module_key = 'procurement_notices';
+
+SELECT
+    (SELECT COUNT(*) FROM emcore_procurement_categories) AS categories,
+    (SELECT COUNT(*) FROM emcore_procurement_subcategories) AS subcategories,
+    (SELECT COUNT(*) FROM emcore_procurement_products) AS products;
 ```
+
+پس از seed اولیه، خروجی سه شمارش باید به‌ترتیب `5`، `15` و `32` باشد.
 
 ## ۳. مخزن خصوصی فایل
 
@@ -123,6 +133,10 @@ php -n -l emcore_api\emcore_procurement_analytics.php
 20. فیلتر «حداقل مجموع مناقصات و مزایدات» فقط دستگاه‌های زیر آستانه را از نمودار دستگاه اجرایی حذف کند و بر KPI کل یا نمودارهای دیگر اثر نگذارد.
 21. در پنل CRUD، انتخاب هم‌زمان چند فایل، progress واقعی بارگذاری و توقف شفاف صف روی نخستین خطا آزمایش شود؛ فایل‌های موفق نباید دوباره ارسال شوند.
 22. datepicker مهلت اسناد و پاسخ از شنبه آغاز شود، جمعه و امروز را متمایز کند، جهت chevronهای ماه قبل/بعد در RTL صحیح باشد و با Arrowها، Home، End، PageUp، PageDown، Enter و Escape قابل استفاده باشد.
+23. تاریخ `today_gregorian` سرور مبنای روز جاری تقویم باشد و محیط ProcessMaker نتواند سال را به ۷۸۴ تبدیل کند.
+24. واحد، نحوه تحویل، واحد پول و زنجیره گروه/زیرگروه/کالا select بومی باشند؛ تغییر والد باید گزینه‌های فرزند را پاک و محدود کند.
+25. مبلغ برآوردشده با ارقام فارسی و جداکننده «٬» نمایش داده و با دقت کامل تا ۲۴ رقم ذخیره شود؛ گزینه «دلار» نیز در واحد پول وجود داشته باشد.
+26. ویرایش سایر فیلدهای یک رکورد legacy نباید مقدار تاریخی `secondary_guarantee` یا دسته‌بندی خارج از master data را بی‌صدا پاک کند.
 
 ## ۸. تطبیق پس از مهاجرت
 

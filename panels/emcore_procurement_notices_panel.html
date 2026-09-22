@@ -125,6 +125,21 @@
       color: var(--ink);
       background: #fff;
     }
+    .select-wrap { position: relative; }
+    .select-wrap select { appearance: none; padding-inline: 12px 36px; }
+    .select-chevron {
+      position: absolute;
+      inset-inline-end: 12px;
+      top: 50%;
+      width: 16px;
+      height: 16px;
+      color: var(--ink-soft);
+      pointer-events: none;
+      transform: translateY(-50%);
+    }
+    .select-chevron path { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .classification-warning { display: none; grid-column: 1 / -1; margin: 0; color: var(--amber); font-size: 12px; font-weight: 700; }
+    .estimated-preview { display: block; min-height: 20px; margin-block-start: 3px; color: var(--ink-soft); font-size: 11px; }
     textarea { min-height: 88px; resize: vertical; }
     input[disabled], select[disabled], textarea[disabled] { color: #6e7772; background: #efeee9; }
     .ltr { direction: ltr; text-align: left; }
@@ -419,11 +434,10 @@
         <div class="field span-4"><label for="title">عنوان <span class="required">*</span></label><textarea id="title" maxlength="1000" data-editable></textarea></div>
         <div class="field"><label for="referenceNumber">شماره فراخوان</label><input type="text" id="referenceNumber" maxlength="255" data-editable></div>
         <div class="field"><label for="quantityText">تناژ / مقدار</label><input type="text" id="quantityText" maxlength="255" data-editable></div>
-        <div class="field"><label for="amountText">مبلغ / تضمین</label><input type="text" id="amountText" maxlength="255" data-editable></div>
-        <div class="field"><label for="currency">واحد پول</label><input type="text" id="currency" maxlength="32" list="currencyOptions" data-editable></div>
+        <div class="field"><label for="amountText">مبلغ تضمین</label><input type="text" id="amountText" maxlength="255" data-editable></div>
         <div class="field span-2"><label for="contractingAuthority">مناقصه‌گزار / دستگاه اجرایی</label><input type="text" id="contractingAuthority" maxlength="255" list="authorityOptions" data-editable></div>
         <div class="field"><label for="submissionMethod">نحوه ارسال اسناد</label><select id="submissionMethod" data-editable><option value="">انتخاب کنید</option><option value="physical">فیزیکی</option><option value="online">آنلاین</option><option value="other">سایر</option></select></div>
-        <div class="field"><label for="deliveryTerm">نحوه تحویل بار</label><input type="text" id="deliveryTerm" maxlength="32" list="deliveryOptions" placeholder="FOB، EXW…" data-editable></div>
+        <div class="field"><label for="deliveryTerm">نحوه تحویل بار</label><div class="select-wrap"><select id="deliveryTerm" data-editable><option value="">انتخاب کنید</option></select><svg class="select-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></div></div>
 
         <div class="form-section">مهلت‌ها و تضامین</div>
         <div class="field"><label for="documentsDeadline">مهلت دریافت اسناد</label><div class="date-input-wrap"><input type="text" id="documentsDeadline" maxlength="10" inputmode="numeric" placeholder="۱۴۰۵/۰۱/۰۱" autocomplete="off" data-editable><button type="button" class="date-trigger" data-date-target="documentsDeadline" aria-label="انتخاب مهلت دریافت اسناد از تقویم" aria-haspopup="dialog" aria-expanded="false" aria-controls="jalaliDatepicker"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"></path><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"></path></svg></button></div></div>
@@ -436,13 +450,15 @@
         <div class="field"><label for="alertLeadDays">هشدار از چند روز قبل</label><input type="number" id="alertLeadDays" min="0" max="365" value="5" data-editable></div>
         <div class="field"><label for="extensionStatus">تمدید شده؟</label><select id="extensionStatus" data-editable><option value="">نامشخص</option><option value="1">بله</option><option value="0">خیر</option></select></div>
         <div class="field span-2"><label for="primaryGuarantee">ضمانت‌نامه</label><input type="text" id="primaryGuarantee" maxlength="255" list="guaranteeOptions" data-editable></div>
-        <div class="field span-2"><label for="secondaryGuarantee">ضمانت‌نامه ثانویه</label><input type="text" id="secondaryGuarantee" maxlength="255" list="guaranteeOptions" data-editable></div>
+        <div class="field"><label for="estimatedAmount">مبلغ برآوردشده</label><input type="text" id="estimatedAmount" maxlength="32" inputmode="numeric" placeholder="۱۲٬۵۰۰٬۰۰۰٬۰۰۰" aria-describedby="estimatedAmountPreview" data-editable><small class="estimated-preview" id="estimatedAmountPreview" aria-live="polite"></small></div>
+        <div class="field"><label for="currency">واحد پول مبلغ برآوردشده</label><div class="select-wrap"><select id="currency" data-editable><option value="تومان">تومان</option></select><svg class="select-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></div></div>
 
         <div class="form-section">مسئولیت و دسته‌بندی</div>
-        <div class="field"><label for="responsibleUnit">واحد مربوطه</label><input type="text" id="responsibleUnit" maxlength="64" list="unitOptions" data-editable></div>
-        <div class="field trade-field conditional"><label for="categoryName">گروه اصلی</label><input type="text" id="categoryName" maxlength="255" list="categoryOptions" data-editable></div>
-        <div class="field trade-field conditional"><label for="subcategoryName">زیرگروه</label><input type="text" id="subcategoryName" maxlength="255" list="subcategoryOptions" data-editable></div>
-        <div class="field trade-field conditional"><label for="productName">کالا</label><input type="text" id="productName" maxlength="255" list="productOptions" data-editable></div>
+        <div class="field"><label for="responsibleUnit">واحد مربوطه</label><div class="select-wrap"><select id="responsibleUnit" data-editable><option value="">انتخاب کنید</option></select><svg class="select-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></div></div>
+        <div class="field trade-field conditional"><label for="categoryName">گروه اصلی</label><div class="select-wrap"><select id="categoryName" data-editable><option value="">گروه اصلی را انتخاب کنید</option></select><svg class="select-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></div></div>
+        <div class="field trade-field conditional"><label for="subcategoryName">زیرگروه</label><div class="select-wrap"><select id="subcategoryName" data-editable disabled><option value="">ابتدا گروه اصلی را انتخاب کنید</option></select><svg class="select-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></div></div>
+        <div class="field trade-field conditional"><label for="productName">کالا</label><div class="select-wrap"><select id="productName" data-editable disabled><option value="">ابتدا زیرگروه را انتخاب کنید</option></select><svg class="select-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></div></div>
+        <p class="classification-warning trade-field conditional" id="classificationWarning" role="status" aria-live="polite"></p>
         <div class="field span-4 drilling-field conditional"><label for="drillingArea">محدوده حفاری / معدنی</label><textarea id="drillingArea" maxlength="2000" data-editable></textarea></div>
 
         <div class="form-section">نتیجه و پیگیری</div>
@@ -466,9 +482,7 @@
   </section>
 </div>
 
-<datalist id="sourceOptions"></datalist><datalist id="authorityOptions"></datalist><datalist id="currencyOptions"></datalist>
-<datalist id="deliveryOptions"></datalist><datalist id="guaranteeOptions"></datalist><datalist id="unitOptions"></datalist>
-<datalist id="categoryOptions"></datalist><datalist id="subcategoryOptions"></datalist><datalist id="productOptions"></datalist>
+<datalist id="sourceOptions"></datalist><datalist id="authorityOptions"></datalist><datalist id="guaranteeOptions"></datalist>
 
 <script>
 (function ($) {
@@ -552,8 +566,10 @@
     }
     function toJalaali(dateOrYear, month, day) {
       var year = dateOrYear;
-      if (dateOrYear && typeof dateOrYear.getFullYear === 'function' && typeof dateOrYear.getMonth === 'function' && typeof dateOrYear.getDate === 'function') {
-        year = dateOrYear.getFullYear(); month = dateOrYear.getMonth() + 1; day = dateOrYear.getDate();
+      if (dateOrYear && typeof dateOrYear.toISOString === 'function') {
+        var isoMatch = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateOrYear.toISOString());
+        if (!isoMatch) throw new Error('تاریخ میلادی معتبر نیست.');
+        year = Number(isoMatch[1]); month = Number(isoMatch[2]); day = Number(isoMatch[3]);
       }
       year = Number(year); month = Number(month); day = Number(day);
       if (!isFinite(year) || !isFinite(month) || !isFinite(day)) throw new Error('تاریخ میلادی معتبر نیست.');
@@ -570,7 +586,9 @@
       var gregorian = toGregorian(year, month, day);
       return new Date(gregorian.gy, gregorian.gm - 1, gregorian.gd, 12, 0, 0, 0);
     }
-    return { toJalaali: toJalaali, toGregorian: toGregorian, toDate: toDate, isValidJalaaliDate: isValidJalaaliDate, jalaaliMonthLength: jalaaliMonthLength };
+    function addDays(year, month, day, delta) { return d2j(j2d(Number(year), Number(month), Number(day)) + Number(delta)); }
+    function weekDay(year, month, day) { return mod(j2d(Number(year), Number(month), Number(day)) + 1, 7); }
+    return { toJalaali: toJalaali, toGregorian: toGregorian, toDate: toDate, addDays: addDays, weekDay: weekDay, isValidJalaaliDate: isValidJalaaliDate, jalaaliMonthLength: jalaaliMonthLength };
   }());
 
   function api(action, data, options) {
@@ -628,7 +646,24 @@
   function dateToJalali(date) {
     try { var value = jalaali.toJalaali(date); return formatJalali(value.jy, value.jm, value.jd); } catch (error) { return ''; }
   }
-  function todayJalali() { return dateToJalali(new Date()); }
+  function gregorianTodayParts() {
+    var serverDate = String(lookups.today_gregorian || '');
+    var match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(serverDate);
+    if (match) return { gy: Number(match[1]), gm: Number(match[2]), gd: Number(match[3]) };
+    try {
+      var parts = new Intl.DateTimeFormat('en-US-u-ca-gregory-nu-latn', { year: 'numeric', month: 'numeric', day: 'numeric' }).formatToParts(new Date());
+      var values = {};
+      $.each(parts, function (_, part) { if (part.type !== 'literal') values[part.type] = Number(part.value); });
+      if (values.year && values.month && values.day) return { gy: values.year, gm: values.month, gd: values.day };
+    } catch (error) { /* ISO fallback below */ }
+    var iso = new Date().toISOString().slice(0, 10).split('-');
+    return { gy: Number(iso[0]), gm: Number(iso[1]), gd: Number(iso[2]) };
+  }
+  function currentJalaliDate() {
+    var today = gregorianTodayParts();
+    return jalaali.toJalaali(today.gy, today.gm, today.gd);
+  }
+  function todayJalali() { var today = currentJalaliDate(); return formatJalali(today.jy, today.jm, today.jd); }
   function parseJalali(value) {
     var normalized = toLatinDigits($.trim(value));
     var match = /^(1[34][0-9]{2})\/(0[1-9]|1[0-2])\/([0-2][0-9]|3[01])$/.exec(normalized);
@@ -642,13 +677,12 @@
     var monthNames = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'];
     var weekdays = ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'];
     var selected = activeDateTarget ? parseJalali($('#' + activeDateTarget).val()) : null;
-    var today = jalaali.toJalaali(new Date());
+    var today = currentJalaliDate();
     $('#jalaliMonthLabel').text(monthNames[calendarMonth - 1] + ' ' + toPersianDigits(calendarYear));
     var weekHost = $('#jalaliWeekdays').empty();
     $.each(weekdays, function (index, label) { weekHost.append($('<span>').attr('role', 'columnheader').addClass(index === 6 ? 'friday' : '').text(label)); });
     var host = $('#jalaliDays').empty();
-    var firstDate = jalaali.toDate(calendarYear, calendarMonth, 1);
-    var offset = (firstDate.getDay() + 1) % 7;
+    var offset = (jalaali.weekDay(calendarYear, calendarMonth, 1) + 1) % 7;
     var monthLength = jalaali.jalaaliMonthLength(calendarYear, calendarMonth);
     var cell = 0; var day = 1;
     for (var rowIndex = 0; rowIndex < 6; rowIndex += 1) {
@@ -676,7 +710,7 @@
   function openJalaliDatepicker(targetId, trigger) {
     if (dialogReadOnly || uploadInProgress) return;
     var selected = parseJalali($('#' + targetId).val());
-    var basis = selected || jalaali.toJalaali(new Date());
+    var basis = selected || currentJalaliDate();
     activeDateTarget = targetId; activeDateTrigger = $(trigger); calendarYear = basis.jy; calendarMonth = basis.jm; calendarFocusDay = basis.jd;
     $('.date-trigger').attr('aria-expanded', 'false');
     activeDateTrigger.attr('aria-expanded', 'true');
@@ -708,9 +742,7 @@
   }
 
   function moveCalendarFocus(delta) {
-    var current = jalaali.toDate(calendarYear, calendarMonth, calendarFocusDay);
-    current.setDate(current.getDate() + delta);
-    var next = jalaali.toJalaali(current);
+    var next = jalaali.addDays(calendarYear, calendarMonth, calendarFocusDay, delta);
     calendarYear = next.jy; calendarMonth = next.jm; calendarFocusDay = next.jd;
     renderCalendar(true);
   }
@@ -733,16 +765,99 @@
     $.each(values || [], function (_, value) { if (value) select.append($('<option>').val(value).text(value)); });
   }
 
+  function fillNativeSelect(id, values, firstLabel) {
+    var select = $(id).empty().append($('<option>').val('').text(firstLabel));
+    $.each(values || [], function (_, value) { if (value) select.append($('<option>').val(value).text(value)); });
+    return select;
+  }
+
+  function selectHasValue(select, value) {
+    var found = false;
+    select.find('option').each(function () { if ($(this).val() === value) found = true; });
+    return found;
+  }
+
+  function setNativeSelectValue(id, value) {
+    var select = $(id); value = value || '';
+    select.find('option[data-legacy]').remove();
+    if (value && !selectHasValue(select, value)) select.append($('<option>').val(value).text(value + ' — مقدار قدیمی').attr('data-legacy', '1'));
+    select.val(value);
+  }
+
+  function classificationCategory(name) {
+    var result = null;
+    $.each(lookups.classification_tree || [], function (_, category) { if (category.name === name) result = category; });
+    return result;
+  }
+
+  function classificationSubcategory(category, name) {
+    var result = null;
+    $.each((category && category.subcategories) || [], function (_, subcategory) { if (subcategory.name === name) result = subcategory; });
+    return result;
+  }
+
+  function appendLegacyClassificationOption(select, value) {
+    if (!value || selectHasValue(select, value)) return false;
+    select.append($('<option>').val(value).text(value + ' — مقدار قدیمی').attr('data-legacy', '1'));
+    return true;
+  }
+
+  function updateClassificationSelects(categoryValue, subcategoryValue, productValue, preserveLegacy) {
+    categoryValue = categoryValue || ''; subcategoryValue = subcategoryValue || ''; productValue = productValue || '';
+    var tree = lookups.classification_tree || []; var legacyFound = false;
+    var categorySelect = fillNativeSelect('#categoryName', $.map(tree, function (category) { return category.name; }), 'گروه اصلی را انتخاب کنید');
+    var category = classificationCategory(categoryValue);
+    if (preserveLegacy) legacyFound = appendLegacyClassificationOption(categorySelect, categoryValue) || legacyFound;
+    categorySelect.val(selectHasValue(categorySelect, categoryValue) ? categoryValue : '');
+
+    var subcategorySelect = $('#subcategoryName').empty();
+    if (!categoryValue) {
+      subcategorySelect.append($('<option>').val('').text('ابتدا گروه اصلی را انتخاب کنید')).prop('disabled', true);
+    } else if (category && (!category.subcategories || !category.subcategories.length) && !subcategoryValue) {
+      subcategorySelect.append($('<option>').val('').text('برای این گروه زیرگروهی تعریف نشده است')).prop('disabled', true);
+    } else {
+      subcategorySelect.append($('<option>').val('').text('زیرگروه را انتخاب کنید'));
+      $.each((category && category.subcategories) || [], function (_, subcategory) { subcategorySelect.append($('<option>').val(subcategory.name).text(subcategory.name)); });
+      if (preserveLegacy) legacyFound = appendLegacyClassificationOption(subcategorySelect, subcategoryValue) || legacyFound;
+      subcategorySelect.val(selectHasValue(subcategorySelect, subcategoryValue) ? subcategoryValue : '').prop('disabled', false);
+    }
+
+    var subcategory = classificationSubcategory(category, subcategoryValue);
+    var productSelect = $('#productName').empty();
+    if (!subcategoryValue) {
+      productSelect.append($('<option>').val('').text('ابتدا زیرگروه را انتخاب کنید')).prop('disabled', true);
+    } else if (subcategory && (!subcategory.products || !subcategory.products.length) && !productValue) {
+      productSelect.append($('<option>').val('').text('برای این زیرگروه کالایی تعریف نشده است')).prop('disabled', true);
+    } else {
+      productSelect.append($('<option>').val('').text('کالا را انتخاب کنید'));
+      $.each((subcategory && subcategory.products) || [], function (_, product) { productSelect.append($('<option>').val(product.name).text(product.name)); });
+      if (preserveLegacy) legacyFound = appendLegacyClassificationOption(productSelect, productValue) || legacyFound;
+      productSelect.val(selectHasValue(productSelect, productValue) ? productValue : '').prop('disabled', false);
+    }
+
+    $('#classificationWarning').text(legacyFound ? 'این رکورد دارای مقدار قدیمی خارج از فهرست مرجع است؛ تا زمان تغییر دسته‌بندی، مقدار قبلی حفظ می‌شود.' : '').toggle(legacyFound);
+  }
+
+  function normalizeEstimatedAmount(value) { return toLatinDigits(value).replace(/[٬,\s]/g, ''); }
+  function formatEstimatedAmount(value) {
+    var normalized = normalizeEstimatedAmount(value);
+    if (!/^\d{1,24}$/.test(normalized)) return value || '';
+    return toPersianDigits(normalized.replace(/\B(?=(\d{3})+(?!\d))/g, '٬'));
+  }
+  function updateEstimatedAmountPreview() {
+    var normalized = normalizeEstimatedAmount($('#estimatedAmount').val());
+    var currency = $('#currency').val() || 'تومان';
+    $('#estimatedAmountPreview').text(/^\d{1,24}$/.test(normalized) ? formatEstimatedAmount(normalized) + ' ' + currency : '');
+  }
+
   function applyLookups() {
     fillDatalist('#sourceOptions', lookups.source_name);
     fillDatalist('#authorityOptions', lookups.contracting_authority);
-    fillDatalist('#currencyOptions', lookups.currency && lookups.currency.length ? lookups.currency : ['تومان', 'ریال', 'یورو', 'درهم']);
-    fillDatalist('#deliveryOptions', lookups.delivery_term && lookups.delivery_term.length ? lookups.delivery_term : ['FOB', 'EXW', 'FAS', 'FCA', 'DDP', 'CFR', 'FOT']);
     fillDatalist('#guaranteeOptions', lookups.primary_guarantee);
-    fillDatalist('#unitOptions', lookups.responsible_unit && lookups.responsible_unit.length ? lookups.responsible_unit : ['بازرگانی', 'حفاری', 'اکتشاف', 'محدوده معدنی', 'استخراج']);
-    fillDatalist('#categoryOptions', lookups.category_name);
-    fillDatalist('#subcategoryOptions', lookups.subcategory_name);
-    fillDatalist('#productOptions', lookups.product_name);
+    fillNativeSelect('#currency', lookups.currency_options || ['تومان', 'ریال', 'دلار', 'یورو', 'درهم'], 'انتخاب کنید').val('تومان');
+    fillNativeSelect('#deliveryTerm', lookups.delivery_term_options || ['FOB', 'EXW', 'FAS', 'FCA', 'DDP', 'CFR', 'FOT'], 'انتخاب کنید');
+    fillNativeSelect('#responsibleUnit', lookups.responsible_unit_options || ['بازرگانی', 'حفاری', 'اکتشاف', 'محدوده معدنی', 'استخراج'], 'انتخاب کنید');
+    updateClassificationSelects('', '', '', false);
     fillSelect('#unitFilter', lookups.responsible_unit, 'همه واحدها');
   }
 
@@ -867,9 +982,10 @@
 
   function resetForm() {
     closeJalaliDatepicker(false);
-    $('#recordId,#lockVersion,#sourceName,#supplierName,#title,#referenceNumber,#quantityText,#amountText,#currency,#contractingAuthority,#deliveryTerm,#documentsDeadline,#responseDeadline,#primaryGuarantee,#secondaryGuarantee,#responsibleUnit,#categoryName,#subcategoryName,#productName,#drillingArea,#interestReason').val('');
+    $('#recordId,#lockVersion,#sourceName,#supplierName,#title,#referenceNumber,#quantityText,#amountText,#estimatedAmount,#contractingAuthority,#deliveryTerm,#documentsDeadline,#responseDeadline,#primaryGuarantee,#responsibleUnit,#drillingArea,#interestReason').val('');
     $('#noticeType').val('tender'); $('#registeredOn').val(todayJalali()); $('#submissionMethod').val('');
-    $('#alertLeadDays').val('5'); $('#extensionStatus').val(''); $('#participationStatus').val('registered');
+    $('#currency').val('تومان'); $('#alertLeadDays').val('5'); $('#extensionStatus').val(''); $('#participationStatus').val('registered');
+    updateClassificationSelects('', '', '', false); updateEstimatedAmountPreview();
     $('#fileInput').val(''); $('#fileRole').val('notice_document'); $('#fileList').empty();
     $('#fileSelectionStatus').text('می‌توانید چند فایل را هم‌زمان انتخاب کنید.');
     $('#uploadProgress').prop('hidden', true); $('#uploadProgressBar').val(0); $('#uploadProgressValue').text('۰٪'); $('#uploadProgressLabel').text('آمادهٔ بارگذاری');
@@ -879,6 +995,7 @@
   function setDialogMode(readOnly) {
     dialogReadOnly = readOnly;
     $('[data-editable]').prop('disabled', readOnly);
+    if (!readOnly) updateClassificationSelects($('#categoryName').val(), $('#subcategoryName').val(), $('#productName').val(), true);
     $('.date-trigger').prop('disabled', readOnly);
     $('#saveButton').toggle(!readOnly);
     $('#readOnlyNote').toggle(readOnly);
@@ -903,13 +1020,13 @@
       $('#recordId').val(row.id); $('#lockVersion').val(row.lock_version); $('#noticeType').val(row.notice_type);
       $('#registeredOn').val(toPersianDigits(row.registered_on_fa)); $('#sourceName').val(row.source_name || ''); $('#supplierName').val(row.supplier_name || '');
       $('#title').val(row.title); $('#referenceNumber').val(row.reference_number || ''); $('#quantityText').val(row.quantity_text || '');
-      $('#amountText').val(row.amount_text || ''); $('#currency').val(row.currency || ''); $('#contractingAuthority').val(row.contracting_authority || '');
-      $('#submissionMethod').val(row.submission_method || ''); $('#deliveryTerm').val(row.delivery_term || '');
+      $('#amountText').val(row.amount_text || ''); $('#estimatedAmount').val(formatEstimatedAmount(row.estimated_amount || '')); $('#contractingAuthority').val(row.contracting_authority || '');
+      setNativeSelectValue('#currency', row.currency || ''); $('#submissionMethod').val(row.submission_method || ''); setNativeSelectValue('#deliveryTerm', row.delivery_term || '');
       $('#documentsDeadline').val(toPersianDigits(row.documents_deadline_fa || '')); $('#responseDeadline').val(toPersianDigits(row.response_deadline_fa || ''));
       $('#alertLeadDays').val(row.alert_lead_days); $('#extensionStatus').val(row.is_extended === null ? '' : String(row.is_extended));
-      $('#primaryGuarantee').val(row.primary_guarantee || ''); $('#secondaryGuarantee').val(row.secondary_guarantee || '');
-      $('#responsibleUnit').val(row.responsible_unit || ''); $('#categoryName').val(row.category_name || ''); $('#subcategoryName').val(row.subcategory_name || '');
-      $('#productName').val(row.product_name || ''); $('#drillingArea').val(row.drilling_area || ''); $('#participationStatus').val(row.participation_status);
+      $('#primaryGuarantee').val(row.primary_guarantee || ''); setNativeSelectValue('#responsibleUnit', row.responsible_unit || '');
+      updateClassificationSelects(row.category_name || '', row.subcategory_name || '', row.product_name || '', true);
+      $('#drillingArea').val(row.drilling_area || ''); $('#participationStatus').val(row.participation_status); updateEstimatedAmountPreview();
       $('#interestReason').val(row.interest_reason || ''); activeFiles = row.files || []; updateConditionalFields(); renderFiles();
       setDialogMode(Number(permissions.can_update) !== 1); $('#dialogTitle').text(dialogReadOnly ? 'مشاهده فراخوان' : 'ویرایش فراخوان');
       $('.files-panel-section,#filesPanel').show(); openOverlay();
@@ -920,10 +1037,10 @@
     return {
       id: $('#recordId').val(), lock_version: $('#lockVersion').val(), notice_type: $('#noticeType').val(), registered_on_fa: toLatinDigits($.trim($('#registeredOn').val())),
       source_name: $.trim($('#sourceName').val()), supplier_name: $.trim($('#supplierName').val()), title: $.trim($('#title').val()),
-      reference_number: $.trim($('#referenceNumber').val()), quantity_text: $.trim($('#quantityText').val()), amount_text: $.trim($('#amountText').val()),
+      reference_number: $.trim($('#referenceNumber').val()), quantity_text: $.trim($('#quantityText').val()), amount_text: $.trim($('#amountText').val()), estimated_amount: normalizeEstimatedAmount($('#estimatedAmount').val()),
       currency: $.trim($('#currency').val()), contracting_authority: $.trim($('#contractingAuthority').val()), submission_method: $('#submissionMethod').val(),
       delivery_term: $.trim($('#deliveryTerm').val()), documents_deadline_fa: toLatinDigits($.trim($('#documentsDeadline').val())), response_deadline_fa: toLatinDigits($.trim($('#responseDeadline').val())),
-      alert_lead_days: $('#alertLeadDays').val(), primary_guarantee: $.trim($('#primaryGuarantee').val()), secondary_guarantee: $.trim($('#secondaryGuarantee').val()),
+      alert_lead_days: $('#alertLeadDays').val(), primary_guarantee: $.trim($('#primaryGuarantee').val()),
       responsible_unit: $.trim($('#responsibleUnit').val()), category_name: $.trim($('#categoryName').val()), subcategory_name: $.trim($('#subcategoryName').val()),
       product_name: $.trim($('#productName').val()), drilling_area: $.trim($('#drillingArea').val()), participation_status: $('#participationStatus').val(),
       interest_reason: $.trim($('#interestReason').val()), is_extended: $('#extensionStatus').val()
@@ -937,6 +1054,8 @@
     if (!parseJalali(data.registered_on_fa)) return 'تاریخ ثبت را با قالب YYYY/MM/DD وارد کنید.';
     if (data.documents_deadline_fa && !parseJalali(data.documents_deadline_fa)) return 'مهلت دریافت اسناد معتبر نیست.';
     if (data.response_deadline_fa && !parseJalali(data.response_deadline_fa)) return 'مهلت پاسخ معتبر نیست.';
+    if (data.estimated_amount !== '' && !/^\d{1,24}$/.test(data.estimated_amount)) return 'مبلغ برآوردشده باید یک عدد صحیح نامنفی و حداکثر ۲۴ رقمی باشد.';
+    if (data.estimated_amount !== '' && $.inArray(data.currency, ['تومان', 'ریال', 'دلار', 'یورو', 'درهم']) === -1) return 'واحد پول معتبر مبلغ برآوردشده را انتخاب کنید.';
     if (Number(data.alert_lead_days) < 0 || Number(data.alert_lead_days) > 365) return 'بازه هشدار باید بین صفر تا ۳۶۵ روز باشد.';
     return '';
   }
@@ -1058,7 +1177,12 @@
     if (previousFocus && previousFocus.focus) previousFocus.focus();
   }
 
-  $('#responsibleUnit,#participationStatus').on('input change', updateConditionalFields);
+  $('#responsibleUnit,#participationStatus').on('change', updateConditionalFields);
+  $('#categoryName').on('change', function () { updateClassificationSelects($(this).val(), '', '', false); });
+  $('#subcategoryName').on('change', function () { updateClassificationSelects($('#categoryName').val(), $(this).val(), '', false); });
+  $('#productName').on('change', function () { updateClassificationSelects($('#categoryName').val(), $('#subcategoryName').val(), $(this).val(), false); });
+  $('#estimatedAmount').on('input', updateEstimatedAmountPreview).on('blur', function () { $(this).val(formatEstimatedAmount($(this).val())); updateEstimatedAmountPreview(); });
+  $('#currency').on('change', updateEstimatedAmountPreview);
   $('#addButton').on('click', openCreate); $('#saveButton').on('click', saveRecord); $('#uploadButton').on('click', uploadFile);
   $('#fileInput').on('change', function () {
     var files = this.files ? Array.prototype.slice.call(this.files) : [];
@@ -1074,7 +1198,7 @@
   });
   $('#jalaliPrevMonth').on('click', function () { changeCalendarMonth(-1); });
   $('#jalaliNextMonth').on('click', function () { changeCalendarMonth(1); });
-  $('#jalaliToday').on('click', function () { var today = jalaali.toJalaali(new Date()); selectJalaliDate(today.jy, today.jm, today.jd); });
+  $('#jalaliToday').on('click', function () { var today = currentJalaliDate(); selectJalaliDate(today.jy, today.jm, today.jd); });
   $('#jalaliClear').on('click', function () {
     var input = $('#' + activeDateTarget); input.val('').removeData('selected-date').trigger('change'); closeJalaliDatepicker(false); input.trigger('focus');
   });

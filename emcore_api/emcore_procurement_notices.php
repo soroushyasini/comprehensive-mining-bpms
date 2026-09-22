@@ -57,6 +57,129 @@ function emcore_procurement_nullable_bool($name)
     throw new EmcoreHttpException(422, 'مقدار وضعیت تمدید نامعتبر است', [$name => 'nullable_boolean_required']);
 }
 
+function emcore_procurement_estimated_amount($name = 'estimated_amount')
+{
+    $raw = isset($_POST[$name]) ? trim((string)$_POST[$name]) : '';
+    if ($raw === '') {
+        return null;
+    }
+    $raw = strtr($raw, [
+        '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4',
+        '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9',
+        '٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4',
+        '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9',
+    ]);
+    $normalized = str_replace([',', '٬', ' ', "\xC2\xA0"], '', $raw);
+    if (!preg_match('/^[0-9]{1,24}$/', $normalized)) {
+        throw new EmcoreHttpException(422, 'مبلغ برآوردشده باید یک عدد صحیح نامنفی باشد', [
+            $name => 'non_negative_integer_required',
+        ]);
+    }
+    $normalized = ltrim($normalized, '0');
+    return $normalized === '' ? '0' : $normalized;
+}
+
+function emcore_procurement_canonical_value($name, $allowed, $before = null)
+{
+    $value = emcore_string($name, false, 255);
+    if ($value === null || in_array($value, $allowed, true) || ($before !== null && $value === $before)) {
+        return $value;
+    }
+    throw new EmcoreHttpException(422, 'مقدار انتخاب‌شده در فهرست مجاز نیست', [
+        $name => 'invalid_value',
+    ]);
+}
+
+function emcore_procurement_classification_tree($db)
+{
+    $stmt = $db->query(
+        "SELECT c.category_id, c.category_name,
+                s.subcategory_id, s.subcategory_name,
+                p.product_id, p.product_name
+         FROM emcore_procurement_categories c
+         LEFT JOIN emcore_procurement_subcategories s ON s.category_id = c.category_id
+         LEFT JOIN emcore_procurement_products p ON p.subcategory_id = s.subcategory_id
+         ORDER BY c.category_id, s.subcategory_id, p.product_id"
+    );
+    $categories = [];
+    foreach ($stmt->fetchAll() as $row) {
+        $categoryId = (int)$row['category_id'];
+        if (!isset($categories[$categoryId])) {
+            $categories[$categoryId] = [
+                'id' => $categoryId,
+                'name' => $row['category_name'],
+                'subcategories' => [],
+            ];
+        }
+        if ($row['subcategory_id'] === null) {
+            continue;
+        }
+        $subcategoryId = (int)$row['subcategory_id'];
+        if (!isset($categories[$categoryId]['subcategories'][$subcategoryId])) {
+            $categories[$categoryId]['subcategories'][$subcategoryId] = [
+                'id' => $subcategoryId,
+                'name' => $row['subcategory_name'],
+                'products' => [],
+            ];
+        }
+        if ($row['product_id'] !== null) {
+            $categories[$categoryId]['subcategories'][$subcategoryId]['products'][] = [
+                'id' => (int)$row['product_id'],
+                'name' => $row['product_name'],
+            ];
+        }
+    }
+    foreach ($categories as &$category) {
+        $category['subcategories'] = array_values($category['subcategories']);
+    }
+    unset($category);
+    return array_values($categories);
+}
+
+function emcore_procurement_validate_classification($db, $category, $subcategory, $product, $before = null)
+{
+    if ($category === null && $subcategory === null && $product === null) {
+        return;
+    }
+    $unchangedLegacy = $before !== null
+        && $category === ($before['category_name'] ?: null)
+        && $subcategory === ($before['subcategory_name'] ?: null)
+        && $product === ($before['product_name'] ?: null);
+
+    if ($category === null || ($product !== null && $subcategory === null)) {
+        if ($unchangedLegacy) {
+            return;
+        }
+        throw new EmcoreHttpException(422, 'زنجیره گروه، زیرگروه و کالا کامل نیست', [
+            'classification' => 'incomplete_hierarchy',
+        ]);
+    }
+
+    $sql = "SELECT 1
+            FROM emcore_procurement_categories c
+            LEFT JOIN emcore_procurement_subcategories s
+              ON s.category_id = c.category_id AND s.subcategory_name = :subcategory_name
+            LEFT JOIN emcore_procurement_products p
+              ON p.subcategory_id = s.subcategory_id AND p.product_name = :product_name
+            WHERE c.category_name = :category_name
+              AND (:subcategory_required = 0 OR s.subcategory_id IS NOT NULL)
+              AND (:product_required = 0 OR p.product_id IS NOT NULL)
+            LIMIT 1";
+    $stmt = $db->prepare($sql);
+    $stmt->execute([
+        ':category_name' => $category,
+        ':subcategory_name' => $subcategory === null ? '' : $subcategory,
+        ':product_name' => $product === null ? '' : $product,
+        ':subcategory_required' => $subcategory === null ? 0 : 1,
+        ':product_required' => $product === null ? 0 : 1,
+    ]);
+    if (!$stmt->fetchColumn() && !$unchangedLegacy) {
+        throw new EmcoreHttpException(422, 'گروه، زیرگروه یا کالای انتخاب‌شده با یکدیگر سازگار نیستند', [
+            'classification' => 'invalid_hierarchy',
+        ]);
+    }
+}
+
 function emcore_procurement_jalali_date($db, $name, $required = false)
 {
     $value = emcore_string($name, $required, 10);
@@ -77,7 +200,7 @@ function emcore_procurement_jalali_date($db, $name, $required = false)
     return [$value, $gregorian];
 }
 
-function emcore_procurement_input($db)
+function emcore_procurement_input($db, $before = null)
 {
     list($registeredFa, $registeredEn) = emcore_procurement_jalali_date($db, 'registered_on_fa', true);
     list($documentsFa, $documentsEn) = emcore_procurement_jalali_date($db, 'documents_deadline_fa');
@@ -95,7 +218,11 @@ function emcore_procurement_input($db)
     if ($participationStatus !== 'interested') {
         $interestReason = null;
     }
-    $responsibleUnit = emcore_string('responsible_unit', false, 64);
+    $responsibleUnit = emcore_procurement_canonical_value(
+        'responsible_unit',
+        ['بازرگانی', 'حفاری', 'اکتشاف', 'محدوده معدنی', 'استخراج'],
+        $before === null ? null : $before['responsible_unit']
+    );
     $categoryName = emcore_string('category_name', false, 255);
     $subcategoryName = emcore_string('subcategory_name', false, 255);
     $productName = emcore_string('product_name', false, 255);
@@ -104,10 +231,34 @@ function emcore_procurement_input($db)
         $categoryName = null;
         $subcategoryName = null;
         $productName = null;
+    } else {
+        emcore_procurement_validate_classification(
+            $db,
+            $categoryName,
+            $subcategoryName,
+            $productName,
+            $before
+        );
     }
     if (!in_array($responsibleUnit, ['حفاری', 'محدوده معدنی'], true)) {
         $drillingArea = null;
     }
+    $estimatedAmount = emcore_procurement_estimated_amount();
+    $currency = emcore_procurement_canonical_value(
+        'currency',
+        ['تومان', 'ریال', 'دلار', 'یورو', 'درهم'],
+        $before === null ? null : $before['currency']
+    );
+    if ($estimatedAmount !== null && !in_array($currency, ['تومان', 'ریال', 'دلار', 'یورو', 'درهم'], true)) {
+        throw new EmcoreHttpException(422, 'واحد پول معتبر مبلغ برآوردشده را انتخاب کنید', [
+            'currency' => 'canonical_value_required_with_estimated_amount',
+        ]);
+    }
+    $deliveryTerm = emcore_procurement_canonical_value(
+        'delivery_term',
+        ['FOB', 'EXW', 'FAS', 'FCA', 'DDP', 'CFR', 'FOT'],
+        $before === null ? null : $before['delivery_term']
+    );
 
     return [
         ':notice_type' => emcore_procurement_enum('notice_type', ['tender', 'auction']),
@@ -117,16 +268,16 @@ function emcore_procurement_input($db)
         ':quantity_text' => emcore_string('quantity_text', false, 255),
         ':reference_number' => emcore_string('reference_number', false, 255),
         ':amount_text' => emcore_string('amount_text', false, 255),
-        ':currency' => emcore_string('currency', false, 32),
+        ':estimated_amount' => $estimatedAmount,
+        ':currency' => $currency,
         ':contracting_authority' => emcore_string('contracting_authority', false, 255),
         ':submission_method' => emcore_procurement_enum(
             'submission_method',
             ['physical', 'online', 'other'],
             false
         ),
-        ':delivery_term' => emcore_string('delivery_term', false, 32),
+        ':delivery_term' => $deliveryTerm,
         ':primary_guarantee' => emcore_string('primary_guarantee', false, 255),
-        ':secondary_guarantee' => emcore_string('secondary_guarantee', false, 255),
         ':registered_on_fa' => $registeredFa,
         ':registered_on_en' => $registeredEn,
         ':documents_deadline_fa' => $documentsFa,
@@ -149,7 +300,7 @@ function emcore_procurement_select_columns()
 {
     return "p.id, p.legacy_source_id, p.record_origin, p.notice_type,
             p.source_name, p.supplier_name, p.title, p.quantity_text,
-            p.reference_number, p.amount_text, p.currency,
+            p.reference_number, p.amount_text, p.estimated_amount, p.currency,
             p.contracting_authority, p.submission_method, p.delivery_term,
             p.primary_guarantee, p.secondary_guarantee,
             p.registered_on_fa, p.registered_on_en,
@@ -269,7 +420,7 @@ if ($action === 'lookups') {
     foreach ([
         'source_name', 'contracting_authority', 'responsible_unit',
         'category_name', 'subcategory_name', 'product_name', 'currency',
-        'delivery_term', 'primary_guarantee', 'secondary_guarantee',
+        'delivery_term', 'primary_guarantee',
     ] as $column) {
         $lookups[$column] = emcore_procurement_distinct_lookup($db, $column);
     }
@@ -278,6 +429,11 @@ if ($action === 'lookups') {
     $lookups['participation_statuses'] = [
         'registered', 'interested', 'documents_submitted', 'won', 'lost',
     ];
+    $lookups['today_gregorian'] = $db->query("SELECT DATE_FORMAT(CURDATE(), '%Y-%m-%d')")->fetchColumn();
+    $lookups['classification_tree'] = emcore_procurement_classification_tree($db);
+    $lookups['responsible_unit_options'] = ['بازرگانی', 'حفاری', 'اکتشاف', 'محدوده معدنی', 'استخراج'];
+    $lookups['delivery_term_options'] = ['FOB', 'EXW', 'FAS', 'FCA', 'DDP', 'CFR', 'FOT'];
+    $lookups['currency_options'] = ['تومان', 'ریال', 'دلار', 'یورو', 'درهم'];
     $lookups['storage_ready'] = emcore_procurement_storage_ready();
     $lookups['max_upload_bytes'] = emcore_procurement_max_upload_bytes();
     $lookups['allowed_extensions'] = emcore_procurement_allowed_extensions();
@@ -548,16 +704,16 @@ if ($action === 'upload_file') {
     }
 }
 
-$input = emcore_procurement_input($db);
 $db->beginTransaction();
 try {
     if ($action === 'create') {
+        $input = emcore_procurement_input($db);
         $stmt = $db->prepare(
             "INSERT INTO emcore_procurement_notices
                 (record_origin, notice_type, source_name, supplier_name, title,
-                 quantity_text, reference_number, amount_text, currency,
+                 quantity_text, reference_number, amount_text, estimated_amount, currency,
                  contracting_authority, submission_method, delivery_term,
-                 primary_guarantee, secondary_guarantee,
+                 primary_guarantee,
                  registered_on_fa, registered_on_en,
                  documents_deadline_fa, documents_deadline_en,
                  response_deadline_fa, response_deadline_en, alert_lead_days,
@@ -566,9 +722,9 @@ try {
                  created_by_usr_uid, updated_by_usr_uid)
              VALUES
                 ('managed', :notice_type, :source_name, :supplier_name, :title,
-                 :quantity_text, :reference_number, :amount_text, :currency,
+                 :quantity_text, :reference_number, :amount_text, :estimated_amount, :currency,
                  :contracting_authority, :submission_method, :delivery_term,
-                 :primary_guarantee, :secondary_guarantee,
+                 :primary_guarantee,
                  :registered_on_fa, :registered_on_en,
                  :documents_deadline_fa, :documents_deadline_en,
                  :response_deadline_fa, :response_deadline_en, :alert_lead_days,
@@ -602,6 +758,7 @@ try {
         ]);
     }
 
+    $input = emcore_procurement_input($db, $before);
     $input[':updated_by_usr_uid'] = $actor['USR_UID'];
     $input[':id'] = $id;
     $input[':lock_version'] = $expectedVersion;
@@ -614,12 +771,12 @@ try {
             quantity_text = :quantity_text,
             reference_number = :reference_number,
             amount_text = :amount_text,
+            estimated_amount = :estimated_amount,
             currency = :currency,
             contracting_authority = :contracting_authority,
             submission_method = :submission_method,
             delivery_term = :delivery_term,
             primary_guarantee = :primary_guarantee,
-            secondary_guarantee = :secondary_guarantee,
             registered_on_fa = :registered_on_fa,
             registered_on_en = :registered_on_en,
             documents_deadline_fa = :documents_deadline_fa,

@@ -20,6 +20,13 @@ function requireText(source, needle, label) {
   if (!source.includes(needle)) failures.push(label || `missing text: ${needle}`);
 }
 
+function seedRowCount(source, table) {
+  const start = source.indexOf(`INSERT INTO ${table}`);
+  const end = source.indexOf('ON DUPLICATE KEY UPDATE', start);
+  if (start < 0 || end < 0) return 0;
+  return [...source.slice(start, end).matchAll(/^\s*\(\d+,\s*'[^']+'(?:,\s*\d+)?\),?\s*$/gm)].length;
+}
+
 function checkPhpDelimiters(source, label) {
   const pairs = { ')': '(', ']': '[', '}': '{' };
   const stack = [];
@@ -43,6 +50,7 @@ function checkPhpDelimiters(source, label) {
 }
 
 const migration = read('database/migrations/010_emcore_procurement_notices.sql');
+const classificationMigration = read('database/migrations/011_emcore_procurement_classification.sql');
 const endpoint = read('emcore_api/emcore_procurement_notices.php');
 const storage = read('emcore_api/_procurement_storage.php');
 const panel = read('panels/emcore_procurement_notices_panel.html');
@@ -62,6 +70,20 @@ requireText(migration, 'legacy_source_data JSON', 'lossless legacy source payloa
 requireText(migration, 'lock_version INT UNSIGNED', 'optimistic concurrency column is missing');
 requireText(migration, "record_origin ENUM('managed', 'legacy')", 'legacy/managed boundary is missing');
 requireText(migration, 'response_deadline_en DATE', 'derived Gregorian response deadline is missing');
+[
+  'emcore_procurement_categories',
+  'emcore_procurement_subcategories',
+  'emcore_procurement_products',
+].forEach((table) => requireText(classificationMigration, `CREATE TABLE IF NOT EXISTS ${table}`, `classification migration does not create ${table}`));
+requireText(classificationMigration, 'estimated_amount DECIMAL(24,0)', 'classification migration does not add the estimated amount');
+requireText(classificationMigration, 'FOREIGN KEY (category_id)', 'subcategory/category foreign key is missing');
+requireText(classificationMigration, 'FOREIGN KEY (subcategory_id)', 'product/subcategory foreign key is missing');
+requireText(classificationMigration, "(5, 'پیشنهادی')", 'category seed is incomplete');
+requireText(classificationMigration, "(408, 'آلومینیوم', 4)", 'subcategory seed is incomplete');
+requireText(classificationMigration, "(1129, 'سولفات مس', 404)", 'product seed is incomplete');
+if (seedRowCount(classificationMigration, 'emcore_procurement_categories') !== 5) failures.push('classification migration must seed exactly 5 categories');
+if (seedRowCount(classificationMigration, 'emcore_procurement_subcategories') !== 15) failures.push('classification migration must seed exactly 15 subcategories');
+if (seedRowCount(classificationMigration, 'emcore_procurement_products') !== 32) failures.push('classification migration must seed exactly 32 products');
 
 [
   "'lookups' => 'read'", "'list' => 'read'", "'get' => 'read'", "'download_file' => 'read'",
@@ -74,6 +96,15 @@ requireText(endpoint, 'lock_version = lock_version + 1', 'optimistic version inc
 requireText(endpoint, "throw new EmcoreHttpException(409", 'concurrency/file conflicts do not return 409');
 requireText(endpoint, 'shamsi_slash_to_gregorian_date', 'server-side Jalali conversion is missing');
 requireText(endpoint, 'DATEDIFF(p.response_deadline_en, CURDATE())', 'deadline state is not derived live');
+requireText(endpoint, 'estimated_amount', 'estimated amount is missing from the API contract');
+requireText(endpoint, 'emcore_procurement_estimated_amount', 'estimated amount boundary validation is missing');
+requireText(endpoint, "'۰' => '0'", 'estimated amount does not normalize Persian digits');
+requireText(endpoint, "'today_gregorian'", 'lookups do not expose the database Gregorian date');
+requireText(endpoint, "'classification_tree'", 'lookups do not expose the dependent classification tree');
+requireText(endpoint, 'emcore_procurement_validate_classification', 'classification relationships are not validated server-side');
+requireText(endpoint, "'currency_options'", 'canonical currency options are missing');
+requireText(endpoint, "'دلار'", 'Dollar is missing from currency options');
+if (/:secondary_guarantee\b/.test(endpoint)) failures.push('secondary guarantee is still part of the write contract');
 requireText(endpoint, ": 'created_at';", 'list API does not default to newest records');
 requireText(endpoint, ": 'desc';", 'list API default sort direction is not descending');
 [
@@ -124,7 +155,8 @@ requireText(panel, 'class="btn btn-primary upload-button" id="uploadButton"', 'u
 requireText(panel, 'var jalaali', 'local Jalali conversion helper is missing');
 requireText(panel, 'function openJalaliDatepicker', 'Jalali datepicker behavior is missing');
 requireText(panel, 'jalaali.toDate', 'datepicker does not return a JavaScript Date through the Jalali helper');
-requireText(panel, "typeof dateOrYear.getFullYear === 'function'", 'Jalali helper is not safe for cross-context Date objects');
+requireText(panel, 'jalaali.addDays', 'datepicker navigation is not independent from the host Date implementation');
+requireText(panel, "lookups.today_gregorian", 'datepicker does not use the server Gregorian date');
 requireText(panel, "['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج']", 'datepicker week does not start on Saturday');
 requireText(panel, "aria-label=\"ماه قبل\"", 'datepicker previous-month control is missing');
 requireText(panel, "aria-label=\"ماه بعد\"", 'datepicker next-month control is missing');
@@ -132,6 +164,20 @@ requireText(panel, "role=\"grid\"", 'datepicker calendar grid semantics are miss
 requireText(panel, "event.key === 'ArrowRight'", 'datepicker keyboard navigation is missing');
 requireText(panel, '@supports (-webkit-touch-callout: none)', 'iOS form-control zoom protection is missing');
 requireText(panel, '@media (prefers-reduced-motion: reduce)', 'reduced-motion support is missing');
+requireText(panel, 'id="estimatedAmount"', 'estimated amount control is missing');
+requireText(panel, 'function updateClassificationSelects', 'dependent classification behavior is missing');
+requireText(panel, 'مقدار قدیمی', 'legacy classification warning/option is missing');
+if (/id="secondaryGuarantee"/.test(panel)) failures.push('secondary guarantee is still visible in the form');
+[
+  'deliveryTerm', 'responsibleUnit', 'categoryName', 'subcategoryName', 'productName', 'currency',
+].forEach((id) => {
+  if (!new RegExp(`<select[^>]+id="${id}"`).test(panel)) failures.push(`${id} is not a native select`);
+  if (new RegExp(`<input[^>]+id="${id}"`).test(panel)) failures.push(`${id} still uses an input/datalist control`);
+});
+requireText(panel, 'appearance: none', 'native selects do not hide the browser chevron');
+requireText(panel, 'inset-inline-end: 12px', 'RTL select chevron is not placed at logical end-3');
+requireText(panel, 'padding-inline: 12px 36px', 'RTL select padding is not ps-3/pe-9');
+if (/jalaali\.toJalaali\(new Date\(\)\)/.test(panel)) failures.push('datepicker still derives today from the ProcessMaker Date getters');
 if (/<script[^>]+src=["']https?:\/\//i.test(panel)) failures.push('panel introduces a remote JavaScript dependency');
 if (/\son(?:click|change|submit)\s*=/.test(panel)) failures.push('panel contains an inline event handler');
 if (/\.html\s*\(/.test(panel)) failures.push('panel uses .html() for generated content');
@@ -156,9 +202,17 @@ if (jalaaliStart >= 0 && jalaaliEnd > jalaaliStart) {
     if (nowruz.gy !== 2024 || nowruz.gm !== 3 || nowruz.gd !== 20) failures.push('Jalali helper converts 1403/01/01 incorrectly');
     const roundTrip = context.result.toJalaali(2026, 3, 21);
     if (roundTrip.jy !== 1405 || roundTrip.jm !== 1 || roundTrip.jd !== 1) failures.push('Jalali helper converts 2026-03-21 incorrectly');
-    const dateLikeFromHost = { getFullYear: () => 2026, getMonth: () => 2, getDate: () => 21 };
-    const crossContextDate = context.result.toJalaali(dateLikeFromHost);
-    if (crossContextDate.jy !== 1405 || crossContextDate.jm !== 1 || crossContextDate.jd !== 1) failures.push('Jalali helper rejects a Date-like object from another execution context');
+    const processMakerDate = {
+      getFullYear: () => 1405,
+      getMonth: () => 5,
+      getDate: () => 31,
+      toISOString: () => '2026-09-22T08:00:00.000Z',
+    };
+    const hostSafeDate = context.result.toJalaali(processMakerDate);
+    if (hostSafeDate.jy !== 1405 || hostSafeDate.jm !== 6 || hostSafeDate.jd !== 31) failures.push('Jalali helper trusts ProcessMaker-patched Date getters');
+    const nextJalaliDay = context.result.addDays(1405, 6, 31, 1);
+    if (nextJalaliDay.jy !== 1405 || nextJalaliDay.jm !== 7 || nextJalaliDay.jd !== 1) failures.push('Jalali helper cannot navigate across month boundaries without Date');
+    if (context.result.weekDay(1405, 1, 1) !== 6) failures.push('Jalali helper weekday calculation is incorrect');
     const selectedDate = context.result.toDate(1405, 1, 1);
     if (Object.prototype.toString.call(selectedDate) !== '[object Date]' || selectedDate.getFullYear() !== 2026 || selectedDate.getMonth() !== 2 || selectedDate.getDate() !== 21) failures.push('Jalali helper does not return the expected Date');
     if (!context.result.isValidJalaaliDate(1399, 12, 30) || context.result.isValidJalaaliDate(1400, 12, 30)) failures.push('Jalali leap-year validation is incorrect');
