@@ -110,7 +110,7 @@
     }
     .filter-grid {
       display: grid;
-      grid-template-columns: minmax(220px, 2fr) repeat(5, minmax(125px, 1fr));
+      grid-template-columns: minmax(220px, 2fr) repeat(5, minmax(125px, 1fr)) auto;
       gap: 10px;
       align-items: end;
     }
@@ -143,7 +143,7 @@
     textarea { min-height: 88px; resize: vertical; }
     input[disabled], select[disabled], textarea[disabled] { color: #6e7772; background: #efeee9; }
     .ltr { direction: ltr; text-align: left; }
-    .filter-actions { display: flex; gap: 7px; }
+    .filter-actions { display: flex; flex-wrap: wrap; gap: 7px; }
     .notice {
       display: none;
       margin-top: 12px;
@@ -161,7 +161,7 @@
       border: 1px solid var(--line);
       border-radius: var(--radius);
     }
-    table { width: 100%; min-width: 1120px; border-collapse: collapse; }
+    table { width: 100%; min-width: 1320px; border-collapse: collapse; }
     th, td { padding: 11px 12px; border-bottom: 1px solid #e5e3dc; text-align: right; vertical-align: top; }
     th { position: sticky; top: 0; z-index: 1; color: #4b5851; background: #efeee9; font-size: 12px; white-space: nowrap; }
     th.sortable { padding: 0; }
@@ -191,6 +191,7 @@
     tbody tr.row-urgent { background: #fffaf0; }
     tbody tr.row-expired { background: #fff7f6; }
     .title-cell { min-width: 260px; max-width: 390px; }
+    .id-cell { min-width: 78px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
     .record-title { display: block; font-weight: 800; line-height: 1.65; }
     .secondary { display: block; margin-top: 2px; color: var(--ink-soft); font-size: 12px; }
     .badge {
@@ -354,7 +355,7 @@
     @media (prefers-reduced-motion: reduce) {
       .btn, .calendar-day, .upload-progress progress::-webkit-progress-value { transition: none; }
     }
-    @media (max-width: 1180px) {
+    @media (max-width: 1320px) {
       .summary-grid { grid-template-columns: repeat(3, 1fr); }
       .filter-grid { grid-template-columns: repeat(3, 1fr); }
     }
@@ -404,7 +405,8 @@
       <div class="field"><label for="deadlineFilter">وضعیت مهلت</label><select id="deadlineFilter"><option value="">همه</option><option value="open">دارای فرصت</option><option value="urgent">نیازمند اقدام</option><option value="expired">مهلت گذشته</option><option value="no_deadline">بدون مهلت</option></select></div>
       <div class="field"><label for="statusFilter">وضعیت شرکت</label><select id="statusFilter"><option value="">همه</option><option value="registered">ثبت اولیه</option><option value="interested">علاقه‌مند</option><option value="documents_submitted">ارسال مدارک</option><option value="won">برنده</option><option value="lost">شکست</option></select></div>
       <div class="field"><label for="unitFilter">واحد مربوطه</label><select id="unitFilter"><option value="">همه واحدها</option></select></div>
-      <div class="filter-actions"><button type="button" class="btn btn-primary" id="filterButton">اعمال</button><button type="button" class="btn btn-light" id="resetButton">پاک‌کردن</button></div>
+      <div class="field"><label for="registeredOnFilter">تاریخ ثبت رکورد</label><div class="date-input-wrap"><input type="text" id="registeredOnFilter" maxlength="10" inputmode="numeric" placeholder="۱۴۰۵/۰۱/۰۱" autocomplete="off"><button type="button" class="date-trigger" data-date-target="registeredOnFilter" aria-label="انتخاب تاریخ ثبت رکورد از تقویم" aria-haspopup="dialog" aria-expanded="false" aria-controls="jalaliDatepicker"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"></path><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"></path></svg></button></div></div>
+      <div class="filter-actions"><button type="button" class="btn btn-primary" id="filterButton">اعمال</button><button type="button" class="btn btn-light" id="resetButton">پاک‌کردن</button><button type="button" class="btn btn-light" id="exportButton" disabled>خروجی اکسل</button></div>
     </div>
   </section>
 
@@ -495,8 +497,11 @@
   var page = 1;
   var pageSize = 25;
   var total = 0;
-  var sortBy = 'created_at';
+  var sortBy = 'id';
   var sortOrder = 'desc';
+  var activeQuery = null;
+  var excelReady = false;
+  var exportInProgress = false;
   var activeFiles = [];
   var dialogReadOnly = false;
   var previousFocus = null;
@@ -708,8 +713,10 @@
   }
 
   function openJalaliDatepicker(targetId, trigger) {
-    if (dialogReadOnly || uploadInProgress) return;
-    var selected = parseJalali($('#' + targetId).val());
+    var target = $('#' + targetId);
+    if (!target.length || target.prop('disabled') || uploadInProgress) return;
+    if (dialogReadOnly && target.closest('#formOverlay').length) return;
+    var selected = parseJalali(target.val());
     var basis = selected || currentJalaliDate();
     activeDateTarget = targetId; activeDateTrigger = $(trigger); calendarYear = basis.jy; calendarMonth = basis.jm; calendarFocusDay = basis.jd;
     $('.date-trigger').attr('aria-expanded', 'false');
@@ -873,23 +880,39 @@
   }
 
   function filterData() {
-    return { search: $.trim($('#searchInput').val()), notice_type: $('#typeFilter').val(), deadline_state: $('#deadlineFilter').val(), participation_status: $('#statusFilter').val(), responsible_unit: $('#unitFilter').val(), page: page, page_size: pageSize, sort_by: sortBy, sort_order: sortOrder };
+    return {
+      search: $.trim($('#searchInput').val()),
+      notice_type: $('#typeFilter').val(),
+      deadline_state: $('#deadlineFilter').val(),
+      participation_status: $('#statusFilter').val(),
+      responsible_unit: $('#unitFilter').val(),
+      registered_on_fa: toLatinDigits($.trim($('#registeredOnFilter').val())),
+      page: page,
+      page_size: pageSize,
+      sort_by: sortBy,
+      sort_order: sortOrder
+    };
   }
 
   function loadRows() {
+    var requestData = filterData();
+    $('#exportButton').prop('disabled', true);
     $('#ledger').attr('aria-busy', 'true').empty().append($('<div>').addClass('empty').text('در حال دریافت اطلاعات…'));
-    return api('list', filterData()).done(function (response) {
+    return api('list', requestData).done(function (response) {
       csrfToken = response.csrf_token || csrfToken;
       permissions = response.permissions || permissions;
       total = Number((response.pagination && response.pagination.total) || 0);
+      activeQuery = $.extend({}, requestData);
       renderSummary(response.summary || {});
       renderTable(response.data || []);
       renderPagination(response.pagination || {});
       $('#addButton').prop('hidden', Number(permissions.can_create) !== 1);
     }).fail(function (xhr) {
+      total = 0;
+      activeQuery = null;
       $('#ledger').empty().append($('<div>').addClass('empty').text('اطلاعات قابل نمایش نیست.'));
       showNotice(errorText(xhr), 'error');
-    }).always(function () { $('#ledger').attr('aria-busy', 'false'); });
+    }).always(function () { $('#ledger').attr('aria-busy', 'false'); updateExportButton(); });
   }
 
   function renderSummary(summary) {
@@ -929,10 +952,12 @@
     if (!rows.length) { ledger.append($('<div>').addClass('empty').text('رکوردی با این فیلتر پیدا نشد.')); return; }
     var table = $('<table>');
     var head = $('<tr>');
+    head.append(sortableHeader('شناسه', 'id', 'desc'));
     head.append(sortableHeader('عنوان و شماره', 'title', 'asc'));
     head.append(sortableHeader('نوع', 'notice_type', 'asc'));
     head.append(sortableHeader('دستگاه اجرایی', 'contracting_authority', 'asc'));
     head.append(sortableHeader('واحد / دسته', 'responsible_unit', 'asc'));
+    head.append(sortableHeader('تاریخ ثبت', 'registered_on', 'desc'));
     head.append(sortableHeader('مهلت پاسخ', 'response_deadline', 'asc'));
     head.append(sortableHeader('فرصت', 'days_left', 'asc'));
     head.append(sortableHeader('وضعیت شرکت', 'participation_status', 'asc'));
@@ -942,6 +967,7 @@
     var body = $('<tbody>');
     $.each(rows, function (_, row) {
       var tr = $('<tr>').addClass('row-' + row.deadline_state);
+      tr.append($('<td>').addClass('id-cell').attr('dir', 'ltr').text(toPersianDigits(row.id)));
       var title = $('<td>').addClass('title-cell').append($('<span>').addClass('record-title').text(row.title));
       title.append($('<span>').addClass('secondary').attr('dir', 'ltr').text(row.reference_number ? 'شماره: ' + row.reference_number : 'بدون شماره'));
       if (row.record_origin === 'legacy') title.append($('<span>').addClass('secondary').text('سابقه منتقل‌شده #' + faNumber(row.legacy_source_id)));
@@ -953,6 +979,7 @@
       var category = $('<td>').text(displayText(row.responsible_unit));
       if (row.category_name || row.product_name) category.append($('<span>').addClass('secondary').text([row.category_name, row.product_name].filter(Boolean).join(' · ')));
       tr.append(category);
+      tr.append($('<td>').text(row.registered_on_fa ? toPersianDigits(row.registered_on_fa) : '—'));
       tr.append($('<td>').text(row.response_deadline_fa ? toPersianDigits(row.response_deadline_fa) : '—'));
       tr.append($('<td>').append($('<span>').addClass('badge badge-' + row.deadline_state).text(deadlineLabel(row))));
       tr.append($('<td>').append($('<span>').addClass('badge badge-' + String(row.participation_status).replace(/_/g, '-')).text(labels.status[row.participation_status] || row.participation_status)));
@@ -968,9 +995,134 @@
 
   function renderPagination(pagination) {
     var maxPage = Number(pagination.total_pages || Math.max(1, Math.ceil(total / pageSize)));
-    $('#pageLabel').text('صفحه ' + faNumber(page) + ' از ' + faNumber(maxPage));
+    $('#pageLabel').text('صفحه ' + faNumber(page) + ' از ' + faNumber(maxPage) + ' · ' + faNumber(total) + ' رکورد');
     $('#previousButton').prop('disabled', page <= 1);
     $('#nextButton').prop('disabled', page >= maxPage);
+  }
+
+  function updateExportButton() {
+    $('#exportButton').prop('disabled', !excelReady || exportInProgress || !activeQuery || total < 1);
+  }
+
+  function loadExcelLibrary() {
+    if (window.XLSX) { excelReady = true; updateExportButton(); return; }
+    var script = document.createElement('script');
+    script.src = '/lib/xlsx.full.min_2.js';
+    script.async = true;
+    script.onload = function () { excelReady = Boolean(window.XLSX); updateExportButton(); };
+    script.onerror = function () {
+      excelReady = false;
+      $('#exportButton').attr('title', 'کتابخانه خروجی اکسل در دسترس نیست.');
+      updateExportButton();
+    };
+    document.head.appendChild(script);
+  }
+
+  function loadAllFilteredRows(onProgress) {
+    var deferred = $.Deferred();
+    var rows = [];
+    var exportPage = 1;
+    var expectedTotal = 0;
+    var base = $.extend({}, activeQuery || filterData());
+    delete base.action;
+
+    function loadExportPage() {
+      api('list', $.extend({}, base, { page: exportPage, page_size: 100 })).done(function (response) {
+        var batch = response.data || [];
+        expectedTotal = Number((response.pagination && response.pagination.total) || 0);
+        rows = rows.concat(batch);
+        if (onProgress) onProgress(rows.length, expectedTotal);
+        if (rows.length < expectedTotal && batch.length) {
+          exportPage += 1;
+          loadExportPage();
+        } else {
+          deferred.resolve(rows.slice(0, expectedTotal), expectedTotal);
+        }
+      }).fail(function () { deferred.reject.apply(deferred, arguments); });
+    }
+
+    loadExportPage();
+    return deferred.promise();
+  }
+
+  function excelRows(rows) {
+    var output = [[
+      'شناسه', 'نوع فراخوان', 'منبع', 'تأمین‌کننده', 'عنوان', 'تناژ / مقدار', 'شماره فراخوان',
+      'مبلغ تضمین', 'مبلغ برآوردشده', 'واحد پول', 'دستگاه اجرایی', 'نحوه ارسال اسناد',
+      'نحوه تحویل بار', 'تاریخ ثبت', 'مهلت دریافت اسناد', 'مهلت پاسخ', 'فرصت',
+      'هشدار از چند روز قبل', 'ضمانت‌نامه', 'ضمانت‌نامه دوم (سابقه)', 'واحد مربوطه',
+      'گروه اصلی', 'زیرگروه', 'کالا', 'محدوده حفاری / معدنی', 'وضعیت شرکت', 'دلیل علاقه',
+      'تمدید شده', 'تعداد فایل', 'منشأ رکورد', 'شناسه منبع قدیمی', 'تاریخ ایجاد در سامانه',
+      'تاریخ آخرین ویرایش'
+    ]];
+    $.each(rows, function (_, row) {
+      var extended = row.is_extended === null || row.is_extended === '' ? 'نامشخص' : (Number(row.is_extended) === 1 ? 'بله' : 'خیر');
+      output.push([
+        Number(row.id), labels.noticeType[row.notice_type] || row.notice_type || '', row.source_name || '',
+        row.supplier_name || '', row.title || '', row.quantity_text || '', row.reference_number || '',
+        row.amount_text || '', row.estimated_amount !== null && row.estimated_amount !== '' ? formatEstimatedAmount(row.estimated_amount) : '', row.currency || '',
+        row.contracting_authority || '', labels.method[row.submission_method] || row.submission_method || '', row.delivery_term || '',
+        row.registered_on_fa ? toPersianDigits(row.registered_on_fa) : '',
+        row.documents_deadline_fa ? toPersianDigits(row.documents_deadline_fa) : '',
+        row.response_deadline_fa ? toPersianDigits(row.response_deadline_fa) : '', deadlineLabel(row),
+        Number(row.alert_lead_days || 0), row.primary_guarantee || '', row.secondary_guarantee || '',
+        row.responsible_unit || '', row.category_name || '', row.subcategory_name || '', row.product_name || '',
+        row.drilling_area || '', labels.status[row.participation_status] || row.participation_status || '',
+        row.interest_reason || '', extended, Number(row.file_count || 0),
+        row.record_origin === 'legacy' ? 'منتقل‌شده از سامانه قدیمی' : 'ثبت‌شده در EMCORE',
+        row.legacy_source_id ? Number(row.legacy_source_id) : '', row.created_at || '', row.updated_at || ''
+      ]);
+    });
+    return output;
+  }
+
+  function styleExcelSheet(sheet, rowCount) {
+    var widths = [10, 14, 18, 20, 42, 16, 18, 18, 20, 13, 28, 17, 15, 14, 17, 17, 16, 18, 24, 25, 17, 19, 19, 22, 28, 18, 30, 13, 12, 24, 18, 21, 21];
+    sheet['!cols'] = $.map(widths, function (width) { return { wch: width }; });
+    sheet['!autofilter'] = { ref: 'A1:AG' + Math.max(1, rowCount + 1) };
+    sheet['!freeze'] = { xSplit: 0, ySplit: 1, topLeftCell: 'A2', activePane: 'bottomLeft', state: 'frozen' };
+    for (var column = 0; column < widths.length; column += 1) {
+      var cell = sheet[window.XLSX.utils.encode_cell({ r: 0, c: column })];
+      if (!cell) continue;
+      cell.s = {
+        font: { name: 'Arial', sz: 11, bold: true, color: { rgb: 'FFFFFF' } },
+        fill: { patternType: 'solid', fgColor: { rgb: '17221D' } },
+        alignment: { horizontal: 'right', vertical: 'center', wrapText: true }
+      };
+    }
+    sheet['!rows'] = [{ hpt: 28 }];
+  }
+
+  function exportFilteredRows() {
+    if (!excelReady || !window.XLSX) { showNotice('کتابخانه خروجی اکسل هنوز آماده نیست.', 'warning'); return; }
+    if (!activeQuery || total < 1) { showNotice('رکوردی برای خروجی وجود ندارد.', 'warning'); return; }
+    exportInProgress = true;
+    $('#exportButton').text('در حال آماده‌سازی…').attr('aria-busy', 'true');
+    updateExportButton();
+    showNotice('در حال جمع‌آوری همه رکوردهای نتیجه برای خروجی اکسل…', 'warning');
+    loadAllFilteredRows(function (loaded, expected) {
+      showNotice('در حال آماده‌سازی خروجی: ' + faNumber(loaded) + ' از ' + faNumber(expected) + ' رکورد', 'warning');
+    }).done(function (rows) {
+      if (!rows.length) { showNotice('رکوردی برای خروجی وجود ندارد.', 'warning'); return; }
+      try {
+        var data = excelRows(rows);
+        var sheet = window.XLSX.utils.aoa_to_sheet(data);
+        styleExcelSheet(sheet, rows.length);
+        var workbook = { SheetNames: ['فراخوان‌ها'], Sheets: { 'فراخوان‌ها': sheet }, Workbook: { Views: [{ RTL: true }] } };
+        var datePart = String(lookups.today_gregorian || '').replace(/[^0-9-]/g, '') || 'export';
+        window.XLSX.writeFile(workbook, 'procurement_notices_' + datePart + '.xlsx');
+        showNotice('فایل اکسل شامل ' + faNumber(rows.length) + ' رکورد ساخته شد.', 'success');
+      } catch (error) {
+        showNotice('ساخت فایل اکسل ناموفق بود. جزئیات خطا در گزارش مرورگر ثبت شد.', 'error');
+        if (window.console && window.console.error) window.console.error('Procurement Excel export failed', error);
+      }
+    }).fail(function (xhr) {
+      showNotice(errorText(xhr), 'error');
+    }).always(function () {
+      exportInProgress = false;
+      $('#exportButton').text('خروجی اکسل').attr('aria-busy', 'false');
+      updateExportButton();
+    });
   }
 
   function updateConditionalFields() {
@@ -996,7 +1148,7 @@
     dialogReadOnly = readOnly;
     $('[data-editable]').prop('disabled', readOnly);
     if (!readOnly) updateClassificationSelects($('#categoryName').val(), $('#subcategoryName').val(), $('#productName').val(), true);
-    $('.date-trigger').prop('disabled', readOnly);
+    $('#formOverlay .date-trigger').prop('disabled', readOnly);
     $('#saveButton').toggle(!readOnly);
     $('#readOnlyNote').toggle(readOnly);
     $('#uploadControls').toggle(!readOnly && Boolean(lookups.storage_ready));
@@ -1202,9 +1354,10 @@
   $('#jalaliClear').on('click', function () {
     var input = $('#' + activeDateTarget); input.val('').removeData('selected-date').trigger('change'); closeJalaliDatepicker(false); input.trigger('focus');
   });
-  $('#documentsDeadline,#responseDeadline').on('keydown', function (event) {
+  $('#documentsDeadline,#responseDeadline,#registeredOnFilter').on('keydown', function (event) {
     if (event.altKey && event.key === 'ArrowDown') { event.preventDefault(); openJalaliDatepicker(this.id, $('.date-trigger[data-date-target="' + this.id + '"]')[0]); }
     if (event.key === 'Escape' && !$('#jalaliDatepicker').prop('hidden')) { event.preventDefault(); closeJalaliDatepicker(false); $(this).trigger('focus'); }
+    if (event.which === 13 && this.id === 'registeredOnFilter') { event.preventDefault(); page = 1; closeJalaliDatepicker(false); loadRows(); }
   });
   $('#jalaliDays').on('keydown', '.calendar-day', function (event) {
     calendarFocusDay = Number($(this).data('day'));
@@ -1229,8 +1382,9 @@
   });
   $('#cancelButton,#closeButton').on('click', closeDialog);
   $('#formOverlay').on('click', function (event) { if (event.target === this) closeDialog(); });
-  $('#filterButton').on('click', function () { page = 1; hideNotice(); loadRows(); });
-  $('#resetButton').on('click', function () { $('#searchInput,#typeFilter,#deadlineFilter,#statusFilter,#unitFilter').val(''); page = 1; sortBy = 'created_at'; sortOrder = 'desc'; hideNotice(); loadRows(); });
+  $('#filterButton').on('click', function () { page = 1; closeJalaliDatepicker(false); hideNotice(); loadRows(); });
+  $('#resetButton').on('click', function () { $('#searchInput,#typeFilter,#deadlineFilter,#statusFilter,#unitFilter,#registeredOnFilter').val(''); page = 1; sortBy = 'id'; sortOrder = 'desc'; closeJalaliDatepicker(false); hideNotice(); loadRows(); });
+  $('#exportButton').on('click', exportFilteredRows);
   $('#searchInput').on('keydown', function (event) { if (event.which === 13) { page = 1; loadRows(); } });
   $('#previousButton').on('click', function () { if (page > 1) { page--; loadRows(); } });
   $('#nextButton').on('click', function () { if (page * pageSize < total) { page++; loadRows(); } });
@@ -1245,6 +1399,7 @@
     }
   });
 
+  loadExcelLibrary();
   loadLookups().done(loadRows);
 })(jQuery);
 </script>

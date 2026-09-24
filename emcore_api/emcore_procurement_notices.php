@@ -472,6 +472,12 @@ if ($action === 'list') {
         $params[':source_name'] = $sourceName;
     }
 
+    list(, $registeredOnEnFilter) = emcore_procurement_jalali_date($db, 'registered_on_fa', false);
+    if ($registeredOnEnFilter !== null) {
+        $where[] = 'p.registered_on_en = :registered_on_en_filter';
+        $params[':registered_on_en_filter'] = $registeredOnEnFilter;
+    }
+
     $deadlineState = emcore_procurement_enum(
         'deadline_state',
         ['open', 'urgent', 'expired', 'no_deadline'],
@@ -511,7 +517,7 @@ if ($action === 'list') {
     $offset = ($page - 1) * $pageSize;
     $whereSql = implode(' AND ', $where);
 
-    $sortBy = isset($_POST['sort_by']) ? trim((string)$_POST['sort_by']) : 'created_at';
+    $sortBy = isset($_POST['sort_by']) ? trim((string)$_POST['sort_by']) : 'id';
     $sortColumns = [
         'response_deadline' => 'p.response_deadline_en IS NULL, p.response_deadline_en',
         'days_left' => 'p.response_deadline_en IS NULL, p.response_deadline_en',

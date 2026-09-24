@@ -55,8 +55,8 @@ const endpoint = read('emcore_api/emcore_procurement_notices.php');
 const storage = read('emcore_api/_procurement_storage.php');
 const panel = read('panels/emcore_procurement_notices_panel.html');
 const importer = read('tools/import_legacy_procurement_notices.php');
-read('docs/PROCUREMENT_NOTICES_MODULE.md');
-read('docs/PROCUREMENT_NOTICES_DEPLOYMENT.md');
+const moduleDocs = read('docs/PROCUREMENT_NOTICES_MODULE.md');
+const deploymentDocs = read('docs/PROCUREMENT_NOTICES_DEPLOYMENT.md');
 checkPhpDelimiters(endpoint, 'procurement endpoint PHP');
 checkPhpDelimiters(storage, 'procurement storage PHP');
 checkPhpDelimiters(importer, 'procurement importer PHP');
@@ -104,8 +104,10 @@ requireText(endpoint, "'classification_tree'", 'lookups do not expose the depend
 requireText(endpoint, 'emcore_procurement_validate_classification', 'classification relationships are not validated server-side');
 requireText(endpoint, "'currency_options'", 'canonical currency options are missing');
 requireText(endpoint, "'دلار'", 'Dollar is missing from currency options');
+requireText(endpoint, "emcore_procurement_jalali_date($db, 'registered_on_fa', false)", 'list API does not validate the Jalali registration-date filter');
+requireText(endpoint, 'p.registered_on_en = :registered_on_en_filter', 'list API does not filter records by registration date');
 if (/:secondary_guarantee\b/.test(endpoint)) failures.push('secondary guarantee is still part of the write contract');
-requireText(endpoint, ": 'created_at';", 'list API does not default to newest records');
+requireText(endpoint, ": 'id';", 'list API does not default to descending database id');
 requireText(endpoint, ": 'desc';", 'list API default sort direction is not descending');
 [
   "'notice_type' => 'p.notice_type'",
@@ -116,6 +118,9 @@ requireText(endpoint, ": 'desc';", 'list API default sort direction is not desce
   "'file_count' => 'file_count'",
 ].forEach((mapping) => requireText(endpoint, mapping, `missing safe list sort mapping ${mapping}`));
 if (/\bLEFT_DAYS\b/.test(endpoint)) failures.push('endpoint depends on the legacy stored LEFT_DAYS column');
+requireText(moduleDocs, '`registered_on_fa`', 'module docs omit the registration-date filter');
+requireText(moduleDocs, '/lib/xlsx.full.min_2.js', 'module docs omit the Excel export dependency');
+requireText(deploymentDocs, '/lib/xlsx.full.min_2.js', 'deployment docs omit the Excel library check');
 
 requireText(storage, "getenv('EMCORE_PROCUREMENT_STORAGE_ROOT')", 'storage environment configuration is missing');
 requireText(storage, "$_SERVER['DOCUMENT_ROOT']", 'web-root containment check is missing');
@@ -139,11 +144,22 @@ requireText(panel, "HTMLFormElement.prototype.submit.call", 'controlled file dow
 requireText(panel, "data-editable", 'read-only field handling is missing');
 requireText(panel, "response_deadline_fa", 'response deadline form field is not submitted');
 requireText(panel, "lock_version", 'panel does not send an optimistic lock version');
-requireText(panel, "var sortBy = 'created_at'", 'panel does not request newest records by default');
+requireText(panel, "var sortBy = 'id'", 'panel does not request newest database ids by default');
 requireText(panel, "var sortOrder = 'desc'", 'panel default sort direction is not descending');
 requireText(panel, 'function sortableHeader', 'clickable table-header sorting is missing');
 requireText(panel, "attr('aria-sort'", 'sortable headers do not expose their state accessibly');
 requireText(panel, 'sort-button', 'sortable header controls are missing');
+requireText(panel, 'id="registeredOnFilter"', 'registration-date filter is missing');
+requireText(panel, 'data-date-target="registeredOnFilter"', 'registration-date filter is not connected to the Jalali datepicker');
+requireText(panel, "registered_on_fa: toLatinDigits($.trim($('#registeredOnFilter').val()))", 'registration-date filter is not sent to the list API');
+requireText(panel, "sortableHeader('شناسه', 'id', 'desc')", 'database id is not shown as a sortable table column');
+requireText(panel, "sortableHeader('تاریخ ثبت', 'registered_on', 'desc')", 'registration date is not shown as a sortable table column');
+requireText(panel, 'id="exportButton"', 'Excel export button is missing');
+requireText(panel, '/lib/xlsx.full.min_2.js', 'Excel export does not use the installed same-origin library');
+requireText(panel, 'function loadAllFilteredRows', 'Excel export does not collect all filtered pages');
+requireText(panel, 'function exportFilteredRows', 'Excel export workflow is missing');
+requireText(panel, 'XLSX.writeFile', 'Excel workbook is not downloaded');
+requireText(panel, "registered_on_fa: toLatinDigits($.trim($('#registeredOnFilter').val()))", 'Excel export cannot reuse the active registration-date filter');
 requireText(panel, 'id="fileInput"', 'file picker is missing');
 requireText(panel, 'multiple', 'file picker does not support selecting multiple files');
 requireText(panel, 'id="uploadProgressBar"', 'upload progress bar is missing');
