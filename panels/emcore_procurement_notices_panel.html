@@ -1000,16 +1000,33 @@
     $('#nextButton').prop('disabled', page >= maxPage);
   }
 
+  function excelLibraryReady(xlsx) {
+    var utils = xlsx && xlsx.utils;
+    var hasSheetBuilder = utils && (typeof utils.aoa_to_sheet === 'function' || typeof utils.sheet_from_array_of_arrays === 'function');
+    return Boolean(hasSheetBuilder && typeof utils.encode_cell === 'function' && typeof xlsx.writeFile === 'function');
+  }
+
+  function excelArrayToSheet(xlsx, rows) {
+    var utils = xlsx && xlsx.utils;
+    if (utils && typeof utils.aoa_to_sheet === 'function') return utils.aoa_to_sheet(rows);
+    if (utils && typeof utils.sheet_from_array_of_arrays === 'function') return utils.sheet_from_array_of_arrays(rows);
+    throw new Error('نسخه کتابخانه اکسل با ساخت Worksheet سازگار نیست.');
+  }
+
   function updateExportButton() {
     $('#exportButton').prop('disabled', !excelReady || exportInProgress || !activeQuery || total < 1);
   }
 
   function loadExcelLibrary() {
-    if (window.XLSX) { excelReady = true; updateExportButton(); return; }
+    if (excelLibraryReady(window.XLSX)) { excelReady = true; $('#exportButton').removeAttr('title'); updateExportButton(); return; }
     var script = document.createElement('script');
     script.src = '/lib/xlsx.full.min_2.js';
     script.async = true;
-    script.onload = function () { excelReady = Boolean(window.XLSX); updateExportButton(); };
+    script.onload = function () {
+      excelReady = excelLibraryReady(window.XLSX);
+      $('#exportButton').attr('title', excelReady ? '' : 'نسخه کتابخانه اکسل با خروجی این پنل سازگار نیست.');
+      updateExportButton();
+    };
     script.onerror = function () {
       excelReady = false;
       $('#exportButton').attr('title', 'کتابخانه خروجی اکسل در دسترس نیست.');
@@ -1094,7 +1111,7 @@
   }
 
   function exportFilteredRows() {
-    if (!excelReady || !window.XLSX) { showNotice('کتابخانه خروجی اکسل هنوز آماده نیست.', 'warning'); return; }
+    if (!excelReady || !excelLibraryReady(window.XLSX)) { showNotice('کتابخانه خروجی اکسل آماده یا با این پنل سازگار نیست.', 'warning'); return; }
     if (!activeQuery || total < 1) { showNotice('رکوردی برای خروجی وجود ندارد.', 'warning'); return; }
     exportInProgress = true;
     $('#exportButton').text('در حال آماده‌سازی…').attr('aria-busy', 'true');
@@ -1106,7 +1123,7 @@
       if (!rows.length) { showNotice('رکوردی برای خروجی وجود ندارد.', 'warning'); return; }
       try {
         var data = excelRows(rows);
-        var sheet = window.XLSX.utils.aoa_to_sheet(data);
+        var sheet = excelArrayToSheet(window.XLSX, data);
         styleExcelSheet(sheet, rows.length);
         var workbook = { SheetNames: ['فراخوان‌ها'], Sheets: { 'فراخوان‌ها': sheet }, Workbook: { Views: [{ RTL: true }] } };
         var datePart = String(lookups.today_gregorian || '').replace(/[^0-9-]/g, '') || 'export';

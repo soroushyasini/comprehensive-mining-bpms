@@ -20,6 +20,21 @@ function requireText(source, needle, label) {
   if (!source.includes(needle)) failures.push(label || `missing text: ${needle}`);
 }
 
+function panelFunction(source, name) {
+  const pattern = new RegExp(`  function ${name}\\([^\\n]*\\) \\{[\\s\\S]*?\\n  \\}`);
+  const match = source.match(pattern);
+  if (!match) {
+    failures.push(`panel function is missing: ${name}`);
+    return null;
+  }
+  try {
+    return vm.runInNewContext(`(${match[0].trim()})`);
+  } catch (error) {
+    failures.push(`panel function ${name} cannot be evaluated: ${error.message}`);
+    return null;
+  }
+}
+
 function seedRowCount(source, table) {
   const start = source.indexOf(`INSERT INTO ${table}`);
   const end = source.indexOf('ON DUPLICATE KEY UPDATE', start);
@@ -158,6 +173,9 @@ requireText(panel, 'id="exportButton"', 'Excel export button is missing');
 requireText(panel, '/lib/xlsx.full.min_2.js', 'Excel export does not use the installed same-origin library');
 requireText(panel, 'function loadAllFilteredRows', 'Excel export does not collect all filtered pages');
 requireText(panel, 'function exportFilteredRows', 'Excel export workflow is missing');
+requireText(panel, 'function excelLibraryReady', 'Excel library capability detection is missing');
+requireText(panel, 'function excelArrayToSheet', 'Excel worksheet compatibility adapter is missing');
+requireText(panel, 'sheet_from_array_of_arrays', 'legacy SheetJS worksheet API is not supported');
 requireText(panel, 'XLSX.writeFile', 'Excel workbook is not downloaded');
 requireText(panel, "registered_on_fa: toLatinDigits($.trim($('#registeredOnFilter').val()))", 'Excel export cannot reuse the active registration-date filter');
 requireText(panel, 'id="fileInput"', 'file picker is missing');
@@ -205,6 +223,37 @@ if (!scripts.length) failures.push('panel script block is missing');
 scripts.forEach((script, index) => {
   try { new Function(script); } catch (error) { failures.push(`panel script ${index + 1} syntax error: ${error.message}`); }
 });
+
+const excelLibraryReady = panelFunction(panel, 'excelLibraryReady');
+const excelArrayToSheet = panelFunction(panel, 'excelArrayToSheet');
+if (excelLibraryReady && excelArrayToSheet) {
+  const rows = [['شناسه'], [1]];
+  const modernWorkbook = {
+    utils: {
+      aoa_to_sheet: (value) => ({ api: 'modern', value }),
+      encode_cell: () => 'A1',
+    },
+    writeFile: () => {},
+  };
+  const legacyWorkbook = {
+    utils: {
+      sheet_from_array_of_arrays: (value) => ({ api: 'legacy', value }),
+      encode_cell: () => 'A1',
+    },
+    writeFile: () => {},
+  };
+  if (!excelLibraryReady(modernWorkbook)) failures.push('modern SheetJS API is not recognized as ready');
+  if (!excelLibraryReady(legacyWorkbook)) failures.push('legacy SheetJS API is not recognized as ready');
+  if (excelLibraryReady({ utils: {} })) failures.push('incomplete XLSX global is incorrectly recognized as ready');
+  if (excelArrayToSheet(modernWorkbook, rows).api !== 'modern') failures.push('modern aoa_to_sheet adapter failed');
+  if (excelArrayToSheet(legacyWorkbook, rows).api !== 'legacy') failures.push('legacy sheet_from_array_of_arrays adapter failed');
+  try {
+    excelArrayToSheet({ utils: {} }, rows);
+    failures.push('unsupported SheetJS API does not fail explicitly');
+  } catch (error) {
+    if (!/سازگار/.test(String(error && error.message))) failures.push('unsupported SheetJS API has no actionable Persian error');
+  }
+}
 
 const jalaaliStart = panel.indexOf('var jalaali =');
 const jalaaliEndMarker = '  }());';
