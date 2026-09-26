@@ -1001,16 +1001,59 @@
   }
 
   function excelLibraryReady(xlsx) {
-    var utils = xlsx && xlsx.utils;
-    var hasSheetBuilder = utils && (typeof utils.aoa_to_sheet === 'function' || typeof utils.sheet_from_array_of_arrays === 'function');
-    return Boolean(hasSheetBuilder && typeof utils.encode_cell === 'function' && typeof xlsx.writeFile === 'function');
+    return Boolean(xlsx && (typeof xlsx.writeFile === 'function' || typeof xlsx.write === 'function'));
+  }
+
+  function excelCellAddress(row, column) {
+    var name = '';
+    var value = Number(column) + 1;
+    while (value > 0) {
+      value -= 1;
+      name = String.fromCharCode(65 + (value % 26)) + name;
+      value = Math.floor(value / 26);
+    }
+    return name + String(Number(row) + 1);
   }
 
   function excelArrayToSheet(xlsx, rows) {
     var utils = xlsx && xlsx.utils;
     if (utils && typeof utils.aoa_to_sheet === 'function') return utils.aoa_to_sheet(rows);
     if (utils && typeof utils.sheet_from_array_of_arrays === 'function') return utils.sheet_from_array_of_arrays(rows);
-    throw new Error('نسخه کتابخانه اکسل با ساخت Worksheet سازگار نیست.');
+    var sheet = {};
+    var rowCount = rows ? rows.length : 0;
+    var columnCount = 0;
+    for (var row = 0; row < rowCount; row += 1) {
+      var values = rows[row] || [];
+      columnCount = Math.max(columnCount, values.length);
+      for (var column = 0; column < values.length; column += 1) {
+        var value = values[column];
+        if (value === null || value === undefined) continue;
+        var type = typeof value === 'number' && isFinite(value) ? 'n' : (typeof value === 'boolean' ? 'b' : 's');
+        sheet[excelCellAddress(row, column)] = { t: type, v: type === 's' ? String(value) : value };
+      }
+    }
+    if (rowCount && columnCount) sheet['!ref'] = 'A1:' + excelCellAddress(rowCount - 1, columnCount - 1);
+    return sheet;
+  }
+
+  function excelWriteFile(xlsx, workbook, filename) {
+    if (xlsx && typeof xlsx.writeFile === 'function') return xlsx.writeFile(workbook, filename);
+    if (!xlsx || typeof xlsx.write !== 'function') throw new Error('کتابخانه اکسل امکان نوشتن فایل را فراهم نمی‌کند.');
+    var binary = xlsx.write(workbook, { bookType: 'xlsx', type: 'binary' });
+    var buffer = new ArrayBuffer(binary.length);
+    var bytes = new Uint8Array(buffer);
+    for (var index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index) & 255;
+    var blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    var urlApi = window.URL || window.webkitURL;
+    if (!urlApi || typeof urlApi.createObjectURL !== 'function') throw new Error('مرورگر امکان دانلود فایل اکسل را فراهم نمی‌کند.');
+    var url = urlApi.createObjectURL(blob);
+    var link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.setTimeout(function () { urlApi.revokeObjectURL(url); }, 0);
   }
 
   function updateExportButton() {
@@ -1099,7 +1142,7 @@
     sheet['!autofilter'] = { ref: 'A1:AG' + Math.max(1, rowCount + 1) };
     sheet['!freeze'] = { xSplit: 0, ySplit: 1, topLeftCell: 'A2', activePane: 'bottomLeft', state: 'frozen' };
     for (var column = 0; column < widths.length; column += 1) {
-      var cell = sheet[window.XLSX.utils.encode_cell({ r: 0, c: column })];
+      var cell = sheet[excelCellAddress(0, column)];
       if (!cell) continue;
       cell.s = {
         font: { name: 'Arial', sz: 11, bold: true, color: { rgb: 'FFFFFF' } },
@@ -1127,7 +1170,7 @@
         styleExcelSheet(sheet, rows.length);
         var workbook = { SheetNames: ['فراخوان‌ها'], Sheets: { 'فراخوان‌ها': sheet }, Workbook: { Views: [{ RTL: true }] } };
         var datePart = String(lookups.today_gregorian || '').replace(/[^0-9-]/g, '') || 'export';
-        window.XLSX.writeFile(workbook, 'procurement_notices_' + datePart + '.xlsx');
+        excelWriteFile(window.XLSX, workbook, 'procurement_notices_' + datePart + '.xlsx');
         showNotice('فایل اکسل شامل ' + faNumber(rows.length) + ' رکورد ساخته شد.', 'success');
       } catch (error) {
         showNotice('ساخت فایل اکسل ناموفق بود. جزئیات خطا در گزارش مرورگر ثبت شد.', 'error');

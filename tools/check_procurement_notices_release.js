@@ -20,7 +20,7 @@ function requireText(source, needle, label) {
   if (!source.includes(needle)) failures.push(label || `missing text: ${needle}`);
 }
 
-function panelFunction(source, name) {
+function panelFunction(source, name, context = {}) {
   const pattern = new RegExp(`  function ${name}\\([^\\n]*\\) \\{[\\s\\S]*?\\n  \\}`);
   const match = source.match(pattern);
   if (!match) {
@@ -28,7 +28,7 @@ function panelFunction(source, name) {
     return null;
   }
   try {
-    return vm.runInNewContext(`(${match[0].trim()})`);
+    return vm.runInNewContext(`(${match[0].trim()})`, context);
   } catch (error) {
     failures.push(`panel function ${name} cannot be evaluated: ${error.message}`);
     return null;
@@ -175,8 +175,9 @@ requireText(panel, 'function loadAllFilteredRows', 'Excel export does not collec
 requireText(panel, 'function exportFilteredRows', 'Excel export workflow is missing');
 requireText(panel, 'function excelLibraryReady', 'Excel library capability detection is missing');
 requireText(panel, 'function excelArrayToSheet', 'Excel worksheet compatibility adapter is missing');
+requireText(panel, 'function excelCellAddress', 'dependency-free Excel cell addressing is missing');
+requireText(panel, 'function excelWriteFile', 'Excel writer compatibility adapter is missing');
 requireText(panel, 'sheet_from_array_of_arrays', 'legacy SheetJS worksheet API is not supported');
-requireText(panel, 'XLSX.writeFile', 'Excel workbook is not downloaded');
 requireText(panel, "registered_on_fa: toLatinDigits($.trim($('#registeredOnFilter').val()))", 'Excel export cannot reuse the active registration-date filter');
 requireText(panel, 'id="fileInput"', 'file picker is missing');
 requireText(panel, 'multiple', 'file picker does not support selecting multiple files');
@@ -224,9 +225,31 @@ scripts.forEach((script, index) => {
   try { new Function(script); } catch (error) { failures.push(`panel script ${index + 1} syntax error: ${error.message}`); }
 });
 
+const excelCellAddress = panelFunction(panel, 'excelCellAddress');
 const excelLibraryReady = panelFunction(panel, 'excelLibraryReady');
-const excelArrayToSheet = panelFunction(panel, 'excelArrayToSheet');
-if (excelLibraryReady && excelArrayToSheet) {
+const excelArrayToSheet = panelFunction(panel, 'excelArrayToSheet', { excelCellAddress });
+const writerState = { appended: false, removed: false, clicked: false, revoked: false, filename: '' };
+const writerLink = { click: () => { writerState.clicked = true; }, href: '', download: '' };
+const excelWriteFile = panelFunction(panel, 'excelWriteFile', {
+  ArrayBuffer,
+  Uint8Array,
+  Blob: function FakeBlob(parts, options) { this.parts = parts; this.options = options; },
+  document: {
+    createElement: () => writerLink,
+    body: {
+      appendChild: () => { writerState.appended = true; },
+      removeChild: () => { writerState.removed = true; },
+    },
+  },
+  window: {
+    URL: {
+      createObjectURL: () => 'blob:test',
+      revokeObjectURL: () => { writerState.revoked = true; },
+    },
+    setTimeout: (callback) => callback(),
+  },
+});
+if (excelLibraryReady && excelArrayToSheet && excelCellAddress && excelWriteFile) {
   const rows = [['شناسه'], [1]];
   const modernWorkbook = {
     utils: {
@@ -244,15 +267,26 @@ if (excelLibraryReady && excelArrayToSheet) {
   };
   if (!excelLibraryReady(modernWorkbook)) failures.push('modern SheetJS API is not recognized as ready');
   if (!excelLibraryReady(legacyWorkbook)) failures.push('legacy SheetJS API is not recognized as ready');
+  if (!excelLibraryReady({ writeFile: () => {} })) failures.push('minimal SheetJS writer is not recognized as ready');
+  if (!excelLibraryReady({ write: () => '' })) failures.push('SheetJS write-only build is not recognized as ready');
   if (excelLibraryReady({ utils: {} })) failures.push('incomplete XLSX global is incorrectly recognized as ready');
   if (excelArrayToSheet(modernWorkbook, rows).api !== 'modern') failures.push('modern aoa_to_sheet adapter failed');
   if (excelArrayToSheet(legacyWorkbook, rows).api !== 'legacy') failures.push('legacy sheet_from_array_of_arrays adapter failed');
   try {
-    excelArrayToSheet({ utils: {} }, rows);
-    failures.push('unsupported SheetJS API does not fail explicitly');
+    const fallbackSheet = excelArrayToSheet({ writeFile: () => {} }, rows);
+    if (!fallbackSheet.A1 || fallbackSheet.A1.v !== 'شناسه' || fallbackSheet.A2.v !== 1 || fallbackSheet['!ref'] !== 'A1:A2') {
+      failures.push('dependency-free worksheet fallback produces an invalid sheet');
+    }
   } catch (error) {
-    if (!/سازگار/.test(String(error && error.message))) failures.push('unsupported SheetJS API has no actionable Persian error');
+    failures.push(`dependency-free worksheet fallback failed: ${error.message}`);
   }
+  if (excelCellAddress(0, 0) !== 'A1' || excelCellAddress(0, 25) !== 'Z1' || excelCellAddress(0, 26) !== 'AA1' || excelCellAddress(1, 32) !== 'AG2') failures.push('Excel cell address fallback is incorrect');
+  let writeFileCall = null;
+  excelWriteFile({ writeFile: (workbook, filename) => { writeFileCall = { workbook, filename }; } }, { SheetNames: ['فراخوان‌ها'] }, 'test.xlsx');
+  if (!writeFileCall || writeFileCall.filename !== 'test.xlsx') failures.push('Excel writer does not use the native writeFile API when available');
+  excelWriteFile({ write: () => String.fromCharCode(80, 75, 3, 4) }, { SheetNames: ['فراخوان‌ها'] }, 'fallback.xlsx');
+  writerState.filename = writerLink.download;
+  if (!writerState.appended || !writerState.clicked || !writerState.removed || !writerState.revoked || writerState.filename !== 'fallback.xlsx') failures.push('Excel write-only download fallback is incomplete');
 }
 
 const jalaaliStart = panel.indexOf('var jalaali =');
