@@ -284,6 +284,19 @@ if (excelLibraryReady && excelArrayToSheet && excelCellAddress && excelWriteFile
   let writeFileCall = null;
   excelWriteFile({ writeFile: (workbook, filename) => { writeFileCall = { workbook, filename }; } }, { SheetNames: ['فراخوان‌ها'] }, 'test.xlsx');
   if (!writeFileCall || writeFileCall.filename !== 'test.xlsx') failures.push('Excel writer does not use the native writeFile API when available');
+  let brokenWriteFileCalled = false;
+  try {
+    excelWriteFile({
+      write: () => String.fromCharCode(80, 75, 3, 4),
+      writeFile: () => {
+        brokenWriteFileCalled = true;
+        throw new TypeError("Cannot read properties of undefined (reading 'writeFileSync')");
+      },
+    }, { SheetNames: ['فراخوان‌ها'] }, 'browser-safe.xlsx');
+  } catch (error) {
+    failures.push(`Excel writer did not prefer the browser-safe write API: ${error.message}`);
+  }
+  if (brokenWriteFileCalled) failures.push('Excel writer called the Node-style writeFile API even though the browser-safe write API exists');
   excelWriteFile({ write: () => String.fromCharCode(80, 75, 3, 4) }, { SheetNames: ['فراخوان‌ها'] }, 'fallback.xlsx');
   writerState.filename = writerLink.download;
   if (!writerState.appended || !writerState.clicked || !writerState.removed || !writerState.revoked || writerState.filename !== 'fallback.xlsx') failures.push('Excel write-only download fallback is incomplete');

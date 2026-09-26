@@ -1037,23 +1037,26 @@
   }
 
   function excelWriteFile(xlsx, workbook, filename) {
+    if (xlsx && typeof xlsx.write === 'function') {
+      var binary = xlsx.write(workbook, { bookType: 'xlsx', type: 'binary' });
+      var buffer = new ArrayBuffer(binary.length);
+      var bytes = new Uint8Array(buffer);
+      for (var index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index) & 255;
+      var blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      var urlApi = window.URL || window.webkitURL;
+      if (!urlApi || typeof urlApi.createObjectURL !== 'function') throw new Error('مرورگر امکان دانلود فایل اکسل را فراهم نمی‌کند.');
+      var url = urlApi.createObjectURL(blob);
+      var link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.setTimeout(function () { urlApi.revokeObjectURL(url); }, 0);
+      return;
+    }
     if (xlsx && typeof xlsx.writeFile === 'function') return xlsx.writeFile(workbook, filename);
-    if (!xlsx || typeof xlsx.write !== 'function') throw new Error('کتابخانه اکسل امکان نوشتن فایل را فراهم نمی‌کند.');
-    var binary = xlsx.write(workbook, { bookType: 'xlsx', type: 'binary' });
-    var buffer = new ArrayBuffer(binary.length);
-    var bytes = new Uint8Array(buffer);
-    for (var index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index) & 255;
-    var blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    var urlApi = window.URL || window.webkitURL;
-    if (!urlApi || typeof urlApi.createObjectURL !== 'function') throw new Error('مرورگر امکان دانلود فایل اکسل را فراهم نمی‌کند.');
-    var url = urlApi.createObjectURL(blob);
-    var link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.setTimeout(function () { urlApi.revokeObjectURL(url); }, 0);
+    throw new Error('کتابخانه اکسل امکان نوشتن فایل را فراهم نمی‌کند.');
   }
 
   function updateExportButton() {
