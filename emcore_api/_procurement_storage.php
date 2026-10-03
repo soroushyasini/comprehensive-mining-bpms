@@ -125,6 +125,11 @@ function emcore_procurement_store_upload($fieldName, $procurementId)
         throw new EmcoreHttpException(422, 'فایل الزامی است', [$fieldName => 'required']);
     }
     $upload = $_FILES[$fieldName];
+    return emcore_procurement_store_upload_data($upload, $procurementId, $fieldName);
+}
+
+function emcore_procurement_store_upload_data($upload, $procurementId, $fieldName = 'attachments')
+{
     if (!isset($upload['error']) || (int)$upload['error'] !== UPLOAD_ERR_OK) {
         throw new EmcoreHttpException(422, 'بارگذاری فایل کامل نشد', [$fieldName => 'upload_failed']);
     }

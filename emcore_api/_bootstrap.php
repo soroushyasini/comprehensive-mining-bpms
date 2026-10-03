@@ -1,8 +1,10 @@
 <?php
 
-header('Content-Type: application/json; charset=utf-8');
-header('Cache-Control: no-store');
-header('X-Content-Type-Options: nosniff');
+if (!defined('EMCORE_NATIVE_CONTEXT')) {
+    header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-store');
+    header('X-Content-Type-Options: nosniff');
+}
 
 class EmcoreHttpException extends RuntimeException
 {
@@ -24,7 +26,7 @@ function emcore_json($data, $status = 200)
     exit;
 }
 
-set_exception_handler(function ($exception) {
+if (!defined('EMCORE_NATIVE_CONTEXT')) set_exception_handler(function ($exception) {
     if ($exception instanceof EmcoreHttpException) {
         $payload = ['success' => false, 'error' => $exception->getMessage()];
         if ($exception->details !== null) {
