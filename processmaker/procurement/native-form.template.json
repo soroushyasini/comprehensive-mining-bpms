@@ -1,0 +1,13 @@
+{
+  "name":"فرم تصمیم و ارجاع فراخوان",
+  "description":"Create variables in the target process and bind controls in Designer after importing this Dynaform template.",
+  "items":[{
+    "type":"form","id":"68f10a12c8074c8799b56b0246aa0321","name":"فرم تصمیم و ارجاع فراخوان","description":"","mode":"edit","language":"fa",
+    "script":{"type":"js","code":""},"externalLibs":"","printable":false,
+    "items":[
+      [{"type":"hidden","id":"emcore_command_id","name":"emcore_command_id","variable":"emcore_command_id","var_uid":"","dataType":"string","defaultValue":"","colSpan":12}],
+      [{"type":"panel","id":"emcore_native_panel","name":"emcore_native_panel","content":"@@emcore_native_panel","colSpan":12}],
+      [{"type":"submit","id":"emcore_native_submit","name":"emcore_native_submit","label":"تأیید فرم و ادامهٔ ارجاع","ariaLabel":"تأیید فرم و ادامهٔ ارجاع","colSpan":12}]
+    ],"variables":[]
+  }]
+}

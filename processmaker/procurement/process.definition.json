@@ -1,0 +1,29 @@
+{
+  "format": "emcore-native-process-setup-v1",
+  "name": "بررسی و پیگیری فراخوان‌ها",
+  "note": "Designer setup specification; not a .pmx backup and not importable as a process package.",
+  "variables": [
+    {"name":"emcore_command_id","type":"string","size":32},
+    {"name":"emcore_operator_uid","type":"string","size":32},
+    {"name":"emcore_manager_uid","type":"string","size":32},
+    {"name":"emcore_route","type":"string","size":16},
+    {"name":"emcore_native_panel","type":"string","size":65535}
+  ],
+  "tasks": [
+    {"key":"activation_task","title":"تأیید انتخاب فراخوان","start":true,"assignment":"configured manager only","form":"native-form.template.json"},
+    {"key":"follow_up_task","title":"پیگیری فراخوان","assignment":"value-based: @@emcore_operator_uid","form":"native-form.template.json"},
+    {"key":"result_task","title":"بررسی نتیجه","assignment":"value-based: @@emcore_manager_uid","form":"native-form.template.json"}
+  ],
+  "flows": [
+    {"from":"start","to":"activation_task"},
+    {"from":"activation_task","to":"follow_up_task"},
+    {"from":"follow_up_task","to":"result_task"},
+    {"from":"result_task","to":"exclusive_gateway"},
+    {"from":"exclusive_gateway","to":"follow_up_task","condition":"@@emcore_route == 'return'"},
+    {"from":"exclusive_gateway","to":"end","condition":"@@emcore_route == 'finish'"}
+  ],
+  "all_task_triggers": {"before_dynaform":"load_form.trigger","before_assignment":"before_assignment.trigger","after_routing":"after_routing.trigger"},
+  "process_action_triggers": {"cancel":"before_cancel.trigger","delete":"before_delete.trigger"},
+  "supervision":"configured manager: view and native cancel permission; no bulk routing or reopen",
+  "prohibited":"manual/cyclical reassignment, parallel branches, direct PM table writes, alternate tasks bypassing before-assignment validation"
+}

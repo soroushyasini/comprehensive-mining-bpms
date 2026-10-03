@@ -1,0 +1,73 @@
+<section id="emcoreNativeWorkflow" dir="rtl" aria-labelledby="nativeWorkflowTitle">
+  <style>
+    #emcoreNativeWorkflow { --wf-ink:var(--ink,#17221d); --wf-line:var(--line,#d9d7ce); --wf-primary:var(--green,#17664b); --wf-surface:var(--surface,#fffefa); font-family:IRANSansWeb,Vazirmatn,Tahoma,sans-serif; color:var(--wf-ink); padding:16px; background:var(--wf-surface); border:1px solid var(--wf-line); border-radius:10px; }
+    #emcoreNativeWorkflow label,#emcoreNativeWorkflow small { display:block; margin-block:8px; }
+    #emcoreNativeWorkflow select,#emcoreNativeWorkflow textarea { font:inherit; inline-size:100%; padding:12px; border:1px solid var(--wf-line); border-radius:8px; background:var(--wf-surface); color:var(--wf-ink); }
+    #emcoreNativeWorkflow :focus-visible { outline:2px solid var(--wf-primary); outline-offset:3px; }
+    #emcoreNativeWorkflow button { font:inherit; margin-block:12px; padding:12px 16px; background:var(--wf-primary); color:var(--surface,#fffefa); border:0; border-radius:8px; cursor:pointer; }
+    #emcoreNativeWorkflow button:disabled { opacity:.55; cursor:not-allowed; }
+    #nativeWorkflowError { white-space:pre-wrap; }
+    @supports (-webkit-touch-callout:none) { #emcoreNativeWorkflow select,#emcoreNativeWorkflow textarea { font-size:16px; } }
+  </style>
+  <h2 id="nativeWorkflowTitle">تصمیم و ارجاع فراخوان</h2>
+  <p id="nativeWorkflowInfo" role="status">در حال بررسی گام جاری…</p>
+  <p id="nativeWorkflowDecisionPreview"></p>
+  <div id="nativeWorkflowError" role="alert"></div>
+  <div id="nativeWorkflowControls" hidden>
+    <label for="nativeWorkflowChoice">انتخاب تصمیم</label><select id="nativeWorkflowChoice"></select>
+    <label for="nativeWorkflowReason">توضیح تصمیم / نتیجه</label><textarea id="nativeWorkflowReason" rows="4" maxlength="5000"></textarea>
+    <button type="button" id="nativeWorkflowPrepare">آماده‌سازی برای تأیید و ارجاع</button>
+    <small>آماده‌سازی به‌تنهایی وضعیت نهایی را تغییر نمی‌دهد. سپس دکمهٔ بومی «تأیید فرم و ادامهٔ ارجاع» و صفحهٔ ارجاع ProcessMaker را تکمیل کنید.</small>
+  </div>
+</section>
+<script>
+(function($){
+  'use strict';
+  var api='/emcore_api/emcore_procurement_notices.php', csrf='', context=null, request='', signature='';
+  var field=$('#emcore_command_id'), submit=$('#emcore_native_submit');
+  submit.hide();
+  function error(xhr){$('#nativeWorkflowError').text(xhr.responseJSON && xhr.responseJSON.error || 'ارتباط یا اعتبارسنجی فرایند ناموفق بود؛ فرم را دوباره باز کنید.');}
+  function call(action,data){return $.ajax({url:api,method:'POST',dataType:'json',data:$.extend({action:action},data),headers:csrf?{'X-CSRF-Token':csrf}:{}});}
+  function clear(){ if(typeof field.setValue==='function')field.setValue('');submit.hide(); }
+  $('#nativeWorkflowChoice,#nativeWorkflowReason').on('change input',function(){
+    clear();
+    if(context && context.stage==='activation')$.each(context.commands,function(_,command){if(command.request_id===$('#nativeWorkflowChoice').val())$('#nativeWorkflowDecisionPreview').text(command.body);});
+  });
+  function id(){var bytes=new Uint8Array(16);window.crypto.getRandomValues(bytes);return Array.prototype.map.call(bytes,function(b){return ('0'+b.toString(16)).slice(-2);}).join('');}
+  call('lookups').done(function(response){csrf=response.csrf_token;call('get_native_context').done(function(response){
+    context=response.data;var choice=$('#nativeWorkflowChoice').empty();
+    if(context.stage==='activation'){
+      $('#nativeWorkflowInfo').text('فراخوان‌های آماده‌شده توسط مدیر را بررسی و یکی را تأیید کنید.');
+      $.each(context.commands,function(_,command){choice.append($('<option>').val(command.request_id).text(String(command.id).replace(/[0-9]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'[Number(d)];})+' — '+command.title));});
+      $('#nativeWorkflowReason').closest('label').hide();$('#nativeWorkflowReason,label[for="nativeWorkflowReason"]').hide();
+      if(!context.commands.length){$('#nativeWorkflowInfo').text('ابتدا یک فراخوان را در پنل برای پیگیری انتخاب کنید.');return;}
+      $('#nativeWorkflowDecisionPreview').text(context.commands[0].body);
+    }else{
+      $('#nativeWorkflowInfo').text(context.notice.title+' — '+(context.stage==='follow_up'?'پیشنهاد نتیجهٔ پیگیری':'بررسی پیشنهاد اپراتور: '+(context.notice.pending_result==='won'?'برنده':'شکست')));
+      if(context.retry_command && context.retry_command.command_type!=='request_stop') {
+        if(typeof field.setValue!=='function'){$('#nativeWorkflowError').text('فیلد بومی فرمان باید در Dynaform به متغیر emcore_command_id متصل باشد.');return;}
+        $('#nativeWorkflowInfo').text('فرمان قبلی آماده شده، اما ارجاع بومی هنوز تکمیل نشده است. همان فرمان را ادامه دهید.');
+        $('#nativeWorkflowDecisionPreview').text(context.retry_command.payload.body);
+        field.setValue(context.retry_command.request_id);submit.show();return;
+      }
+      if(context.workflow.sync_state!=='ready'){$('#nativeWorkflowInfo').text('ارجاع قبلی هنوز تکمیل یا تطبیق نشده است؛ ابتدا وضعیت آن را بررسی کنید.');return;}
+      if(context.stage==='follow_up')choice.append($('<option>').val('won').text('پیشنهاد برنده')).append($('<option>').val('lost').text('پیشنهاد شکست'));
+      else if(context.stage==='result_review')choice.append($('<option>').val('approve_result').text('تأیید نتیجهٔ پیشنهادی')).append($('<option>').val('return_follow_up').text('بازگشت به اپراتور برای پیگیری'));
+      else{$('#nativeWorkflowInfo').text('این پرونده قابل ارجاع نیست.');return;}
+    }
+    $('#nativeWorkflowControls').prop('hidden',false);
+  }).fail(error);}).fail(error);
+  $('#nativeWorkflowPrepare').on('click',function(){
+    if(!context)return;
+    if(typeof field.setValue!=='function'){$('#nativeWorkflowError').text('فیلد بومی فرمان باید در Dynaform به متغیر emcore_command_id متصل باشد.');return;}
+    if(context.stage==='activation'){field.setValue($('#nativeWorkflowChoice').val());submit.show();$('#nativeWorkflowInfo').text('انتخاب آماده است؛ فرم و سپس ارجاع بومی را تأیید کنید.');return;}
+    var body=$.trim($('#nativeWorkflowReason').val()), choice=$('#nativeWorkflowChoice').val();
+    if(!body){$('#nativeWorkflowError').text('توضیح تصمیم / نتیجه الزامی است.');return;}
+    var nextSignature=JSON.stringify([body,choice,context.notice.lock_version]);if(!request || signature!==nextSignature){request=id();signature=nextSignature;}
+    var button=$(this).prop('disabled',true);
+    call('prepare_workflow_action',{id:context.notice.id,request_id:request,lock_version:context.notice.lock_version,body:body,command_type:context.stage==='follow_up'?'propose_result':choice,result:context.stage==='follow_up'?choice:''})
+      .done(function(response){field.setValue(response.data.request_id);submit.show();$('#nativeWorkflowError').empty();$('#nativeWorkflowInfo').text('فرمان معتبر آماده شد؛ فرم و سپس ارجاع بومی را تأیید کنید.');})
+      .fail(error).always(function(){button.prop('disabled',false);});
+  });
+})(jQuery);
+</script>

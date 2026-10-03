@@ -373,6 +373,28 @@
       .dialog { max-height: calc(100vh - 16px); }
       .overlay { padding: 8px; }
     }
+    .workflow-tools { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-block:12px; }
+    .workflow-tools[hidden], .workflow-overlay[hidden] { display:none; }
+    .workflow-overlay { position:fixed; inset:0; z-index:1200; background:var(--paper); display:flex; align-items:center; justify-content:center; padding:16px; }
+    .workflow-dialog { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); inline-size:min(1100px,100%); max-block-size:92vh; display:flex; flex-direction:column; box-shadow:var(--shadow); }
+    .workflow-head { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px; border-block-end:1px solid var(--line); }
+    .workflow-head h2 { margin:0; font-size:18px; }
+    .workflow-body { overflow:auto; padding:16px; }
+    .workflow-status { padding:12px; background:var(--surface-muted); border:1px solid var(--line); border-radius:var(--radius); margin-block-end:12px; }
+    .workflow-message { white-space:pre-wrap; overflow-wrap:anywhere; max-inline-size:38rem; }
+    .workflow-publish { display:grid; gap:12px; margin-block-start:16px; }
+    .workflow-events { overflow:auto; }
+    .workflow-events table { min-inline-size:800px; }
+    .workflow-event-heading { display:block; font-weight:700; padding-block:4px; }
+    .workflow-pagination { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-block:12px; }
+    .workflow-feedback { color:var(--red); white-space:pre-wrap; }
+    .workflow-readers { font-size:12px; color:var(--ink-soft); }
+    .workflow-notification { display:block; inline-size:100%; text-align:start; white-space:normal; margin-block:8px; }
+    .workflow-notification.unread { border-inline-start:4px solid var(--green); }
+    .workflow-events button:focus-visible,.workflow-dialog :focus-visible,.workflow-tools :focus-visible { outline:2px solid var(--green); outline-offset:3px; }
+    .workflow-dialog progress { inline-size:100%; accent-color:var(--green); }
+    @supports (-webkit-touch-callout:none) { .workflow-dialog input,.workflow-dialog textarea,.workflow-dialog select { font-size:16px; } }
+    @media (max-width:600px) { .workflow-overlay { padding:8px; } .workflow-head,.workflow-body { padding:12px; } }
   </style>
 </head>
 <body>
@@ -385,6 +407,11 @@
     </div>
     <button type="button" class="btn btn-primary" id="addButton" hidden>+ ثبت فراخوان جدید</button>
   </header>
+  <section class="workflow-tools" id="workflowTools" aria-label="کارتابل فراخوان‌ها" hidden>
+    <div class="field"><label for="workflowQueue">نمای کارتابل</label><select id="workflowQueue"><option value="">همهٔ فراخوان‌های مجاز</option><option value="pending_review">در انتظار بررسی اولیه</option><option value="follow_up">نیازمند پیگیری</option><option value="result_review">نتیجه‌های منتظر تأیید</option><option value="new_events">پیگیری‌های مشاهده‌نشده</option><option value="history">سوابق</option></select></div>
+    <button type="button" class="btn btn-light" id="notificationsButton" aria-haspopup="dialog">اعلان‌ها <span id="notificationCount">۰</span></button>
+    <small>موارد بررسی‌نشدهٔ روزهای قبل نیز در کارتابل باقی می‌مانند.</small>
+  </section>
 
   <section class="summary-grid" aria-label="خلاصه مناقصات و مزایدات">
     <div class="summary-card"><span class="summary-label">کل فراخوان‌ها</span><strong class="summary-value" id="totalCount">—</strong></div>
@@ -486,6 +513,15 @@
 
 <datalist id="sourceOptions"></datalist><datalist id="authorityOptions"></datalist><datalist id="guaranteeOptions"></datalist>
 
+<div class="workflow-overlay" id="workflowOverlay" hidden>
+  <section class="workflow-dialog" role="dialog" aria-modal="true" aria-labelledby="workflowTitle" dir="rtl">
+    <header class="workflow-head"><h2 id="workflowTitle">اقدامات و پیگیری‌ها</h2><button type="button" class="btn btn-light" id="workflowClose">بستن</button></header>
+    <div class="workflow-body" id="workflowBody">
+      <div id="workflowFeedback" class="workflow-feedback" role="alert"></div>
+      <div id="workflowContent"></div>
+    </div>
+  </section>
+</div>
 <script>
 (function ($) {
   'use strict';
@@ -511,11 +547,21 @@
   var calendarYear = 0;
   var calendarMonth = 0;
   var calendarFocusDay = 1;
+  var workflowPermissions = { enabled:false };
+  var workflowNotice = null, workflowPage = 1, workflowPages = 1, workflowFocus = null;
+  var workflowGeneration = 0, workflowSeen = {}, workflowSince = {}, workflowSeenBusy = false;
+  var publicationRequest = '', publicationSignature = '', formRequest = '', formSignature = '';
+  var notificationPage = 1, notificationPages = 1;
+  if (window.emcoreProcurementWorkflowTimers) {
+    $.each(window.emcoreProcurementWorkflowTimers, function (_,timer) { window.clearInterval(timer); });
+    $(document).off('.procurementWorkflow');
+  }
+  window.emcoreProcurementWorkflowTimers = [];
 
   var labels = {
     noticeType: { tender: 'مناقصه', auction: 'مزایده', unknown: 'نامشخص' },
     deadline: { open: 'دارای فرصت', urgent: 'نیازمند اقدام', expired: 'مهلت گذشته', no_deadline: 'بدون مهلت' },
-    status: { registered: 'ثبت اولیه', interested: 'علاقه‌مند', documents_submitted: 'ارسال مدارک', won: 'برنده', lost: 'شکست', unknown: 'نامشخص' },
+    status: { registered: 'ثبت اولیه', interested: 'علاقه‌مند', documents_submitted: 'ارسال مدارک', won: 'برنده', lost: 'شکست', unknown: 'نامشخص', not_interested:'عدم علاقه‌مندی', withdrawn:'توقف پیگیری' },
     fileRole: { notice_document: 'مدارک فراخوان', final_submission: 'فایل ارسال نهایی' },
     method: { physical: 'فیزیکی', online: 'آنلاین', other: 'سایر' }
   };
@@ -611,8 +657,8 @@
     });
   }
 
-  function uploadApi(formData, onProgress) {
-    formData.append('action', 'upload_file');
+  function uploadApi(formData, onProgress, action) {
+    formData.append('action', action || 'upload_file');
     return $.ajax({
       url: API,
       method: 'POST',
@@ -730,6 +776,14 @@
     $('.date-trigger').attr('aria-expanded', 'false');
     if (restoreFocus && activeDateTrigger) activeDateTrigger.trigger('focus');
     activeDateTarget = ''; activeDateTrigger = null;
+  }
+
+  function normalizeCalendarKey(event) {
+    // jQuery 1.11 does not consistently copy KeyboardEvent.key.
+    event.key = event.key || (event.originalEvent && event.originalEvent.key) || ({
+      13:'Enter',27:'Escape',33:'PageUp',34:'PageDown',35:'End',36:'Home',
+      37:'ArrowLeft',38:'ArrowUp',39:'ArrowRight',40:'ArrowDown'
+    })[event.which];
   }
 
   function selectJalaliDate(year, month, day) {
@@ -873,8 +927,15 @@
       lookups = response.data || {};
       csrfToken = response.csrf_token || csrfToken;
       permissions = response.permissions || permissions;
+      workflowPermissions = response.workflow_permissions || { enabled:false };
       applyLookups();
-      $('#addButton').prop('hidden', Number(permissions.can_create) !== 1);
+      $('#addButton').prop('hidden', Number(permissions.can_create) !== 1 || (workflowPermissions.enabled && !workflowPermissions.can_create));
+      $('#workflowTools').prop('hidden', !workflowPermissions.enabled);
+      if (workflowPermissions.enabled) {
+        $.each(['#statusFilter','#participationStatus'],function(_,id){ $.each(['not_interested','withdrawn'],function(_,status){ $(id).append($('<option>').val(status).text(labels.status[status])); }); });
+        $('#workflowQueue').val(workflowPermissions.role === 'manager' ? 'pending_review' : '');
+        pollWorkflowNotifications();
+      }
       if (!lookups.storage_ready) showNotice('مخزن خصوصی فایل‌ها هنوز پیکربندی نشده است؛ اطلاعات قابل ثبت است اما بارگذاری فایل غیرفعال می‌ماند.', 'warning');
     }).fail(function (xhr) { showNotice(errorText(xhr), 'error'); });
   }
@@ -886,6 +947,7 @@
       deadline_state: $('#deadlineFilter').val(),
       participation_status: $('#statusFilter').val(),
       responsible_unit: $('#unitFilter').val(),
+      workflow_queue: workflowPermissions.enabled ? $('#workflowQueue').val() : '',
       registered_on_fa: toLatinDigits($.trim($('#registeredOnFilter').val())),
       page: page,
       page_size: pageSize,
@@ -906,7 +968,7 @@
       renderSummary(response.summary || {});
       renderTable(response.data || []);
       renderPagination(response.pagination || {});
-      $('#addButton').prop('hidden', Number(permissions.can_create) !== 1);
+      $('#addButton').prop('hidden', Number(permissions.can_create) !== 1 || (workflowPermissions.enabled && !workflowPermissions.can_create));
     }).fail(function (xhr) {
       total = 0;
       activeQuery = null;
@@ -971,6 +1033,8 @@
       var title = $('<td>').addClass('title-cell').append($('<span>').addClass('record-title').text(row.title));
       title.append($('<span>').addClass('secondary').attr('dir', 'ltr').text(row.reference_number ? 'شماره: ' + row.reference_number : 'بدون شماره'));
       if (row.record_origin === 'legacy') title.append($('<span>').addClass('secondary').text('سابقه منتقل‌شده #' + faNumber(row.legacy_source_id)));
+      if (workflowPermissions.enabled && row.sync_state !== 'ready') title.append($('<span>').addClass('secondary').text(row.sync_state === 'error' ? 'نیازمند بررسی تطبیق ارجاع' : 'در انتظار تکمیل ارجاع'));
+      if (row.pending_result) title.append($('<span>').addClass('secondary').text('پیشنهاد نتیجه: ' + labels.status[row.pending_result] + ' — منتظر تأیید مدیر'));
       tr.append(title);
       tr.append($('<td>').append($('<span>').addClass('badge badge-' + row.notice_type).text(labels.noticeType[row.notice_type] || row.notice_type)));
       var authority = $('<td>').text(displayText(row.contracting_authority));
@@ -986,7 +1050,8 @@
       tr.append($('<td>').text(faNumber(row.file_count || 0)));
       var actions = $('<div>').addClass('row-actions');
       actions.append($('<button>').attr('type', 'button').addClass('btn btn-light btn-small').text(Number(permissions.can_update) === 1 ? 'مشاهده / ویرایش' : 'مشاهده').on('click', function () { openRecord(row.id); }));
-      if (Number(permissions.can_delete) === 1) actions.append($('<button>').attr('type', 'button').addClass('btn btn-danger btn-small').text('حذف').on('click', function () { removeRecord(row); }));
+      if (Number(permissions.can_delete) === 1 && (!workflowPermissions.enabled || (row.workflow_permissions && row.workflow_permissions.can_edit && !row.app_uid))) actions.append($('<button>').attr('type', 'button').addClass('btn btn-danger btn-small').text('حذف').on('click', function () { removeRecord(row); }));
+      if (workflowPermissions.enabled) actions.append($('<button>').attr('type','button').addClass('btn btn-light btn-small').text('اقدامات و پیگیری‌ها').on('click',function(){openWorkflow(row.id);}));
       tr.append($('<td>').append(actions));
       body.append(tr);
     });
@@ -1192,7 +1257,7 @@
     var unit = $('#responsibleUnit').val();
     $('.trade-field').toggle(unit === 'بازرگانی');
     $('.drilling-field').toggle(unit === 'حفاری' || unit === 'محدوده معدنی');
-    $('.interest-field').toggle($('#participationStatus').val() === 'interested');
+    $('.interest-field').toggle($('#participationStatus').val() === 'interested' || Boolean($('#interestReason').val()));
   }
 
   function resetForm() {
@@ -1205,6 +1270,7 @@
     $('#fileSelectionStatus').text('می‌توانید چند فایل را هم‌زمان انتخاب کنید.');
     $('#uploadProgress').prop('hidden', true); $('#uploadProgressBar').val(0); $('#uploadProgressValue').text('۰٪'); $('#uploadProgressLabel').text('آمادهٔ بارگذاری');
     $('#formError').hide().text(''); activeFiles = []; uploadInProgress = false; updateConditionalFields();
+    formRequest = ''; formSignature = '';
   }
 
   function setDialogMode(readOnly) {
@@ -1215,6 +1281,7 @@
     $('#saveButton').toggle(!readOnly);
     $('#readOnlyNote').toggle(readOnly);
     $('#uploadControls').toggle(!readOnly && Boolean(lookups.storage_ready));
+    if (workflowPermissions.enabled) $('#participationStatus,#interestReason').prop('disabled',true);
   }
 
   function openOverlay() {
@@ -1243,7 +1310,7 @@
       updateClassificationSelects(row.category_name || '', row.subcategory_name || '', row.product_name || '', true);
       $('#drillingArea').val(row.drilling_area || ''); $('#participationStatus').val(row.participation_status); updateEstimatedAmountPreview();
       $('#interestReason').val(row.interest_reason || ''); activeFiles = row.files || []; updateConditionalFields(); renderFiles();
-      setDialogMode(Number(permissions.can_update) !== 1); $('#dialogTitle').text(dialogReadOnly ? 'مشاهده فراخوان' : 'ویرایش فراخوان');
+      setDialogMode(Number(permissions.can_update) !== 1 || (workflowPermissions.enabled && !(row.workflow && row.workflow.permissions.can_edit))); $('#dialogTitle').text(dialogReadOnly ? 'مشاهده فراخوان' : 'ویرایش فراخوان');
       $('.files-panel-section,#filesPanel').show(); openOverlay();
     }).fail(function (xhr) { showNotice(errorText(xhr), 'error'); });
   }
@@ -1279,6 +1346,11 @@
     var data = formData(); var validation = validateForm(data);
     if (validation) { $('#formError').text(validation).show(); return; }
     var action = data.id ? 'update' : 'create';
+    if (workflowPermissions.enabled) {
+      var signature = JSON.stringify(data);
+      if (!formRequest || signature !== formSignature) { formRequest=workflowRequestId(); formSignature=signature; }
+      data.request_id=formRequest;
+    }
     $('#saveButton').prop('disabled', true); $('#formError').hide().text('');
     api(action, data).done(function (response) {
       if (action === 'create') {
@@ -1304,7 +1376,7 @@
       info.append($('<div>').addClass('file-meta').text(metaParts.join(' · ')));
       var actions = $('<div>').addClass('file-actions');
       if (Number(file.is_downloadable) === 1) actions.append($('<button>').attr('type', 'button').addClass('btn btn-light btn-small').text('دانلود').on('click', function () { downloadFile(file.id); }));
-      if (Number(permissions.can_delete) === 1) actions.append($('<button>').attr('type', 'button').addClass('btn btn-danger btn-small').text('حذف').on('click', function () { removeFile(file); }));
+      if (Number(permissions.can_delete) === 1 && !dialogReadOnly) actions.append($('<button>').attr('type', 'button').addClass('btn btn-danger btn-small').text('حذف').on('click', function () { removeFile(file); }));
       item.append(info, actions); list.append(item);
     });
   }
@@ -1382,8 +1454,213 @@
 
   function removeRecord(row) {
     if (!window.confirm('رکورد «' + row.title + '» حذف شود؟ این حذف نرم و قابل ممیزی است.')) return;
-    api('delete', { id: row.id }).done(function () { loadRows().done(function () { showNotice('رکورد حذف شد.', 'success'); }); }).fail(function (xhr) { showNotice(errorText(xhr), 'error'); });
+    api('delete', { id: row.id, lock_version:row.lock_version }).done(function () { loadRows().done(function () { showNotice('رکورد حذف شد.', 'success'); }); }).fail(function (xhr) { showNotice(errorText(xhr), 'error'); });
   }
+
+  function workflowRequestId() {
+    if (!window.crypto || !window.crypto.getRandomValues) throw new Error('مرورگر برای ثبت امن درخواست باید به‌روز باشد.');
+    var bytes=new Uint8Array(16); window.crypto.getRandomValues(bytes);
+    return Array.prototype.map.call(bytes,function(b){return ('0'+b.toString(16)).slice(-2);}).join('');
+  }
+
+  function workflowTime(value) {
+    var parts=String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}:\d{2}:\d{2})/);
+    if (!parts) return '—';
+    var jalali=jalaali.toJalaali(Number(parts[1]),Number(parts[2]),Number(parts[3]));
+    return formatJalali(jalali.jy,jalali.jm,jalali.jd)+' · '+toPersianDigits(parts[4]);
+  }
+
+  function workflowButton(text,handler) { return $('<button>').attr('type','button').addClass('btn btn-light btn-small').text(text).on('click',handler); }
+  function workflowError(xhr) { $('#workflowFeedback').text(errorText(xhr)); }
+  function showWorkflow(title) {
+    workflowGeneration++; workflowSince={}; workflowSeen={}; workflowSeenBusy=false;
+    workflowFocus=document.activeElement;
+    $('#workflowTitle').text(title); $('#workflowFeedback').empty(); $('#workflowContent').empty();
+    $('#workflowOverlay').prop('hidden',false); $('#workflowClose').trigger('focus');
+  }
+  function closeWorkflow() {
+    workflowGeneration++; workflowSince={}; $('#workflowOverlay').prop('hidden',true);
+    if (workflowFocus && document.contains(workflowFocus)) $(workflowFocus).trigger('focus');
+  }
+  function openWorkflow(id,targetEvent) {
+    if (!workflowPermissions.enabled) return;
+    showWorkflow('اقدامات و پیگیری‌ها'); workflowPage=1; publicationRequest=''; publicationSignature='';
+    var generation=workflowGeneration;
+    api('get',{id:id}).done(function(response){
+      if (generation!==workflowGeneration) return;
+      workflowNotice=response.data; $('#workflowTitle').text('پیگیری فراخوان '+faNumber(id)+' — '+response.data.title);
+      loadWorkflowEvents(targetEvent);
+    }).fail(workflowError);
+  }
+  function workflowStatus(workflow) {
+    var stageLabels={activation:'تأیید انتخاب فراخوان',follow_up:'پیگیری اپراتور',result_review:'بررسی نتیجه توسط مدیر',completed:'پرونده نهایی',stopped:'پیگیری متوقف‌شده'};
+    var host=$('<div>').addClass('workflow-status');
+    host.append($('<p>').text('وضعیت: '+(labels.status[workflowNotice.participation_status] || 'نامشخص')+' · '+(stageLabels[workflow.workflow_stage] || (Number(workflowNotice.workflow_history_only)?'سابقه — بدون پروندهٔ پیگیری':'در انتظار تصمیم مدیر'))));
+    if (workflow.pending_result) host.append($('<p>').text('پیشنهاد اپراتور: '+labels.status[workflow.pending_result]+'؛ هنوز تأیید نشده است.'));
+    if (workflow.sync_state!=='ready') host.append($('<p>').text(workflow.sync_state==='error'?'ارجاع نیازمند بررسی تطبیق است؛ با مسئول سامانه هماهنگ کنید.':'در انتظار تکمیل ارجاع در ProcessMaker.'));
+    if (workflow.case_url) host.append($('<a>').addClass('btn btn-light').attr({href:workflow.case_url,target:'_top'}).text('بازکردن پرونده در کارتابل'));
+    var manager=workflowPermissions.role==='manager';
+    if (manager && !workflow.app_uid && ['registered','not_interested','interested','documents_submitted'].indexOf(workflowNotice.participation_status)>=0) {
+      host.append(workflowButton('انتخاب برای پیگیری',function(){showWorkflowDecision('activate');}));
+      if (['registered','not_interested'].indexOf(workflowNotice.participation_status)>=0) host.append(workflowButton('عدم علاقه‌مندی',function(){showWorkflowDecision('not_interested');}));
+    }
+    if (!manager && workflow.workflow_stage==='follow_up' && workflow.sync_state==='ready') {
+      if (workflowNotice.participation_status==='interested') host.append(workflowButton('ثبت ارسال مدارک',function(){showWorkflowDecision('record_submission');}));
+      host.append($('<p>').text('برای پیشنهاد نتیجه، پرونده را در کارتابل باز کنید. ثبت یادداشت به‌تنهایی پرونده را ارجاع نمی‌دهد.'));
+    }
+    if (workflow.permissions.can_stop) host.append(workflowButton('درخواست توقف پیگیری',function(){showWorkflowDecision('request_stop');}));
+    if (manager && workflow.pending_command && workflow.pending_command.command_type==='request_stop') {
+      host.append($('<p>').text('دلیل توقف ثبت شده است. اکنون از اقدام رسمی «لغو پرونده» در ProcessMaker استفاده کنید؛ پس از تأیید لغو، پنل همگام می‌شود.'));
+      host.append(workflowButton('انصراف از درخواست توقف',function(){
+        api('cancel_stop_request',{id:workflowNotice.id,request_id:workflow.pending_command.request_id}).done(function(){openWorkflow(workflowNotice.id);loadRows();}).fail(workflowError);
+      }));
+    }
+    return host;
+  }
+  function loadWorkflowEvents(targetEvent) {
+    var generation=workflowGeneration, id=workflowNotice.id;
+    $('#workflowContent').attr('aria-busy','true').empty().append($('<p>').text('در حال دریافت رویدادها…')); workflowSince={};
+    api('list_events',{id:id,page:workflowPage,target_event_id:targetEvent || ''}).done(function(response){
+      if(generation!==workflowGeneration)return;
+      workflowPage=Number(response.pagination.page); workflowPages=Number(response.pagination.total_pages);
+      var host=$('#workflowContent').empty().attr('aria-busy','false');
+      host.append(workflowStatus(response.workflow));
+      var table=$('<table>').append($('<thead>').append($('<tr>').append($.map(['نویسنده / زمان','نوع و شرح رویداد','پیوست‌ها','مشاهده‌کنندگان'],function(label){return $('<th>').attr('scope','col').text(label)[0];}))));
+      var body=$('<tbody>');
+      $.each(response.data,function(_,event){body.append(renderWorkflowEvent(event));});
+      host.append($('<div>').addClass('workflow-events').append(table.append(body)));
+      if(!response.data.length)host.append($('<p>').text('هنوز اقدامی ثبت نشده است؛ سابقهٔ گذشته بازسازی نشده است.'));
+      host.append($('<div>').addClass('workflow-pagination')
+        .append(workflowButton('صفحهٔ قبل',function(){if(workflowPage>1){workflowPage--;loadWorkflowEvents();}}).prop('disabled',workflowPage<=1))
+        .append($('<span>').text('صفحهٔ '+faNumber(workflowPage)+' از '+faNumber(workflowPages)))
+        .append(workflowButton('صفحهٔ بعد',function(){if(workflowPage<workflowPages){workflowPage++;loadWorkflowEvents();}}).prop('disabled',workflowPage>=workflowPages)));
+      appendWorkflowPublisher(host);
+      if(targetEvent){var target=host.find('[data-event-id="'+Number(targetEvent)+'"]')[0];if(target)target.scrollIntoView({block:'center'});}
+    }).fail(function(xhr){if(generation===workflowGeneration){$('#workflowContent').attr('aria-busy','false').empty();workflowError(xhr);}});
+  }
+  function renderWorkflowEvent(event) {
+    var types={registered:'ثبت اولیه',activate:'تأیید علاقه‌مندی',not_interested:'عدم علاقه‌مندی',record_submission:'ارسال مدارک',propose_result:'پیشنهاد نتیجه',approve_result:'تأیید نهایی',return_follow_up:'بازگشت به پیگیری',request_stop:'توقف پیگیری',note:'یادداشت',correction:'اصلاحیه',record_updated:'تغییر مشخصات',file_uploaded:'افزودن مدرک',file_deleted:'حذف مدرک از فهرست فعال'};
+    var roles={operator:'اپراتور',manager:'مدیر',system:'سامانه'};
+    var tr=$('<tr>');
+    tr.append($('<td>').append($('<span>').addClass('workflow-event-heading').attr('data-event-id',event.id).text((event.author_name || roles[event.actor_role] || 'کاربر')+' · '+(roles[event.actor_role] || ''))).append($('<small>').text(workflowTime(event.created_at))));
+    var message=$('<td>').append($('<strong>').text(types[event.event_type] || 'رویداد')).append($('<p>').addClass('workflow-message').text(event.body));
+    if(event.corrects_event_id)message.append($('<small>').text('اصلاحیهٔ رویداد '+faNumber(event.corrects_event_id)));
+    var fieldLabels={title:'عنوان',notice_type:'نوع',source_name:'منبع',supplier_name:'تأمین‌کننده',quantity_text:'تناژ',reference_number:'شماره',amount_text:'مبلغ تضمین',estimated_amount:'مبلغ برآوردشده',currency:'واحد پول',contracting_authority:'دستگاه اجرایی',submission_method:'نحوهٔ شرکت',delivery_term:'تحویل بار',primary_guarantee:'ضمانت‌نامه',registered_on_fa:'تاریخ ثبت',registered_on_en:'تاریخ ثبت',documents_deadline_fa:'مهلت اسناد',documents_deadline_en:'مهلت اسناد',response_deadline_fa:'مهلت پاسخ',response_deadline_en:'مهلت پاسخ',alert_lead_days:'هشدار',responsible_unit:'واحد مربوطه',category_name:'گروه',subcategory_name:'زیرگروه',product_name:'کالا',drilling_area:'محدودهٔ حفاری',is_extended:'تمدید'};
+    if(event.after_data && event.after_data.changed_fields) message.append($('<small>').text('فیلدهای تغییرکرده: '+event.after_data.changed_fields.map(function(field){return fieldLabels[field] || 'مشخصات';}).filter(function(value,index,array){return array.indexOf(value)===index;}).join('، ')));
+    var files=$('<td>');$.each(event.files || [],function(_,file){files.append(workflowButton(file.original_filename,function(){downloadFile(file.id);}));});if(!event.files.length)files.text('بدون پیوست');
+    var readers=$('<td>').addClass('workflow-readers');
+    $.each(event.readers || [],function(_,reader){readers.append($('<p>').text((reader.user_name || 'کاربر')+' — نخستین مشاهده: '+workflowTime(reader.first_seen_at)+'؛ آخرین مشاهده: '+workflowTime(reader.last_seen_at)));});
+    if(!event.readers.length)readers.append($('<span>').addClass('workflow-unseen').text('هنوز مشاهده‌ای ثبت نشده است.'));
+    if(event.actor_role===workflowPermissions.role)message.append(workflowButton('ثبت اصلاحیه',function(){ $('#workflowCorrects').val(event.id);$('#workflowBodyText').trigger('focus');$('#workflowCorrectionLabel').text('اصلاحیهٔ رویداد '+faNumber(event.id)); }));
+    return tr.append(message,files,readers);
+  }
+  function appendWorkflowPublisher(host) {
+    var form=$('<div>').addClass('workflow-publish');
+    form.append($('<input>').attr({type:'hidden',id:'workflowCorrects'}));
+    form.append($('<div>').append($('<label>').attr('for','workflowBodyText').text('شرح اقدام یا اصلاحیه')).append($('<textarea>').attr({id:'workflowBodyText',maxlength:5000,rows:4})).append($('<small>').attr('id','workflowCorrectionLabel')));
+    form.append($('<div>').append($('<label>').attr('for','workflowAttachments').text('پیوست‌های اختیاری — مجموع حداکثر ۵۰ مگابایت')).append($('<input>').attr({id:'workflowAttachments',type:'file',multiple:'multiple',accept:'.doc,.docx,.pdf,.xls,.xlsx,.jpg,.jpeg,.png,.zip'}).prop('disabled',!lookups.storage_ready)));
+    form.append($('<progress>').attr({id:'workflowUploadProgress',max:100,value:0,'aria-label':'پیشرفت انتشار اقدام',hidden:true}));
+    form.append(workflowButton('انتشار اقدام',publishWorkflowEvent).attr('id','workflowPublish'));
+    form.append(workflowButton('یادداشت جدید / پاک‌کردن اصلاحیه',function(){ $('#workflowCorrects').val('');$('#workflowCorrectionLabel').text(''); }));
+    form.append($('<small>').text('نوشته و پیوست منتشرشده حذف یا بازنویسی نمی‌شود؛ برای تصحیح، اصلاحیه ثبت کنید. «مشاهده‌شده» به معنای تأیید مدیریتی نیست.'));
+    host.append(form);
+  }
+  function publishWorkflowEvent() {
+    var body=$.trim($('#workflowBodyText').val()), corrects=$('#workflowCorrects').val();
+    var files=Array.prototype.slice.call(($('#workflowAttachments')[0] || {}).files || []);
+    if(!body){$('#workflowFeedback').text('شرح اقدام الزامی است.');return;}
+    var sum=files.reduce(function(total,file){return total+file.size;},0);
+    if(sum>52428800 || files.length>20){$('#workflowFeedback').text('حداکثر ۲۰ پیوست با مجموع اندازهٔ ۵۰ مگابایت مجاز است.');return;}
+    var signature=JSON.stringify([workflowNotice.id,body,corrects,files.map(function(file){return [file.name,file.size,file.lastModified];})]);
+    if(!publicationRequest || signature!==publicationSignature){publicationRequest=workflowRequestId();publicationSignature=signature;}
+    var data=new FormData();data.append('csrf_token',csrfToken);data.append('id',workflowNotice.id);data.append('request_id',publicationRequest);data.append('body',body);data.append('corrects_event_id',corrects);
+    $.each(files,function(_,file){data.append('attachments[]',file);});
+    var generation=workflowGeneration;
+    $('#workflowPublish,#workflowBodyText,#workflowAttachments').prop('disabled',true);$('#workflowUploadProgress').prop('hidden',false);$('#workflowFeedback').empty();
+    uploadApi(data,function(event){if(event.lengthComputable)$('#workflowUploadProgress').val(Math.round(event.loaded/event.total*100));},'create_event')
+      .done(function(){if(generation!==workflowGeneration)return;publicationRequest='';publicationSignature='';loadWorkflowEvents();pollWorkflowNotifications();loadRows();})
+      .fail(function(xhr){if(generation===workflowGeneration)workflowError(xhr);})
+      .always(function(){if(generation!==workflowGeneration)return;$('#workflowPublish,#workflowBodyText').prop('disabled',false);$('#workflowAttachments').prop('disabled',!lookups.storage_ready);$('#workflowUploadProgress').prop('hidden',true);});
+  }
+  function showWorkflowDecision(type) {
+    var titles={activate:'انتخاب برای پیگیری',not_interested:'عدم علاقه‌مندی',record_submission:'ثبت ارسال مدارک',request_stop:'درخواست توقف پیگیری'};
+    workflowGeneration++;workflowSince={};$('#workflowFeedback').empty();
+    var host=$('#workflowContent').empty().append($('<h3>').text(titles[type]));
+    host.append($('<label>').attr('for','workflowDecisionReason').text('دلیل / توضیح')).append($('<textarea>').attr({id:'workflowDecisionReason',maxlength:5000,rows:4}));
+    if(type==='activate')host.append($('<p>').text('ثبت این درخواست هنوز علاقه‌مندی محسوب نمی‌شود. پس از بازکردن فرم آغاز فرایند، انتخاب را تأیید و ارجاع بومی را تکمیل کنید.'));
+    if(type==='request_stop')host.append($('<p>').text('پس از ثبت دلیل، پرونده را با اقدام رسمی ProcessMaker لغو کنید. تا تأیید لغو، وضعیت نهایی تغییر نمی‌کند.'));
+    var request=workflowRequestId(), lastBody='';
+    host.append(workflowButton('ثبت و ادامه',function(){
+      var button=$(this), body=$.trim($('#workflowDecisionReason').val());
+      if(!body){$('#workflowFeedback').text('دلیل / توضیح الزامی است.');return;}
+      if(lastBody && lastBody!==body)request=workflowRequestId();lastBody=body;
+      button.prop('disabled',true);
+      var action=type==='not_interested'?'set_review_decision':(type==='record_submission'?'record_submission':'prepare_workflow_action');
+      api(action,{id:workflowNotice.id,command_type:type,body:body,request_id:request,lock_version:workflowNotice.lock_version}).done(function(response){
+        if(response.native_url){host.empty().append($('<p>').text('درخواست ثبت شد. برای تکمیل اقدام، پرونده را در ProcessMaker باز کنید.')).append($('<a>').addClass('btn btn-primary').attr({href:response.native_url,target:'_top'}).text('بازکردن فرم بومی ProcessMaker'));}
+        else openWorkflow(workflowNotice.id);
+        loadRows();
+      }).fail(workflowError).always(function(){button.prop('disabled',false);});
+    }));
+    host.append(workflowButton('بازگشت به اقدامات',function(){openWorkflow(workflowNotice.id);}));$('#workflowDecisionReason').trigger('focus');
+  }
+  function pollWorkflowNotifications() {
+    if(!workflowPermissions.enabled || document.hidden)return;
+    api('list_notifications',{page:1}).done(function(response){$('#notificationCount').text(faNumber(response.unread_count));}).fail(function(xhr){if(xhr.status===401)showNotice('نشست شما پایان یافته است؛ دوباره وارد سامانه شوید.','warning');});
+  }
+  function openWorkflowNotifications(nextPage) {
+    showWorkflow('اعلان‌های فراخوان‌ها'); notificationPage=nextPage || 1;
+    var generation=workflowGeneration;
+    api('list_notifications',{page:notificationPage}).done(function(response){
+      if(generation!==workflowGeneration)return;
+      var host=$('#workflowContent');$('#notificationCount').text(faNumber(response.unread_count));
+      $.each(response.data,function(_,item){host.append(workflowButton('فراخوان '+faNumber(item.procurement_id)+' — '+item.title+' · '+item.body+' · '+workflowTime(item.created_at),function(){openWorkflow(item.procurement_id,item.event_id);}).addClass('workflow-notification').toggleClass('unread',!item.read_at));});
+      if(!response.data.length)host.append($('<p>').text('اعلانی برای نمایش وجود ندارد.'));
+      notificationPages=Math.max(1,Math.ceil(response.total/25));
+      host.append($('<div>').addClass('workflow-pagination').append(workflowButton('قبلی',function(){openWorkflowNotifications(notificationPage-1);}).prop('disabled',notificationPage<=1)).append($('<span>').text('صفحه '+faNumber(notificationPage)+' از '+faNumber(notificationPages))).append(workflowButton('بعدی',function(){openWorkflowNotifications(notificationPage+1);}).prop('disabled',notificationPage>=notificationPages)));
+    }).fail(workflowError);
+  }
+  function workflowEventVisible(header,viewport) {
+    return header.top>=viewport.top && header.bottom<=viewport.bottom && header.right>viewport.left && header.left<viewport.right && header.height>0;
+  }
+  function checkWorkflowSeen() {
+    if(!workflowPermissions.enabled || $('#workflowOverlay').prop('hidden') || document.hidden || !document.hasFocus()) {workflowSince={};return;}
+    if(workflowSeenBusy)return;
+    var root=$('#workflowBody')[0].getBoundingClientRect(), viewport={top:Math.max(0,root.top),bottom:Math.min(window.innerHeight,root.bottom),left:Math.max(0,root.left),right:Math.min(window.innerWidth,root.right)};
+    var now=Date.now(), ids=[];
+    $('#workflowContent .workflow-event-heading').each(function(){
+      var id=Number($(this).attr('data-event-id'));
+      if(workflowSeen[id])return;
+      if(!workflowEventVisible(this.getBoundingClientRect(),viewport)){delete workflowSince[id];return;}
+      if(workflowSince[id]===undefined)workflowSince[id]=now;
+      if(now-workflowSince[id]>=1000)ids.push(id);
+    });
+    if(!ids.length || !workflowNotice)return;
+    var generation=workflowGeneration;workflowSeenBusy=true;
+    api('mark_events_seen',{id:workflowNotice.id,event_ids:JSON.stringify(ids)}).done(function(response){
+      if(generation!==workflowGeneration)return;
+      $.each(ids,function(_,id){
+        workflowSeen[id]=true;
+        var readers=$('#workflowContent [data-event-id="'+id+'"]').closest('tr').find('.workflow-readers');
+        readers.find('.workflow-unseen').remove();
+        readers.append($('<small>').text('مشاهدهٔ شما ثبت شد: '+workflowTime(response.seen_at)));
+      });pollWorkflowNotifications();
+    }).always(function(){if(generation===workflowGeneration)workflowSeenBusy=false;});
+  }
+  window.emcoreProcurementWorkflowTimers.push(window.setInterval(pollWorkflowNotifications,30000));
+  window.emcoreProcurementWorkflowTimers.push(window.setInterval(checkWorkflowSeen,150));
+  $('#workflowClose').on('click',closeWorkflow);
+  $('#workflowOverlay').on('click',function(event){if(event.target===this)closeWorkflow();});
+  $('#notificationsButton').on('click',function(){openWorkflowNotifications(1);});
+  $('#workflowQueue').on('change',function(){page=1;loadRows();});
+  $(document).on('visibilitychange.procurementWorkflow blur.procurementWorkflow',function(){workflowSince={};});
+  $('#workflowOverlay').on('keydown',function(event){
+    if(event.which===27){event.stopPropagation();closeWorkflow();return;}
+    if(event.which!==9)return;
+    var focusable=$(this).find('button,a,input,select,textarea').filter(':visible:not(:disabled)'), first=focusable[0], last=focusable[focusable.length-1];
+    if(event.shiftKey && document.activeElement===first){event.preventDefault();$(last).trigger('focus');}
+    else if(!event.shiftKey && document.activeElement===last){event.preventDefault();$(first).trigger('focus');}
+  });
 
   function closeDialog() {
     if (uploadInProgress) { $('#formError').text('تا پایان بارگذاری فایل‌ها امکان بستن این پنجره وجود ندارد.').show(); return; }
@@ -1418,11 +1695,13 @@
     var input = $('#' + activeDateTarget); input.val('').removeData('selected-date').trigger('change'); closeJalaliDatepicker(false); input.trigger('focus');
   });
   $('#documentsDeadline,#responseDeadline,#registeredOnFilter').on('keydown', function (event) {
+    normalizeCalendarKey(event);
     if (event.altKey && event.key === 'ArrowDown') { event.preventDefault(); openJalaliDatepicker(this.id, $('.date-trigger[data-date-target="' + this.id + '"]')[0]); }
     if (event.key === 'Escape' && !$('#jalaliDatepicker').prop('hidden')) { event.preventDefault(); closeJalaliDatepicker(false); $(this).trigger('focus'); }
     if (event.which === 13 && this.id === 'registeredOnFilter') { event.preventDefault(); page = 1; closeJalaliDatepicker(false); loadRows(); }
   });
   $('#jalaliDays').on('keydown', '.calendar-day', function (event) {
+    normalizeCalendarKey(event);
     calendarFocusDay = Number($(this).data('day'));
     var column = Number($(this).data('column')); var handled = true;
     if (event.key === 'ArrowRight') moveCalendarFocus(-1);
@@ -1438,6 +1717,7 @@
     if (handled) event.preventDefault();
   });
   $('#jalaliDatepicker').on('keydown', function (event) {
+    normalizeCalendarKey(event);
     if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeJalaliDatepicker(true); }
   });
   $(document).on('mousedown', function (event) {
@@ -1452,6 +1732,9 @@
   $('#previousButton').on('click', function () { if (page > 1) { page--; loadRows(); } });
   $('#nextButton').on('click', function () { if (page * pageSize < total) { page++; loadRows(); } });
   $(document).on('keydown', function (event) {
+    if (event.which === 27 && !$('#jalaliDatepicker').prop('hidden')) {
+      event.preventDefault(); closeJalaliDatepicker(true); return;
+    }
     if (event.which === 27 && $('#formOverlay').hasClass('open')) closeDialog();
     if (event.which === 9 && $('#formOverlay').hasClass('open')) {
       var focusable = $('#formOverlay').find('button:visible:not(:disabled), input:visible:not(:disabled), select:visible:not(:disabled), textarea:visible:not(:disabled)');
