@@ -1,6 +1,6 @@
 <?php
 
-require_once __DIR__ . '/_module_permissions.php';
+require_once __DIR__ . '/_procurement_workflow.php';
 
 const EMCORE_PROCUREMENT_ANALYTICS_MODULE = 'procurement_notices';
 
@@ -61,14 +61,17 @@ function emcore_procurement_analytics_lookup($db, $column)
         throw new RuntimeException('Unknown procurement analytics lookup.');
     }
     $notLegacyNan = $column === 'category_name' ? " AND LOWER(TRIM({$column})) <> 'nan'" : '';
-    $rows = $db->query(
+    $scope = emcore_pw_scope();
+    $stmt = $db->prepare(
         "SELECT DISTINCT {$column} AS value
-         FROM emcore_procurement_notices
-         WHERE deleted_at IS NULL AND {$column} IS NOT NULL AND TRIM({$column}) <> ''
+         FROM emcore_procurement_notices p
+         WHERE deleted_at IS NULL AND {$scope['sql']} AND {$column} IS NOT NULL AND TRIM({$column}) <> ''
          {$notLegacyNan}
          ORDER BY {$column}
          LIMIT 201"
-    )->fetchAll(PDO::FETCH_COLUMN);
+    );
+    $stmt->execute($scope['params']);
+    $rows = $stmt->fetchAll(PDO::FETCH_COLUMN);
     return [array_slice($rows, 0, 200), count($rows) > 200];
 }
 
@@ -84,7 +87,7 @@ function emcore_procurement_analytics_filters($db)
 
     $noticeType = emcore_procurement_analytics_enum('notice_type', ['tender', 'auction', 'unknown']);
     $participationStatus = emcore_procurement_analytics_enum('participation_status', [
-        'registered', 'interested', 'documents_submitted', 'won', 'lost', 'unknown',
+        'registered', 'interested', 'documents_submitted', 'won', 'lost', 'unknown', 'not_interested', 'withdrawn',
     ]);
     $sourceName = emcore_string('source_name', false, 255);
     $authority = emcore_string('contracting_authority', false, 255);
@@ -98,8 +101,9 @@ function emcore_procurement_analytics_filters($db)
     );
     $topN = emcore_procurement_analytics_integer('top_n', 12, 5, 30);
 
-    $where = ['p.deleted_at IS NULL'];
-    $params = [];
+    $scope = emcore_pw_scope();
+    $where = ['p.deleted_at IS NULL', $scope['sql']];
+    $params = $scope['params'];
     if ($dateFrom !== null) {
         $where[] = 'p.registered_on_en >= :date_from_en';
         $params[':date_from_en'] = $dateFrom['en'];
@@ -218,6 +222,7 @@ function emcore_procurement_analytics_hierarchy($rows)
 $action = emcore_action(['lookups', 'dashboard']);
 emcore_require_permission(EMCORE_PROCUREMENT_ANALYTICS_MODULE, 'read');
 $db = emcore_db();
+if (emcore_pw_enabled()) emcore_pw_user_role();
 
 if ($action === 'lookups') {
     $lookups = [];
@@ -225,17 +230,20 @@ if ($action === 'lookups') {
     foreach (['source_name', 'contracting_authority', 'responsible_unit', 'category_name'] as $column) {
         list($lookups[$column], $truncated[$column]) = emcore_procurement_analytics_lookup($db, $column);
     }
-    $dateBounds = $db->query(
+    $scope = emcore_pw_scope();
+    $bounds = $db->prepare(
         "SELECT MIN(registered_on_fa) AS minimum_fa,
                 MAX(registered_on_fa) AS maximum_fa,
                 MIN(registered_on_en) AS minimum_en,
                 MAX(registered_on_en) AS maximum_en
-         FROM emcore_procurement_notices
-         WHERE deleted_at IS NULL AND registered_on_en IS NOT NULL"
-    )->fetch();
+         FROM emcore_procurement_notices p
+         WHERE deleted_at IS NULL AND {$scope['sql']} AND registered_on_en IS NOT NULL"
+    );
+    $bounds->execute($scope['params']);
+    $dateBounds = $bounds->fetch();
     $lookups['notice_types'] = ['tender', 'auction', 'unknown'];
     $lookups['participation_statuses'] = [
-        'registered', 'interested', 'documents_submitted', 'won', 'lost', 'unknown',
+        'registered', 'interested', 'documents_submitted', 'won', 'lost', 'unknown', 'not_interested', 'withdrawn',
     ];
     $lookups['date_bounds'] = $dateBounds;
     emcore_json([

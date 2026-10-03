@@ -181,6 +181,11 @@ function emcore_pw_native_cancel_guard($db, $app, $process)
         if (!trim($payload['body']??'')) throw new EmcoreHttpException(422, 'دلیل توقف الزامی است.');
         $case=emcore_pw_case_state($db,$app);
         if (!in_array($case['APP_STATUS'],['TO_DO','DRAFT'],true)) throw new EmcoreHttpException(409, 'پرونده در وضعیت قابل توقف نیست.');
+        $task=$case['tasks'][0]??null;
+        $expectedTask=emcore_pw_settings()[$row['workflow_stage']==='result_review'?'result_task':'follow_up_task'];
+        $expectedActor=$row['workflow_stage']==='result_review'?$row['manager_usr_uid']:$row['owner_usr_uid'];
+        if (!$task || $commands[0]['app_uid']!==$app || (int)$task['DEL_INDEX']!==(int)$commands[0]['source_del_index']
+            || $task['TAS_UID']!==$expectedTask || $task['USR_UID']!==$expectedActor) throw new EmcoreHttpException(409,'گام یا مسئول پرونده تغییر کرده است؛ پیش از توقف وضعیت تطبیق را بررسی کنید.');
         $db->commit();
     } catch(Throwable $error) {if($db->inTransaction())$db->rollBack();throw $error;}
 }
@@ -210,6 +215,8 @@ function emcore_pw_prepare($db, $row, $actor, $role, $type, $body, $result, $req
         $task = $case['tasks'][0] ?? null;
         $expectedTask = emcore_pw_settings()[$row['workflow_stage'] === 'result_review' ? 'result_task' : 'follow_up_task'];
         if (!$task || $task['TAS_UID'] !== $expectedTask || !in_array($case['APP_STATUS'], ['TO_DO','DRAFT'], true)) throw new EmcoreHttpException(409, 'گام واقعی پرونده با پنل همگام نیست.');
+        $expectedActor=$row['workflow_stage']==='result_review'?$row['manager_usr_uid']:$row['owner_usr_uid'];
+        if ($task['USR_UID']!==$expectedActor) throw new EmcoreHttpException(409,'مسئول واقعی پرونده با فراخوان همگام نیست.');
         if ($type !== 'request_stop' && $task['USR_UID'] !== $actor) throw new EmcoreHttpException(403, 'این گام به شما ارجاع نشده است.');
         $index = (int)$task['DEL_INDEX'];
     }

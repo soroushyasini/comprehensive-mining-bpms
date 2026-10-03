@@ -1,6 +1,6 @@
 <?php
 
-require_once __DIR__ . '/_procurement_storage.php';
+require_once __DIR__ . '/_procurement_workflow_actions.php';
 
 const EMCORE_PROCUREMENT_MODULE = 'procurement_notices';
 
@@ -212,11 +212,16 @@ function emcore_procurement_input($db, $before = null)
     }
 
     $participationStatus = emcore_procurement_enum('participation_status', [
-        'registered', 'interested', 'documents_submitted', 'won', 'lost',
+        'registered', 'interested', 'documents_submitted', 'won', 'lost', 'unknown', 'not_interested', 'withdrawn',
     ]);
     $interestReason = emcore_string('interest_reason', false, 5000);
-    if ($participationStatus !== 'interested') {
-        $interestReason = null;
+    if (emcore_pw_enabled()) {
+        $fixedStatus = $before === null ? 'registered' : $before['participation_status'];
+        if ($participationStatus !== $fixedStatus || ($before && $interestReason !== $before['interest_reason'])) {
+            throw new EmcoreHttpException(403, 'تصمیم و وضعیت فقط از مسیر رسمی گردش کار تغییر می‌کند.');
+        }
+        $participationStatus = $fixedStatus;
+        $interestReason = $before['interest_reason'] ?? null;
     }
     $responsibleUnit = emcore_procurement_canonical_value(
         'responsible_unit',
@@ -298,7 +303,13 @@ function emcore_procurement_input($db, $before = null)
 
 function emcore_procurement_select_columns()
 {
-    return "p.id, p.legacy_source_id, p.record_origin, p.notice_type,
+    $workflowColumns = emcore_pw_enabled() ? "p.owner_usr_uid,p.manager_usr_uid,p.workflow_history_only,
+        (SELECT app_uid FROM emcore_procurement_workflows WHERE procurement_id=p.id) AS app_uid,
+        (SELECT workflow_stage FROM emcore_procurement_workflows WHERE procurement_id=p.id) AS workflow_stage,
+        (SELECT last_del_index FROM emcore_procurement_workflows WHERE procurement_id=p.id) AS last_del_index,
+        COALESCE((SELECT sync_state FROM emcore_procurement_workflows WHERE procurement_id=p.id),'ready') AS sync_state,
+        (SELECT pending_result FROM emcore_procurement_workflows WHERE procurement_id=p.id) AS pending_result," : '';
+    return $workflowColumns . "p.id, p.legacy_source_id, p.record_origin, p.notice_type,
             p.source_name, p.supplier_name, p.title, p.quantity_text,
             p.reference_number, p.amount_text, p.estimated_amount, p.currency,
             p.contracting_authority, p.submission_method, p.delivery_term,
@@ -325,12 +336,14 @@ function emcore_procurement_select_columns()
 
 function emcore_procurement_row($db, $id, $forUpdate = false, $includeDeleted = false)
 {
+    $scope = emcore_pw_scope();
     $sql = 'SELECT ' . emcore_procurement_select_columns()
         . ' FROM emcore_procurement_notices p WHERE p.id = :id'
         . ($includeDeleted ? '' : ' AND p.deleted_at IS NULL')
+        . ' AND ' . $scope['sql']
         . ' LIMIT 1' . ($forUpdate ? ' FOR UPDATE' : '');
     $stmt = $db->prepare($sql);
-    $stmt->execute([':id' => $id]);
+    $stmt->execute($scope['params'] + [':id' => $id]);
     return $stmt->fetch() ?: null;
 }
 
@@ -342,7 +355,7 @@ function emcore_procurement_files($db, $procurementId)
                 uploaded_by_usr_uid, created_at,
                 CASE WHEN record_origin = 'managed' THEN 1 ELSE 0 END AS is_downloadable
          FROM emcore_procurement_files
-         WHERE procurement_id = :procurement_id AND deleted_at IS NULL
+         WHERE procurement_id = :procurement_id AND deleted_at IS NULL AND file_role <> 'activity_attachment'
          ORDER BY file_role, created_at DESC, id DESC"
     );
     $stmt->execute([':procurement_id' => $procurementId]);
@@ -351,6 +364,7 @@ function emcore_procurement_files($db, $procurementId)
 
 function emcore_procurement_file_row($db, $id, $forUpdate = false, $internal = false)
 {
+    $scope = emcore_pw_scope();
     $columns = "f.id, f.procurement_id, f.file_role, f.record_origin,
                 f.original_filename, f.extension, f.mime_type, f.file_size,
                 f.sha256, f.legacy_reference, f.uploaded_by_usr_uid, f.created_at";
@@ -362,9 +376,9 @@ function emcore_procurement_file_row($db, $id, $forUpdate = false, $internal = f
             JOIN emcore_procurement_notices p
               ON p.id = f.procurement_id AND p.deleted_at IS NULL
             WHERE f.id = :id AND f.deleted_at IS NULL
-            LIMIT 1" . ($forUpdate ? ' FOR UPDATE' : '');
+            AND {$scope['sql']} LIMIT 1" . ($forUpdate ? ' FOR UPDATE' : '');
     $stmt = $db->prepare($sql);
-    $stmt->execute([':id' => $id]);
+    $stmt->execute($scope['params'] + [':id' => $id]);
     return $stmt->fetch() ?: null;
 }
 
@@ -378,20 +392,22 @@ function emcore_procurement_distinct_lookup($db, $column, $limit = 200)
     if (!in_array($column, $allowed, true)) {
         throw new RuntimeException('Unknown procurement lookup column.');
     }
-    $stmt = $db->query(
+    $scope = emcore_pw_scope();
+    $stmt = $db->prepare(
         "SELECT DISTINCT {$column} AS value
-         FROM emcore_procurement_notices
-         WHERE deleted_at IS NULL AND {$column} IS NOT NULL AND {$column} <> ''
+         FROM emcore_procurement_notices p
+         WHERE deleted_at IS NULL AND {$scope['sql']} AND {$column} IS NOT NULL AND {$column} <> ''
          ORDER BY {$column}
          LIMIT " . (int)$limit
     );
+    $stmt->execute($scope['params']);
     return $stmt->fetchAll(PDO::FETCH_COLUMN);
 }
 
-$action = emcore_action([
+$action = emcore_action(array_merge([
     'lookups', 'list', 'get', 'download_file',
     'create', 'update', 'upload_file', 'delete_file', 'delete',
-]);
+], emcore_pw_actions()));
 $capabilityMap = [
     'lookups' => 'read',
     'list' => 'read',
@@ -403,8 +419,10 @@ $capabilityMap = [
     'delete_file' => 'delete',
     'delete' => 'delete',
 ];
-emcore_require_permission(EMCORE_PROCUREMENT_MODULE, $capabilityMap[$action]);
+emcore_require_permission(EMCORE_PROCUREMENT_MODULE, $capabilityMap[$action] ?? 'read');
 $db = emcore_db();
+if (emcore_pw_enabled()) emcore_pw_user_role();
+if (in_array($action, emcore_pw_actions(), true)) emcore_pw_dispatch($db, $action);
 
 if ($action === 'download_file') {
     $fileId = emcore_positive_id('file_id');
@@ -427,7 +445,7 @@ if ($action === 'lookups') {
     $lookups['notice_types'] = ['tender', 'auction'];
     $lookups['submission_methods'] = ['physical', 'online', 'other'];
     $lookups['participation_statuses'] = [
-        'registered', 'interested', 'documents_submitted', 'won', 'lost',
+        'registered', 'interested', 'documents_submitted', 'won', 'lost', 'not_interested', 'withdrawn',
     ];
     $lookups['today_gregorian'] = $db->query("SELECT DATE_FORMAT(CURDATE(), '%Y-%m-%d')")->fetchColumn();
     $lookups['classification_tree'] = emcore_procurement_classification_tree($db);
@@ -442,12 +460,26 @@ if ($action === 'lookups') {
         'data' => $lookups,
         'csrf_token' => emcore_csrf_token(),
         'permissions' => emcore_module_permissions(EMCORE_PROCUREMENT_MODULE),
+        'workflow_permissions' => emcore_pw_permissions(),
     ]);
 }
 
 if ($action === 'list') {
-    $where = ['p.deleted_at IS NULL'];
-    $params = [];
+    $scope = emcore_pw_scope();
+    $where = ['p.deleted_at IS NULL', $scope['sql']];
+    $params = $scope['params'];
+    if (emcore_pw_enabled()) {
+        $queue = emcore_procurement_enum('workflow_queue', ['pending_review','follow_up','result_review','new_events','history'], false);
+        if ($queue === 'history') $where[] = 'p.workflow_history_only=1';
+        elseif ($queue === 'pending_review') $where[] = "p.workflow_history_only=0 AND p.participation_status='registered' AND NOT EXISTS (SELECT 1 FROM emcore_procurement_workflows w WHERE w.procurement_id=p.id)";
+        elseif ($queue === 'follow_up' || $queue === 'result_review') {
+            $where[] = 'EXISTS (SELECT 1 FROM emcore_procurement_workflows w WHERE w.procurement_id=p.id AND w.workflow_stage=:queue_stage)';
+            $params[':queue_stage'] = $queue;
+        } elseif ($queue === 'new_events') {
+            $where[] = 'EXISTS (SELECT 1 FROM emcore_procurement_events e WHERE e.procurement_id=p.id AND e.actor_usr_uid<>:queue_actor AND NOT EXISTS (SELECT 1 FROM emcore_procurement_event_reads r WHERE r.event_id=e.id AND r.usr_uid=:queue_reader))';
+            $params[':queue_actor'] = $params[':queue_reader'] = emcore_current_user()['USR_UID'];
+        }
+    }
 
     $noticeType = emcore_procurement_enum('notice_type', ['tender', 'auction'], false);
     if ($noticeType !== null) {
@@ -455,7 +487,7 @@ if ($action === 'list') {
         $params[':notice_type'] = $noticeType;
     }
     $participationStatus = emcore_procurement_enum('participation_status', [
-        'registered', 'interested', 'documents_submitted', 'won', 'lost',
+        'registered', 'interested', 'documents_submitted', 'won', 'lost', 'not_interested', 'withdrawn',
     ], false);
     if ($participationStatus !== null) {
         $where[] = 'p.participation_status = :participation_status';
@@ -555,7 +587,10 @@ if ($action === 'list') {
     );
     $stmt->execute($params);
 
-    $summary = $db->query(
+    $rows = $stmt->fetchAll();
+    if (emcore_pw_enabled()) foreach ($rows as &$row) $row['workflow_permissions'] = emcore_pw_permissions($row);
+    unset($row);
+    $summaryStmt = $db->prepare(
         "SELECT COUNT(*) AS total,
                 COALESCE(SUM(notice_type = 'tender'), 0) AS tender_count,
                 COALESCE(SUM(notice_type = 'auction'), 0) AS auction_count,
@@ -565,13 +600,15 @@ if ($action === 'list') {
                     AS urgent_count,
                 COALESCE(SUM(participation_status = 'interested'), 0) AS interested_count,
                 COALESCE(SUM(participation_status = 'won'), 0) AS won_count
-         FROM emcore_procurement_notices
-         WHERE deleted_at IS NULL"
-    )->fetch();
+         FROM emcore_procurement_notices p
+         WHERE deleted_at IS NULL AND {$scope['sql']}"
+    );
+    $summaryStmt->execute($scope['params']);
+    $summary = $summaryStmt->fetch();
 
     emcore_json([
         'success' => true,
-        'data' => $stmt->fetchAll(),
+        'data' => $rows,
         'summary' => $summary,
         'pagination' => [
             'page' => $page,
@@ -591,6 +628,7 @@ if ($action === 'get') {
         throw new EmcoreHttpException(404, 'مناقصه یا مزایده یافت نشد');
     }
     $notice['files'] = emcore_procurement_files($db, $id);
+    if (emcore_pw_enabled()) $notice['workflow'] = emcore_pw_workflow($db, $notice);
     emcore_json(['success' => true, 'data' => $notice]);
 }
 
@@ -605,6 +643,8 @@ if ($action === 'delete') {
         if (!$before) {
             throw new EmcoreHttpException(404, 'مناقصه یا مزایده یافت نشد');
         }
+        emcore_pw_assert_edit($db, $id, true);
+        if (emcore_pw_enabled()) emcore_pw_version($before, emcore_positive_id('lock_version'));
         $stmt = $db->prepare(
             "UPDATE emcore_procurement_notices
              SET deleted_at = NOW(), updated_at = NOW(),
@@ -633,6 +673,8 @@ if ($action === 'delete_file') {
         if (!$before) {
             throw new EmcoreHttpException(404, 'فایل یافت نشد');
         }
+        if ($before['file_role'] === 'activity_attachment') throw new EmcoreHttpException(403, 'پیوست منتشرشده قابل حذف نیست؛ اصلاحیه ثبت کنید.');
+        emcore_pw_assert_edit($db, $before['procurement_id']);
         $db->prepare('UPDATE emcore_procurement_files SET deleted_at = NOW() WHERE id = :id')
             ->execute([':id' => $fileId]);
         $after = $before;
@@ -645,6 +687,12 @@ if ($action === 'delete_file') {
             $before,
             $after
         );
+        if (emcore_pw_enabled()) {
+            $notice = emcore_pw_record($db, $before['procurement_id'], true);
+            emcore_pw_event($db, $notice, $actor['USR_UID'], 'operator', 'file_deleted',
+                'مدرک از فهرست فعال حذف شد: ' . $before['original_filename'], bin2hex(random_bytes(16)),
+                null, ['file_id' => $fileId]);
+        }
         $db->commit();
         emcore_json(['success' => true]);
     } catch (Throwable $exception) {
@@ -665,6 +713,7 @@ if ($action === 'upload_file') {
         if (!$notice) {
             throw new EmcoreHttpException(404, 'مناقصه یا مزایده یافت نشد');
         }
+        emcore_pw_assert_edit($db, $procurementId);
         $file = emcore_procurement_store_upload('file', $procurementId);
         $stmt = $db->prepare(
             "INSERT INTO emcore_procurement_files
@@ -699,6 +748,7 @@ if ($action === 'upload_file') {
             $after,
             ['procurement_id' => $procurementId, 'file_role' => $fileRole]
         );
+        if (emcore_pw_enabled()) emcore_pw_event($db,$notice,$actor['USR_UID'],emcore_pw_user_role(),'file_uploaded','مدرک فراخوان افزوده شد: '.$file['original_filename'],emcore_audit_request_id(),null,['file_id'=>$fileId]);
         $db->commit();
         emcore_json(['success' => true, 'id' => $fileId, 'data' => $after], 201);
     } catch (Throwable $exception) {
@@ -712,7 +762,30 @@ if ($action === 'upload_file') {
 
 $db->beginTransaction();
 try {
+    $publicationRequest = emcore_pw_enabled() ? emcore_pw_request_id() : emcore_audit_request_id();
+    if (emcore_pw_enabled() && $action === 'create') {
+        // Before a notice ID exists, serialize retries by the stable request ID.
+        // The non-persistent PDO connection releases this advisory lock on exit.
+        $requestLock=$db->prepare('SELECT GET_LOCK(:name,5)');
+        $requestLock->execute([':name'=>'emcore_pw_create_'.$publicationRequest]);
+        if((int)$requestLock->fetchColumn()!==1)throw new EmcoreHttpException(409,'درخواست ثبت قبلی هنوز در حال اجراست؛ دوباره تلاش کنید.');
+    }
+    $submission = $_POST;
+    unset($submission['csrf_token']);
+    ksort($submission);
+    $submissionHash = hash('sha256',emcore_audit_json($submission));
+    if (emcore_pw_enabled()) {
+        $replay = $db->prepare('SELECT procurement_id,actor_usr_uid,after_data FROM emcore_procurement_events WHERE request_id=:request');
+        $replay->execute([':request'=>$publicationRequest]); $event = $replay->fetch();
+        if ($event) {
+            if ($event['actor_usr_uid']!==$actor['USR_UID'] || (json_decode($event['after_data'],true)['submission_hash']??'')!==$submissionHash) throw new EmcoreHttpException(409,'شناسهٔ درخواست برای دادهٔ دیگری استفاده شده است.');
+            $saved=emcore_procurement_row($db,$event['procurement_id']);
+            if (!$saved) throw new EmcoreHttpException(404,'فراخوان یافت نشد.');
+            $db->commit();emcore_json(['success'=>true,'id'=>(int)$saved['id'],'data'=>$saved,'replayed'=>true]);
+        }
+    }
     if ($action === 'create') {
+        if (emcore_pw_enabled() && emcore_pw_user_role() !== 'operator') throw new EmcoreHttpException(403, 'ثبت فراخوان فقط برای اپراتور مجاز است.');
         $input = emcore_procurement_input($db);
         $stmt = $db->prepare(
             "INSERT INTO emcore_procurement_notices
@@ -742,8 +815,13 @@ try {
         $input[':updated_by_usr_uid'] = $actor['USR_UID'];
         $stmt->execute($input);
         $id = (int)$db->lastInsertId();
+        if (emcore_pw_enabled()) {
+            $db->prepare('UPDATE emcore_procurement_notices SET owner_usr_uid=:owner,manager_usr_uid=:manager,workflow_history_only=0 WHERE id=:id')
+                ->execute([':owner'=>emcore_pw_settings()['operator'],':manager'=>emcore_pw_settings()['manager'],':id'=>$id]);
+        }
         $after = emcore_procurement_row($db, $id);
         emcore_audit(EMCORE_PROCUREMENT_MODULE, 'create', 'procurement_notice', $id, null, $after);
+        if (emcore_pw_enabled()) emcore_pw_event($db,$after,$actor['USR_UID'],'operator','registered','فراخوان برای بررسی اولیه ثبت شد.',$publicationRequest,null,['submission_hash'=>$submissionHash]);
         $db->commit();
         emcore_json(['success' => true, 'id' => $id, 'data' => $after], 201);
     }
@@ -754,6 +832,7 @@ try {
         throw new EmcoreHttpException(422, 'نسخه رکورد الزامی است', ['lock_version' => 'required']);
     }
     $before = emcore_procurement_row($db, $id, true);
+    emcore_pw_assert_edit($db, $id);
     if (!$before) {
         throw new EmcoreHttpException(404, 'مناقصه یا مزایده یافت نشد');
     }
@@ -809,6 +888,14 @@ try {
     }
     $after = emcore_procurement_row($db, $id);
     emcore_audit(EMCORE_PROCUREMENT_MODULE, 'update', 'procurement_notice', $id, $before, $after);
+    if (emcore_pw_enabled()) {
+        $changed = [];
+        foreach ($input as $key=>$value) {
+            $field = substr($key,1);
+            if (array_key_exists($field,$before) && (string)$before[$field] !== (string)$value) $changed[] = $field;
+        }
+        emcore_pw_event($db,$after,$actor['USR_UID'],emcore_pw_user_role(),'record_updated','مشخصات فراخوان به‌روزرسانی شد.',$publicationRequest,emcore_pw_snapshot($before),['changed_fields'=>$changed,'submission_hash'=>$submissionHash]);
+    }
     $db->commit();
     emcore_json(['success' => true, 'id' => $id, 'data' => $after]);
 } catch (Throwable $exception) {
