@@ -11,6 +11,8 @@ return [
     'trade_max_upload_bytes' => 52428800,
     'procurement_storage_root' => 'C:\\pmlearning\\emcore-private\\procurement-notices',
     'procurement_max_upload_bytes' => 52428800,
+    'minutes_storage_root' => 'C:\\pmlearning\\emcore-private\\meeting-minutes',
+    'minutes_max_upload_bytes' => 52428800,
     // Keep disabled until migration 012, participant initialization and native
     // process installation are complete. Never guess user/task/process UIDs.
     'procurement_workflow_enabled' => false,
