@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="/emcore_assets/emcore-ui.css">
+  <style>
+    .emcore-minutes .mm-header{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:20px 24px;background:var(--ec-ink);color:#fff;border-bottom:4px solid var(--ec-primary);border-radius:8px}
+    .emcore-minutes .mm-header p{color:#eee;font-size:13px}.emcore-minutes .mm-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:16px 0}.emcore-minutes .mm-stat{padding:16px;background:var(--ec-surface);border:1px solid var(--ec-line);border-radius:6px}.emcore-minutes .mm-stat strong{display:block;font-size:26px}.emcore-minutes .mm-filters{grid-template-columns:repeat(4,minmax(0,1fr));align-items:end}.emcore-minutes .mm-table-card{margin-top:16px;padding:0;overflow:hidden}.emcore-minutes .mm-table-wrap{overflow:auto}.emcore-minutes table{width:100%;border-collapse:collapse;white-space:nowrap}.emcore-minutes th,.emcore-minutes td{padding:12px;border-bottom:1px solid var(--ec-line);text-align:start}.emcore-minutes th{background:#eff2e9;font-size:12px}.emcore-minutes th button{border:0;background:transparent;font-weight:700;color:var(--ec-ink);padding:4px}.emcore-minutes .mm-title-cell{white-space:normal;min-width:180px;max-width:320px}.emcore-minutes tbody tr:hover{background:#fafcf5}.emcore-minutes .mm-pagination{padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px}.emcore-minutes .mm-number{direction:ltr;unicode-bidi:isolate;font-family:Tahoma,sans-serif}.emcore-minutes .mm-upload{margin-top:20px;border-top:1px solid var(--ec-line);padding-top:20px}.emcore-minutes .mm-upload-grid{grid-template-columns:150px minmax(0,1fr) auto;align-items:end;margin:12px 0}.emcore-minutes .mm-code-settings{margin-top:16px}.emcore-minutes .mm-code-row{display:grid;grid-template-columns:minmax(180px,1fr) 180px auto;gap:8px;align-items:center;padding:8px 0}.emcore-minutes .mm-record-state{margin:8px 0}.emcore-minutes .mm-legend{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:16px}.emcore-minutes .mm-checkbox{display:flex;gap:8px;align-items:center}.emcore-minutes .mm-checkbox label{margin:0}.emcore-minutes .mm-busy{font-size:12px}.emcore-minutes #mm-file-status{min-height:22px}.emcore-minutes .mm-progress-head{display:flex;justify-content:space-between;gap:8px}
+    @media(max-width:1050px){.emcore-minutes .mm-filters{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:700px){.emcore-minutes .mm-header{align-items:flex-start;flex-direction:column;padding:16px}.emcore-minutes .mm-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.emcore-minutes .mm-filters,.emcore-minutes .mm-upload-grid,.emcore-minutes .mm-code-row{grid-template-columns:1fr}.emcore-minutes .mm-pagination{flex-wrap:wrap}}
+  </style>
+</head>
+<body>
+<section class="emcore-ui emcore-minutes" data-api="/emcore_api/emcore_meeting_minutes.php" aria-label="آرشیو صورت جلسات">
+  <header class="mm-header"><div><h1>صورت جلسات</h1><p>آرشیو جلسات شرکت‌ها، اسکن‌های امضاشده و مستندات مرتبط</p></div><button type="button" id="mm-create" class="ec-btn ec-primary" hidden>ثبت صورت‌جلسه</button></header>
+  <div id="mm-notice" class="ec-message" role="status" aria-live="polite" hidden></div>
+  <div class="mm-summary" aria-label="خلاصه نتایج فیلترشده">
+    <div class="mm-stat">کل صورت‌جلسات<strong id="mm-total">…</strong></div><div class="mm-stat">اسکن بایگانی شده<strong id="mm-archived">…</strong></div><div class="mm-stat">در انتظار اسکن<strong id="mm-awaiting">…</strong></div><div class="mm-stat">اطلاعات ناقص<strong id="mm-incomplete">…</strong></div>
+  </div>
+  <form id="mm-filters" class="ec-card ec-grid mm-filters">
+    <div><label for="mm-search">جست‌وجو</label><input id="mm-search" type="search" maxlength="500" placeholder="شماره، عنوان یا دستور جلسه"></div>
+    <div><label for="mm-company-filter">شرکت</label><select id="mm-company-filter"><option value="">همه شرکت‌ها</option></select></div>
+    <div><label for="mm-date-from">از تاریخ</label><div><input id="mm-date-from" type="text" inputmode="numeric" maxlength="10" placeholder="۱۴۰۵/۰۱/۰۱"></div></div>
+    <div><label for="mm-date-to">تا تاریخ</label><div><input id="mm-date-to" type="text" inputmode="numeric" maxlength="10" placeholder="۱۴۰۵/۱۲/۲۹"></div></div>
+    <div><label for="mm-scan-filter">وضعیت اسکن</label><select id="mm-scan-filter"><option value="">همه وضعیت‌ها</option><option value="archived">اسکن بایگانی شده</option><option value="awaiting_scan">آمادهٔ بارگذاری اسکن</option></select></div>
+    <div><label for="mm-origin-filter">نوع ثبت</label><select id="mm-origin-filter"><option value="">همه صورت‌جلسات</option><option value="managed">ثبت جدید</option><option value="legacy">آرشیو قدیمی</option></select></div>
+    <div><label for="mm-quality-filter">اطلاعات سربرگ</label><select id="mm-quality-filter"><option value="">همه</option><option value="1">کامل</option><option value="0">ناقص</option></select></div>
+    <div><label id="mm-person-filter-label">فرد مرتبط با جلسه</label><div id="mm-person-filter" aria-labelledby="mm-person-filter-label"></div></div>
+    <div class="ec-wide ec-actions"><button type="submit" class="ec-btn ec-primary">اعمال فیلترها</button><button type="button" id="mm-reset" class="ec-btn">پاک‌کردن فیلترها</button><span id="mm-loading" class="mm-busy" role="status"></span></div>
+  </form>
+  <div class="ec-card mm-table-card"><div class="mm-table-wrap"><table aria-label="فهرست صورت جلسات"><thead><tr>
+    <th scope="col" data-sort="company_name_snapshot"><button type="button">شرکت</button></th><th scope="col" data-sort="meeting_number"><button type="button">شماره</button></th><th scope="col" data-sort="title"><button type="button">عنوان</button></th><th scope="col" data-sort="meeting_date_en"><button type="button">تاریخ جلسه</button></th><th scope="col" data-sort="chair_name"><button type="button">رئیس</button></th><th scope="col" data-sort="secretary_name"><button type="button">دبیر</button></th><th scope="col" data-sort="scan_count"><button type="button">وضعیت اسکن</button></th><th scope="col" data-sort="attachment_count"><button type="button">پیوست</button></th><th scope="col">عملیات</th>
+  </tr></thead><tbody id="mm-rows"><tr><td colspan="9">در حال دریافت اطلاعات…</td></tr></tbody></table></div>
+  <div class="mm-pagination"><span id="mm-page-label" aria-live="polite"></span><div class="ec-actions"><button type="button" id="mm-prev" class="ec-btn ec-small" disabled>صفحه قبل</button><button type="button" id="mm-next" class="ec-btn ec-small" disabled>صفحه بعد</button></div></div></div>
+  <details id="mm-code-settings" class="ec-card mm-code-settings" hidden><summary>تنظیم کد شرکت‌ها برای شماره‌گذاری</summary><p>کد شرکت پس از صدور اولین شماره ثابت می‌ماند.</p><div id="mm-code-rows"></div></details>
+  <div id="mm-overlay" class="ec-modal" hidden>
+    <section class="ec-dialog" role="dialog" aria-modal="true" aria-labelledby="mm-dialog-title">
+      <div class="ec-dialog-head"><h2 id="mm-dialog-title">ثبت صورت‌جلسه</h2><button type="button" id="mm-close" class="ec-btn" aria-label="بستن پنجره صورت‌جلسه">بستن</button></div>
+      <div id="mm-form-error" class="ec-message error" role="alert" hidden></div>
+      <div id="mm-record-state" class="mm-record-state"></div>
+      <form id="mm-form" class="ec-grid">
+        <div><label for="mm-company">شرکت *</label><select id="mm-company" required><option value="">شرکت را انتخاب کنید</option></select></div>
+        <div class="mm-checkbox"><input id="mm-legacy" type="checkbox"><label for="mm-legacy">ثبت صورت‌جلسهٔ قدیمی</label></div>
+        <div><label for="mm-number">شمارهٔ صورت‌جلسه</label><input id="mm-number" class="mm-number" type="text" maxlength="100" readonly><small id="mm-number-help">شمارهٔ قطعی هنگام ذخیره صادر می‌شود.</small></div>
+        <div><label for="mm-date">تاریخ جلسه</label><div><input id="mm-date" type="text" inputmode="numeric" maxlength="10" placeholder="۱۴۰۵/۰۷/۱۲"></div></div>
+        <div class="ec-wide"><label for="mm-title">عنوان جلسه *</label><input id="mm-title" type="text" maxlength="500" required></div>
+        <div><label for="mm-start">ساعت شروع</label><input id="mm-start" type="text" inputmode="numeric" maxlength="5" placeholder="۰۹:۰۰"></div>
+        <div><label for="mm-end">ساعت خاتمه</label><input id="mm-end" type="text" inputmode="numeric" maxlength="5" placeholder="۱۰:۳۰"><div class="mm-checkbox"><input id="mm-next-day" type="checkbox"><label for="mm-next-day">خاتمه در روز بعد</label></div></div>
+        <div><label id="mm-chair-label">رئیس جلسه</label><div id="mm-chair" aria-labelledby="mm-chair-label"></div></div>
+        <div><label id="mm-secretary-label">دبیر جلسه</label><div id="mm-secretary" aria-labelledby="mm-secretary-label"></div></div>
+        <div><label id="mm-present-label">حاضرین</label><div id="mm-present" aria-labelledby="mm-present-label"></div><small>رئیس و دبیر به حاضرین اضافه می‌شوند.</small></div>
+        <div><label id="mm-absent-label">غایبین</label><div id="mm-absent" aria-labelledby="mm-absent-label"></div></div>
+        <div class="ec-wide"><label for="mm-agenda">دستور جلسه</label><textarea id="mm-agenda" maxlength="20000"></textarea></div>
+        <div class="ec-wide"><label for="mm-notes">توضیحات، اختیاری</label><textarea id="mm-notes" maxlength="20000"></textarea></div>
+      </form>
+      <section id="mm-upload-section" class="mm-upload" hidden>
+        <h3>اسکن و پیوست‌ها</h3><p>اسکن صورت‌جلسه را به‌صورت PDF یا تصویر بارگذاری کنید. پیوست‌ها اختیاری‌اند.</p>
+        <div id="mm-upload-controls" class="ec-grid mm-upload-grid">
+          <div><label for="mm-file-role">نوع فایل</label><select id="mm-file-role"><option value="scan">اسکن صورت‌جلسه</option><option value="attachment">پیوست</option></select></div>
+          <div><label for="mm-file-input">انتخاب فایل‌ها</label><input id="mm-file-input" type="file" accept=".pdf,.jpg,.jpeg,.png" multiple><small id="mm-file-status" aria-live="polite">می‌توانید چند فایل را هم‌زمان انتخاب کنید.</small></div>
+          <button type="button" id="mm-upload" class="ec-btn ec-primary">بارگذاری فایل‌ها</button>
+        </div>
+        <div id="mm-replace-row" hidden><label for="mm-replace-reason">دلیل جایگزینی اسکن *</label><input id="mm-replace-reason" type="text" maxlength="1000"><button type="button" id="mm-cancel-replace" class="ec-btn ec-small">لغو جایگزینی</button></div>
+        <div id="mm-progress" role="status" aria-live="polite" hidden><div class="mm-progress-head"><span id="mm-progress-label"></span><strong id="mm-progress-value">۰٪</strong></div><progress id="mm-progress-bar" max="100" value="0" aria-label="پیشرفت بارگذاری">۰٪</progress></div>
+        <div id="mm-file-list"></div><details id="mm-file-history" hidden><summary>نسخه‌های قبلی اسکن</summary><div id="mm-history-list"></div></details>
+      </section>
+      <div class="ec-dialog-foot"><button type="button" id="mm-cancel" class="ec-btn">بستن</button><button type="submit" form="mm-form" id="mm-save" class="ec-btn ec-primary">ذخیرهٔ صورت‌جلسه</button></div>
+    </section>
+  </div>
+</section>
+<script src="/emcore_assets/emcore-ui.js"></script>
+<script src="/emcore_assets/meeting-minutes.js"></script>
+</body>
+</html>
