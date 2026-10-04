@@ -151,6 +151,7 @@ Do not duplicate database credentials, session logic, or JSON error handling in 
 | `visitor_log` | `emcore_visits`; `emcore_visitor_log.php` | `panels/emcore_visitor_log_panel.html` | Implemented; deployment pending |
 | `trade_documents` | `emcore_trade_cases` plus issuer/document/version/template/attachment/download-log tables; `emcore_trade_documents.php` | `panels/emcore_trade_documents_panel.html` | Implemented; deployment and acceptance pending |
 | `procurement_notices` | `emcore_procurement_notices` plus file/download/import-batch tables; `emcore_procurement_notices.php` | `panels/emcore_procurement_notices_panel.html` | Implemented; legacy dry-run and deployment pending |
+| `meeting_minutes` | `emcore_meeting_minutes` plus company-code/counter/participant/file/download tables; `emcore_meeting_minutes.php` | `panels/emcore_meeting_minutes_panel.html` | Implemented; isolated API/browser tests passed, production deployment pending |
 | `company_persons` | `emcore_company_persons` | Pending | Domain/schema defined |
 | `memberships` | `emcore_memberships` | Pending | Domain/schema defined |
 | `tokens` | `emcore_tokens` | Pending | Security-sensitive; panel/API pending |

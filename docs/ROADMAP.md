@@ -2,6 +2,15 @@
 
 Last updated: 2026-09-16
 
+## Meeting minutes addition — 2026-10-04
+
+Implemented the company/year numbered minutes archive, historical-number entry,
+USERS/external participant snapshots, private scanned documents and attachments,
+scan replacement history, optimistic edits and transactional audit/idempotency.
+Reusable corporate UI components are used only in the new panel. Isolated PHP,
+MySQL and browser verification is documented in `MEETING_MINUTES_MODULE.md`;
+production deployment and native Dynaform/session acceptance remain pending.
+
 ## Objective
 
 Move EMCORE from a working ProcessMaker CRUD prototype to a secure, maintainable internal application, then build the remaining business modules on that foundation.

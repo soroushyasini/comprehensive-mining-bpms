@@ -14,6 +14,7 @@ These are the deployable Panel WebControl files corresponding to the secured API
 | `emcore_trade_documents_panel.html` | `/emcore_api/emcore_trade_documents.php` | `trade_documents` |
 | `emcore_procurement_notices_panel.html` | `/emcore_api/emcore_procurement_notices.php` | `procurement_notices` |
 | `emcore_procurement_analytics_panel.html` | `/emcore_api/emcore_procurement_analytics.php` | `procurement_notices` |
+| `emcore_meeting_minutes_panel.html` | `/emcore_api/emcore_meeting_minutes.php` | `meeting_minutes` |
 
 ## Security integration
 
@@ -34,3 +35,4 @@ The APIs remain the enforcement boundary. Hiding a button is only a user-interfa
 - Keep panels and APIs on the same origin so the ProcessMaker PHP session cookie is included.
 - Do not paste a fixed CSRF token into a panel; tokens are session-specific and are obtained from the API.
 - After deployment, force-refresh the Dynaform to avoid an old cached WebControl.
+- The meeting-minutes panel additionally loads `/emcore_assets/emcore-ui.css`, `emcore-ui.js`, and `meeting-minutes.js` from the same origin and uses the existing ProcessMaker jQuery runtime. Install these files before the new panel. Existing panels have not been migrated. See `docs/MEETING_MINUTES_DEPLOYMENT.md` and `docs/EMCORE_UI_COMPONENTS_MIGRATION.md`.

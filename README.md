@@ -17,6 +17,9 @@ ProcessMaker provides authentication, sessions, Dynaforms, and routed workflows.
 - [Tender and auction module reference](docs/PROCUREMENT_NOTICES_MODULE.md) — fields, deadline rules, API, files, and lossless legacy mapping.
 - [Tender and auction analytics](docs/PROCUREMENT_ANALYTICS.md) — metric definitions, common filter scope, legacy-report parity, data-quality disclosure, and deployment checks.
 - [Tender and auction deployment runbook](docs/PROCUREMENT_NOTICES_DEPLOYMENT.md) — dry-run-first legacy-table backfill, private storage, acceptance, and rollback.
+- [Meeting minutes module](docs/MEETING_MINUTES_MODULE.md) — company/year numbering, historical records, participant snapshots, scanned minutes, and optional attachments.
+- [Meeting minutes deployment](docs/MEETING_MINUTES_DEPLOYMENT.md) — additive migration, private storage, isolated integration tests, installation, and rollback.
+- [Reusable UI components and migration](docs/EMCORE_UI_COMPONENTS_MIGRATION.md) — scoped brand tokens, Jalali datepicker, participant picker, modal, and upload queue; current panels are unchanged.
 - [Database/domain reference](db_schema.md) — core business tables and module specifications.
 - [Mines and expiry addendum](EMCORE_dev_reference_addendum.md) — mine-specific tables and expiry behavior.
 - [Panel deployment guide](panels/README.md) — ProcessMaker WebControl files and endpoint mapping.
@@ -36,5 +39,6 @@ ProcessMaker provides authentication, sessions, Dynaforms, and routed workflows.
 - PI-led export/import cases for EMIDCO and EMIDCO METAL, with atomic numbering, six Word templates, document versions, private attachments, and logged downloads
 - Tender and auction tracking with live deadline alerts, optimistic edits, private attachments, and traceable migration from the legacy DynaForm/XCRUD register
 - Read-only tender and auction analytics with shared filters, live deadline health, monthly trends, category drill-down, and explicit migration-quality indicators
+- Company/year numbered meeting-minutes archive with historical-number entry, USERS/external participant snapshots, private versioned scans, optional attachments, and reusable corporate UI components
 
 For setup, module development, security invariants, deployment order, troubleshooting, and the definition of done, read `docs/DEVELOPER_GUIDE.md` before making changes.

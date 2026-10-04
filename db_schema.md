@@ -561,3 +561,16 @@ These are identified from the remaining CSVs — not yet implemented:
 
 ---
 
+
+## 16. Meeting minutes archive
+
+Migration `013_emcore_meeting_minutes.sql` adds `emcore_meeting_minutes`,
+`emcore_minutes_company_codes`, `emcore_minutes_counters`,
+`emcore_minutes_participants`, `emcore_minutes_files`, and
+`emcore_minutes_download_log`. The existing companies, USERS, module permissions,
+and audit tables remain authoritative. Company/year counters issue immutable
+`CODE/YYYY/NNNN` numbers in the same transaction as the meeting and audit.
+Legacy meetings preserve their original numbers without consuming counters;
+unknown metadata stays NULL. Scan presence is derived independently of metadata
+completeness. Files are private, soft-deleted, and retain replaced scan versions.
+See `docs/MEETING_MINUTES_MODULE.md` for the API and business invariants.
