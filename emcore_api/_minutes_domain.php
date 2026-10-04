@@ -63,8 +63,8 @@ function emcore_minutes_enum($name, $allowed, $default = null)
     return $value;
 }
 
-// The same break algorithm used in the procurement panel. Full round-trip
-// validation prevents permissive database conversion from accepting Esfand 30.
+// The same break algorithm used in the procurement panel. Validate the date
+// before converting in PHP; archive operations need no SQL calendar routine.
 function emcore_minutes_jalali_cal($jy)
 {
     $breaks = [-61,9,38,199,426,686,756,818,1111,1181,1210,1635,2060,2097,2192,2262,2324,2394,2456,3178];
@@ -97,9 +97,6 @@ function emcore_minutes_date($db, $value)
     if ($day > $max) throw new EmcoreHttpException(422, 'روز انتخاب‌شده در تقویم شمسی معتبر نیست');
     $expected = (new DateTimeImmutable(sprintf('%04d-03-%02d', $cal['gy'], $cal['march']), new DateTimeZone('Asia/Tehran')))
         ->modify('+' . (($month-1)*31 - intdiv($month,7)*($month-7) + $day-1) . ' days')->format('Y-m-d');
-    $stmt = $db->prepare('SELECT shamsi_slash_to_gregorian_date(:date_fa)');
-    $stmt->execute([':date_fa' => $value]);
-    if ($stmt->fetchColumn() !== $expected) throw new RuntimeException('Jalali conversion function disagrees with the validated calendar.');
     return [$value, $expected];
 }
 

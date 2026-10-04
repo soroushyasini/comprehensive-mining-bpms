@@ -31,6 +31,10 @@ const pdf=Buffer.from('%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\
   await clerk.call('create',managed(9),422);
   await admin.call('get',{'id[]':'1'},422);
   await clerk.call('create',managed(1,'1405/07/12',{'ends_next_day[]':'1'}),422);
+  // Production workspaces may have no SQL calendar routine. Preview, create,
+  // edits and date filters must all use the validated server-side PHP calendar.
+  sql('DROP FUNCTION shamsi_slash_to_gregorian_date');
+  check(sql("SELECT COUNT(*) FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA=DATABASE() AND ROUTINE_NAME='shamsi_slash_to_gregorian_date'")==='0','SQL calendar routine absent during archive tests');
   const preview1=await admin.call('number_preview',{company_id:1,meeting_date_fa:'1405/07/12'});
   const preview2=await admin.call('number_preview',{company_id:1,meeting_date_fa:'۱۴۰۵/۰۷/۱۲'});
   check(preview1.data.meeting_number===preview2.data.meeting_number && preview1.data.meeting_number==='EMIDCO/1405/0001','preview never reserves');

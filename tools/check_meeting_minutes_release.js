@@ -18,4 +18,5 @@ assert.ok(api.parseDate('۱۴۰۳/۱۲/۳۰'));assert.equal(api.latinDigits('۱�
 const rollover=api.jalaali.addDays(1404,12,29,1);assert.equal(rollover.jy,1405);assert.equal(rollover.jm,1);assert.equal(rollover.jd,1);
 for(const p of ['docs/MEETING_MINUTES_MODULE.md','docs/MEETING_MINUTES_DEPLOYMENT.md','docs/EMCORE_UI_COMPONENTS_MIGRATION.md','database/migrations/013_emcore_meeting_minutes.sql','emcore_api/_minutes_domain.php','emcore_api/_minutes_storage.php','emcore_api/emcore_meeting_minutes.php'])assert.ok(read(p).length>0,p);
 assert.ok(!/\bDROP\s+(TABLE|DATABASE)\b/i.test(read('database/migrations/013_emcore_meeting_minutes.sql')),'additive migration');
+assert.ok(!/shamsi_slash_to_gregorian_date|\$db->prepare/.test(read('emcore_api/_minutes_domain.php').split('function emcore_minutes_date(')[1].split('function emcore_minutes_time(')[0]),'minutes date conversion is independent of SQL routines');
 console.log('Meeting minutes release checks passed: JS syntax, panel wiring, safe rendering, same-origin dependencies and Jalali boundaries.');

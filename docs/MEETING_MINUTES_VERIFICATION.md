@@ -32,9 +32,18 @@ read-only controls and responsive layout.
 
 ## Remaining environment acceptance
 
+### Company selection preview hotfix
+
+Removed the redundant SQL date-conversion call from the validated PHP calendar.
+The integration suite now drops the fixture SQL calendar routine before preview,
+creation, editing and filtering to guard against missing workspace routines.
+Static release checks passed for this fix. PHP/API/browser reruns for this
+revision remain pending because the local Docker engine is unavailable; the
+123 integration and 29 browser results above refer to the original release.
+
 Native ProcessMaker 3.8 Dynaform installation, actual PHP version/extensions,
 session cookie/save-path compatibility, workspace migration, private filesystem
-permissions, real SQL date-conversion function and production backup/restore must
+permissions and production backup/restore must
 be accepted on the destination host. Nothing in this change claims production
 deployment or ISO certification. The fixture uses synthetic data and must never
 be deployed as a production router.
