@@ -26,6 +26,7 @@ const pdf=Buffer.from('%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\
   const admin=client('admin'),clerk=client('clerk'),reader=client('reader'),creator=client('creator'),outsider=client('outsider');
   await client('anonymous').call('list',{},401);await client('inactive').call('list',{},401);await outsider.call('list',{},403);
   const look=await admin.call('lookups');check(look.data.companies.filter(c=>c.code).length===8,'eight deterministic codes');check(look.data.storage_ready,'private storage ready');
+  check(look.data.release.api==='2026-10-04.2' && look.data.release.domain===look.data.release.api && look.data.release.optional_meeting_times===true,'active API and helper release identified');
   for(const c of [clerk,reader,creator])await c.call('lookups');
   await clerk.call('create',managed(),403,false);await reader.call('create',managed(),403);
   await clerk.call('create',managed(9),422);
@@ -125,5 +126,16 @@ const pdf=Buffer.from('%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\
   const codesBefore=sql('SELECT GROUP_CONCAT(code ORDER BY company_id) FROM emcore_minutes_company_codes');
   execFileSync('docker',['exec','emcore-minutes-test-api','php','-r',"$d=new PDO(getenv('EMCORE_DB_DSN'),getenv('EMCORE_DB_USER'),getenv('EMCORE_DB_PASSWORD'));$d->exec(file_get_contents('database/migrations/013_emcore_meeting_minutes.sql'));"],{stdio:'pipe'});
   check(sql('SELECT GROUP_CONCAT(code ORDER BY company_id) FROM emcore_minutes_company_codes')===codesBefore,'migration rerun preserves settings');
+  const withoutTimes=(await clerk.call('create',managed(2,'1408/01/01',{start_time:'',end_time:''}),201)).data;
+  check(withoutTimes.start_time===null && withoutTimes.end_time===null && Number(withoutTimes.metadata_complete)===1,'both optional times stored NULL without metadata penalty');
+  const startOnly=(await clerk.call('create',managed(2,'1408/01/01',{start_time:'۰۹:۰۰',end_time:''}),201)).data;
+  check(startOnly.start_time==='09:00:00' && startOnly.end_time===null,'start-only meeting accepted');
+  const endOnly=(await clerk.call('create',managed(2,'1408/01/01',{start_time:'',end_time:'۱۰:۳۰'}),201)).data;
+  check(endOnly.start_time===null && endOnly.end_time==='10:30:00','end-only meeting accepted');
+  const cleared=(await clerk.call('update',updateData(startOnly,{start_time:'',end_time:''}))).data;
+  check(cleared.start_time===null && cleared.end_time===null && Number(cleared.metadata_complete)===1,'edit can remove times without changing metadata quality');
+  await clerk.call('create',managed(2,'1408/01/01',{start_time:'25:00'}),422);
+  await clerk.call('create',managed(2,'1408/01/01',{start_time:'',end_time:'',ends_next_day:1}),422);
+  await clerk.call('create',managed(2,'1408/01/01',{start_time:'09:00',end_time:'',ends_next_day:1}),422);
   console.log(`Meeting minutes integration: ${checks} checks passed (PHP 8.2 / MySQL 8.4).`);
 })().catch(error=>{try{sql('UPDATE fixture_flags SET fail_audit=0');}catch(_){}console.error(error);process.exitCode=1;});

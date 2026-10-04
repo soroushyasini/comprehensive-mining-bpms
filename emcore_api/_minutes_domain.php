@@ -3,6 +3,7 @@
 require_once __DIR__ . '/_module_permissions.php';
 
 const EMCORE_MINUTES_MODULE = 'meeting_minutes';
+const EMCORE_MINUTES_DOMAIN_REVISION = '2026-10-04.2';
 
 function emcore_minutes_digits($value)
 {
@@ -164,10 +165,10 @@ function emcore_minutes_input($db, $origin, $existing = [])
     if ($next && ($start === null || $end === null)) throw new EmcoreHttpException(422, 'برای خاتمه در روز بعد هر دو ساعت لازم است');
     $participants = emcore_minutes_participants($db, $_POST['participants'] ?? '[]', $existing);
     $agenda = emcore_minutes_text($_POST['agenda'] ?? null, 20000);
-    $complete = $fa !== null && $start !== null && $end !== null && $agenda !== null
+    $complete = $fa !== null && $agenda !== null
         && count(array_filter($participants, function($p) { return $p['is_chair']; })) === 1
         && count(array_filter($participants, function($p) { return $p['is_secretary']; })) === 1;
-    if ($origin === 'managed' && !$complete) throw new EmcoreHttpException(422, 'تاریخ، ساعت‌ها، رئیس، دبیر و دستور جلسه الزامی‌اند');
+    if ($origin === 'managed' && !$complete) throw new EmcoreHttpException(422, 'تاریخ، رئیس، دبیر و دستور جلسه الزامی‌اند');
     return ['title'=>emcore_minutes_text($_POST['title'] ?? null,500,true),'meeting_date_fa'=>$fa,'meeting_date_en'=>$en,
         'start_time'=>$start,'end_time'=>$end,'ends_next_day'=>$next,'agenda'=>$agenda,
         'notes'=>emcore_minutes_text($_POST['notes'] ?? null,20000),'metadata_complete'=>$complete ? 1 : 0,'participants'=>$participants];

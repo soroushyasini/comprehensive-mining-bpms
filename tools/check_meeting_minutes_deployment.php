@@ -3,7 +3,7 @@
 if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
 define('EMCORE_NATIVE_CONTEXT', true);
 require_once __DIR__.'/../emcore_api/_minutes_storage.php';
-$checks=[];
+$checks=['domain_revision'=>defined('EMCORE_MINUTES_DOMAIN_REVISION') && EMCORE_MINUTES_DOMAIN_REVISION==='2026-10-04.2'];
 $options=getopt('', ['web-root:']);
 $web=isset($options['web-root']) ? realpath($options['web-root']) : false;
 $checks['web_root_supplied']=$web!==false && is_dir($web);
@@ -23,5 +23,6 @@ try {
     emcore_minutes_date($db,'1405/07/12'); $checks['jalali_conversion']=true;
 } catch (Throwable $e) { $checks['database_and_conversion']=false; }
 $success=!in_array(false,$checks,true);
-echo json_encode(['success'=>$success,'checks'=>$checks,'companies_without_codes'=>$missing],JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES).PHP_EOL;
+echo json_encode(['success'=>$success,'domain_revision'=>defined('EMCORE_MINUTES_DOMAIN_REVISION') ? EMCORE_MINUTES_DOMAIN_REVISION : null,
+    'checks'=>$checks,'companies_without_codes'=>$missing],JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES).PHP_EOL;
 exit($success ? 0 : 1);

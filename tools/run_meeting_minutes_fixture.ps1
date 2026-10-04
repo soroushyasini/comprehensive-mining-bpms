@@ -25,6 +25,7 @@ try {
     Invoke-Docker exec $apiName php -l emcore_api/_minutes_domain.php
     Invoke-Docker exec $apiName php -l emcore_api/_minutes_storage.php
     Invoke-Docker exec $apiName php -l emcore_api/emcore_meeting_minutes.php
+    Invoke-Docker exec $apiName php tools/test_meeting_minutes_calendar.php
     & node (Join-Path $repoRoot 'tools/check_meeting_minutes_release.js');if($LASTEXITCODE -ne 0){throw 'Minutes release checks failed.'}
     & node (Join-Path $repoRoot 'tools/test_meeting_minutes_integration.js');if($LASTEXITCODE -ne 0){throw 'Minutes API integration tests failed.'}
     & node (Join-Path $repoRoot 'tools/test_meeting_minutes_browser.js');if($LASTEXITCODE -ne 0){throw 'Minutes browser tests failed.'}

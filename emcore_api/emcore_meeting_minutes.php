@@ -2,6 +2,15 @@
 
 require_once __DIR__ . '/_minutes_storage.php';
 
+const EMCORE_MINUTES_API_REVISION = '2026-10-04.2';
+// Fail clearly when only the endpoint was deployed, or OPcache still runs an
+// older helper. Do not allow a mixture of calendar/validation implementations.
+if (!defined('EMCORE_MINUTES_DOMAIN_REVISION') || EMCORE_MINUTES_DOMAIN_REVISION !== EMCORE_MINUTES_API_REVISION) {
+    error_log('EMCORE meeting minutes revision mismatch: deploy all three minutes API files and refresh the web PHP OPcache.');
+    throw new EmcoreHttpException(503, 'نسخهٔ سرویس صورت جلسات کامل به‌روزرسانی نشده است؛ مدیر سامانه باید فایل‌های ماژول را همگام کند.');
+}
+if (!defined('EMCORE_NATIVE_CONTEXT')) header('X-EMCORE-Minutes-Revision: '.EMCORE_MINUTES_API_REVISION);
+
 function emcore_minutes_select()
 {
     return "SELECT m.id,m.company_id,m.company_name_snapshot,m.company_code_snapshot,m.record_origin,
@@ -127,7 +136,8 @@ if (session_status()===PHP_SESSION_ACTIVE) session_write_close();
 if ($action==='lookups') {
     $companies=$db->query('SELECT c.id,c.name_fa,c.is_active,p.code,p.locked_at FROM emcore_companies c LEFT JOIN emcore_minutes_company_codes p ON p.company_id=c.id WHERE c.deleted_at IS NULL ORDER BY c.name_fa')->fetchAll();
     emcore_json(['success'=>true,'csrf_token'=>$token,'permissions'=>emcore_module_permissions(EMCORE_MINUTES_MODULE),
-        'data'=>['companies'=>$companies,'today_gregorian'=>(new DateTimeImmutable('now',new DateTimeZone('Asia/Tehran')))->format('Y-m-d'),
+        'data'=>['release'=>['api'=>EMCORE_MINUTES_API_REVISION,'domain'=>EMCORE_MINUTES_DOMAIN_REVISION,'calendar'=>'php','optional_meeting_times'=>true],
+            'companies'=>$companies,'today_gregorian'=>(new DateTimeImmutable('now',new DateTimeZone('Asia/Tehran')))->format('Y-m-d'),
             'storage_ready'=>emcore_minutes_storage_ready(),'max_upload_bytes'=>emcore_minutes_storage_settings()['max_bytes'],
             'scan_extensions'=>emcore_minutes_extensions('scan'),'attachment_extensions'=>emcore_minutes_extensions('attachment'),
             'can_manage_codes'=>emcore_module_permissions('authorization')['can_update']]]);

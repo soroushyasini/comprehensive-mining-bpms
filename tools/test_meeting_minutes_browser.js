@@ -39,13 +39,15 @@ async function check(value,message){assert.ok(value,message);checks++;}
     const calendar=page.locator('#mm-date').locator('..').locator('.ec-calendar');await check(await calendar.isVisible(),'calendar opens');
     await page.keyboard.press('ArrowLeft');await page.keyboard.press('Escape');await check(await calendar.isHidden(),'escape closes calendar only');
     await check(await page.locator('#mm-overlay').isVisible(),'escape in calendar preserves outer modal');
-    await page.locator('#mm-title').fill('جلسه مرورگر');await page.locator('#mm-start').fill('۰۹:۰۰');await page.locator('#mm-end').fill('۱۰:۰۰');await page.locator('#mm-agenda').fill('بررسی پنل و آرشیو');
+    await page.locator('#mm-title').fill('جلسه مرورگر');await page.locator('#mm-agenda').fill('بررسی پنل و آرشیو');
     await page.locator('#mm-chair input[role=combobox]').fill('clerk');await page.locator('#mm-chair [role=option]').first().waitFor();
     await page.locator('#mm-chair input[role=combobox]').press('ArrowDown');await page.locator('#mm-chair input[role=combobox]').press('Enter');
     await page.locator('#mm-secretary input[role=combobox]').fill('دبیر بیرونی');await page.locator('#mm-secretary input[aria-label="سازمان فرد بیرونی"]').fill('سازمان مهمان');await page.locator('#mm-secretary').getByRole('button',{name:'افزودن فرد بیرونی'}).click();
     await check(await page.locator('#mm-present .ec-chip').count()===2,'officers automatically present');
     await page.locator('#mm-save').click();await page.locator('#mm-upload-section').waitFor({state:'visible'});await page.waitForFunction(()=>!document.querySelector('#mm-save').disabled);
     await check((await page.locator('#mm-record-state').textContent()).includes('آمادهٔ بارگذاری اسکن'),'saved record awaits scan');
+    await check(await page.locator('#mm-start').inputValue()==='' && await page.locator('#mm-end').inputValue()==='','normal meeting saved with both times empty');
+    await check((await page.locator('#mm-record-state').textContent()).includes('اطلاعات سربرگ کامل'),'optional times do not make metadata incomplete');
     await page.locator('#mm-file-input').setInputFiles([{name:'صفحه اول.pdf',mimeType:'application/pdf',buffer:pdf},{name:'صفحه دوم.pdf',mimeType:'application/pdf',buffer:pdf}]);
     await page.locator('#mm-upload').click();await page.locator('#mm-progress-label').filter({hasText:'بارگذاری فایل‌ها کامل شد.'}).waitFor();
     await check(await page.locator('#mm-file-list .ec-file').count()===2,'multiple scans queued');

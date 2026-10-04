@@ -3,12 +3,16 @@
 ## Executed
 
 - PHP 8.2 lint: `_minutes_domain.php`, `_minutes_storage.php`, `emcore_meeting_minutes.php`.
-- MySQL 8.4 / PHP 8.2 isolated integration: **123 checks passed**.
+- MySQL 8.4 / PHP 8.2 isolated integration: **136 checks passed**.
 - Chrome/Chromium with jQuery 1.11.3, desktop 1440×1000 and mobile 390×844:
-  **29 browser checks passed**.
+  **31 browser checks passed**.
+- Standalone PHP calendar: **19 checks passed without any SQL connection**.
 - `check_meeting_minutes_release.js`: passed JS parsing, panel selector wiring,
   unique IDs, safe text rendering, same-origin assets and Jalali/leap boundaries.
 - Read-only deployment preflight: all checks passed in the disposable fixture.
+- A mixed endpoint/helper deployment was rejected with HTTP 503 before database
+  access. The sync tool passed a Windows filesystem test for dry-run, destination
+  hashes, old-file backups, unchanged configuration and temporary-file cleanup.
 - Existing procurement notices, procurement analytics and procurement workflow
   release checks: all passed.
 - Existing panel SHA-256 values match their pre-task values, including the user's
@@ -37,9 +41,13 @@ read-only controls and responsive layout.
 Removed the redundant SQL date-conversion call from the validated PHP calendar.
 The integration suite now drops the fixture SQL calendar routine before preview,
 creation, editing and filtering to guard against missing workspace routines.
-Static release checks passed for this fix. PHP/API/browser reruns for this
-revision remain pending because the local Docker engine is unavailable; the
-123 integration and 29 browser results above refer to the original release.
+The exact original error was reproduced with the original converter and an SQL
+routine double returning a conflicting date. The fixed converter returned the
+correct date independently of that SQL result. The integration suite completed
+with the SQL routine removed, including preview, create, edit and date filters.
+Both empty times, either time alone, clearing times during edits, bad entered
+times, conditional overnight validation and metadata completeness are covered.
+API responses identify the loaded endpoint/domain revision `2026-10-04.2`.
 
 Native ProcessMaker 3.8 Dynaform installation, actual PHP version/extensions,
 session cookie/save-path compatibility, workspace migration, private filesystem
