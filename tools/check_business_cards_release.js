@@ -9,7 +9,7 @@ assert.equal((sql.match(/CREATE TABLE IF NOT EXISTS/g)||[]).length,8);
 assert.equal((sql.match(/^\('[A-Z]{2}',/gm)||[]).length,249);
 assert.ok(!/\bmultiple\b/.test(html),'single file input');
 assert.ok(html.includes('نمایش کارت ویزیت'));
-assert.ok(html.includes('data-sort="id"')&&html.includes('شناسه کارت'),'database ID column');
+assert.ok(html.includes('data-sort="id"')&&html.includes('>شناسه<'),'database ID column');
 assert.ok(!/<form\b/i.test(html),'no nested forms in the ProcessMaker case form');
 assert.ok([...html.matchAll(/<button\b[^>]*>/g)].every(m=>/type="button"/.test(m[0])),'all panel buttons are non-submit controls');
 assert.ok(js.includes('new UI.Modal')&&js.includes('URL.revokeObjectURL')&&js.includes('imageGeneration'));

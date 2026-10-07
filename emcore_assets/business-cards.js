@@ -76,14 +76,14 @@
     }
     function render(data, generation) {
       rows = {}; $(el('rows')).empty();
-      if (!data.length) $(el('rows')).append($('<tr>').append($('<td>').attr('colspan', 10).text('کارت ویزیتی با این فیلترها پیدا نشد.')));
+      if (!data.length) $(el('rows')).append($('<tr>').append($('<td>').attr('colspan', 7).text('کارت ویزیتی با این فیلترها پیدا نشد.')));
       data.forEach(function (row) {
         rows[row.id] = row;
         var tr = $('<tr>'), ops = $('<div>').addClass('bc-row-actions');
-        tr.append($('<td>').addClass('bc-ltr').text(row.id));
+        tr.append($('<td>').addClass('bc-id').text(row.id));
         row.primary_location = [row.city, row.location_country_name].filter(Boolean).join('، ') || row.primary_address;
-        ['contact_name', 'organization_name', 'job_title', 'business_country_name', 'primary_location', 'phones', 'emails', 'related_unit'].forEach(function (key) {
-          tr.append($('<td>').toggleClass('bc-ltr', key === 'phones' || key === 'emails').text(row[key] || 'نامشخص'));
+        ['contact_name', 'organization_name', 'job_title', 'business_country_name', 'primary_location'].forEach(function (key) {
+          tr.append($('<td>').text(row[key] || 'نامشخص'));
         });
         ops.append($('<button>').attr('type', 'button').addClass('ec-btn ec-primary ec-small').text('نمایش کارت ویزیت').prop('disabled', !row.image_id).attr('title', row.image_id ? 'نمایش تصویر اصلی کارت' : 'برای این کارت تصویری ثبت نشده است').on('click', function () { showImage(row, this, false); }));
         ops.append($('<button>').attr('type', 'button').addClass('ec-btn ec-small').text(allowed('update') ? 'جزئیات و ویرایش' : 'جزئیات').on('click', function () { openCard(row.id, this); }));

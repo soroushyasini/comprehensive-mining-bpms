@@ -21,7 +21,7 @@ let checks=0;function check(value,message){assert.ok(value,message);checks++;}
   await page.locator('#bc-editor-close').click();
   check(await page.locator('#bc-root form').count()===0,'panel contains no nested forms inside the case form');
   const listedId=await page.locator('#bc-rows tr').first().locator('td').first().textContent();
-  check(/^\d+$/.test(listedId)&&await page.locator('#bc-table th').first().textContent()==='شناسه کارت','first table column displays the database card ID');
+  check(/^\d+$/.test(listedId)&&await page.locator('#bc-table th').first().textContent()==='شناسه','first table column displays the database card ID');
   await page.locator('#bc-rows').getByRole('button',{name:'جزئیات و ویرایش'}).first().click();await page.locator('#bc-editor-overlay').waitFor({state:'visible'});
   check(await page.locator('#bc-editor-title').textContent()==='کارت ویزیت '+listedId.replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[Number(d)]),'table ID identifies the same record opened for editing');
   await page.locator('#bc-contact-name').press('Enter');await page.locator('#bc-editor-close').click();

@@ -5,6 +5,9 @@
 .emcore-ui.bc-root th,.emcore-ui.bc-root td{padding:12px;text-align:start;border-bottom:1px solid var(--ec-line);vertical-align:top}.emcore-ui.bc-root th{background:#edf2e5;font-weight:600;white-space:nowrap}
 .emcore-ui.bc-root th button{border:0;background:transparent;color:var(--ec-ink);padding:4px;font-weight:600}.emcore-ui.bc-root td{min-width:100px;max-width:280px;overflow-wrap:anywhere}.emcore-ui.bc-root .bc-ltr{direction:ltr;text-align:left;unicode-bidi:plaintext}
 .emcore-ui.bc-root .bc-row-actions{display:flex;flex-direction:column;gap:8px;min-width:160px}
+.emcore-ui.bc-root #bc-table th:first-child,.emcore-ui.bc-root #bc-table td:first-child:not([colspan]){width:64px;min-width:64px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.emcore-ui.bc-root #bc-table{direction:rtl}.emcore-ui.bc-root #bc-table th,.emcore-ui.bc-root #bc-table td{text-align:right}.emcore-ui.bc-root #bc-table .bc-id{direction:ltr}
+.emcore-ui.bc-root #bc-table tbody tr:hover{background:var(--ec-bg)}
 .emcore-ui.bc-root .bc-pagination{display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;padding:16px}.emcore-ui.bc-root .bc-pagination label{display:flex;align-items:center;gap:8px;margin:0}.emcore-ui.bc-root .bc-pagination select{width:auto}
 .emcore-ui.bc-root .bc-editor{width:960px;max-width:calc(100vw - 32px);max-height:90vh;overflow:auto}.emcore-ui.bc-root .bc-child-section{border-top:1px solid var(--ec-line);margin-top:24px;padding-top:16px}
 .emcore-ui.bc-root .bc-point-row{display:grid;grid-template-columns:140px 180px 1fr auto;gap:8px;margin:12px 0}.emcore-ui.bc-root .bc-location-row{border:1px solid var(--ec-line);padding:16px;margin:12px 0;border-radius:6px}.emcore-ui.bc-root .bc-location-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
