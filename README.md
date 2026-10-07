@@ -19,6 +19,8 @@ ProcessMaker provides authentication, sessions, Dynaforms, and routed workflows.
 - [Tender and auction deployment runbook](docs/PROCUREMENT_NOTICES_DEPLOYMENT.md) — dry-run-first legacy-table backfill, private storage, acceptance, and rollback.
 - [Meeting minutes module](docs/MEETING_MINUTES_MODULE.md) — company/year numbering, historical records, participant snapshots, scanned minutes, and optional attachments.
 - [Meeting minutes deployment](docs/MEETING_MINUTES_DEPLOYMENT.md) — additive migration, private storage, isolated integration tests, installation, and rollback.
+- [Business cards module](docs/BUSINESS_CARDS_MODULE.md) and [deployment](docs/BUSINESS_CARDS_DEPLOYMENT.md) — shared contact archive, lossless 443-record seed, one current image per card, and an authorized image popup.
+- [Prepared business-card import](docs/BUSINESS_CARDS_PREPARED_IMPORT.md) — a direct SQL import, consolidated review table, and one portable private folder with 304 original images.
 - [Reusable UI components and migration](docs/EMCORE_UI_COMPONENTS_MIGRATION.md) — scoped brand tokens, Jalali datepicker, participant picker, modal, and upload queue; current panels are unchanged.
 - [Database/domain reference](db_schema.md) — core business tables and module specifications.
 - [Mines and expiry addendum](EMCORE_dev_reference_addendum.md) — mine-specific tables and expiry behavior.
@@ -40,5 +42,6 @@ ProcessMaker provides authentication, sessions, Dynaforms, and routed workflows.
 - Tender and auction tracking with live deadline alerts, optimistic edits, private attachments, and traceable migration from the legacy DynaForm/XCRUD register
 - Read-only tender and auction analytics with shared filters, live deadline health, monthly trends, category drill-down, and explicit migration-quality indicators
 - Company/year numbered meeting-minutes archive with historical-number entry, USERS/external participant snapshots, private versioned scans, optional attachments, and reusable corporate UI components
+- Shared business-card archive with separate commercial/address countries, repeated contacts and locations, idempotent source import, one current private image, and an accessible in-page preview
 
 For setup, module development, security invariants, deployment order, troubleshooting, and the definition of done, read `docs/DEVELOPER_GUIDE.md` before making changes.

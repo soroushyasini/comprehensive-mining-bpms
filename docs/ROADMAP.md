@@ -1,5 +1,16 @@
 # EMCORE security and feature roadmap
 
+## Business cards addition — 2026-10-06
+
+Implemented a shared `business_cards` archive with independent CRUD grants,
+countries and multiple contact points/locations, single-current-image storage,
+same-page image popup, optimistic writes, idempotent create/upload, transactional
+audit and a lossless importer for 443 cart entries / 304 images. Geographic
+visualization, OCR, QR decoding, contact merges and legacy phonebook import remain
+outside v1. The isolated fixture validates seeding and API/browser behavior;
+native ProcessMaker installation and session acceptance remain pending. See
+`BUSINESS_CARDS_MODULE.md` and `BUSINESS_CARDS_DEPLOYMENT.md`.
+
 Last updated: 2026-09-16
 
 ## Meeting minutes addition — 2026-10-04

@@ -153,6 +153,7 @@ Do not duplicate database credentials, session logic, or JSON error handling in 
 | `procurement_notices` | `emcore_procurement_notices` plus file/download/import-batch tables; `emcore_procurement_notices.php` | `panels/emcore_procurement_notices_panel.html` | Implemented; legacy dry-run and deployment pending |
 | `meeting_minutes` | `emcore_meeting_minutes` plus company-code/counter/participant/file/download tables; `emcore_meeting_minutes.php` | `panels/emcore_meeting_minutes_panel.html` | Implemented; isolated API/browser tests passed, production deployment pending |
 | `company_persons` | `emcore_company_persons` | Pending | Domain/schema defined |
+| `business_cards` | `emcore_business_cards` plus countries/contact-point/location/file/source/import/download tables; `emcore_business_cards.php` | `panels/emcore_business_cards_panel.html` | Implemented; 443-source isolated seed verified, native deployment pending |
 | `memberships` | `emcore_memberships` | Pending | Domain/schema defined |
 | `tokens` | `emcore_tokens` | Pending | Security-sensitive; panel/API pending |
 | `email_accounts` | `emcore_email_accounts` | Pending | Security-sensitive; panel/API pending |

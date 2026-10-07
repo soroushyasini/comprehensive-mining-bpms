@@ -1,0 +1,15 @@
+'use strict';
+const fs=require('node:fs'), assert=require('node:assert/strict'), vm=require('node:vm');
+const read=p=>fs.readFileSync(p,'utf8');
+const js=read('emcore_assets/business-cards.js'),html=read('panels/emcore_business_cards_panel.html'),sql=read('database/migrations/014_emcore_business_cards.sql');
+new vm.Script(js);
+assert.ok(!/\bDROP\s+(?:TABLE|DATABASE)\b/i.test(sql));
+assert.ok(sql.includes('UNIQUE KEY uq_bc_one_current_image (current_card_id)'));
+assert.equal((sql.match(/CREATE TABLE IF NOT EXISTS/g)||[]).length,8);
+assert.equal((sql.match(/^\('[A-Z]{2}',/gm)||[]).length,249);
+assert.ok(!/\bmultiple\b/.test(html),'single file input');
+assert.ok(html.includes('نمایش کارت ویزیت'));
+assert.ok(js.includes('new UI.Modal')&&js.includes('URL.revokeObjectURL')&&js.includes('imageGeneration'));
+assert.ok(!/\.html\s*\(|innerHTML|onclick=|https?:\/\/[^\s]+\.js/.test(js+html),'safe same-origin rendering');
+const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);assert.equal(new Set(ids).size,ids.length);
+console.log('Business-card release checks passed: eight tables, 249 countries, one-current-image constraint, single input, safe popup and JS syntax.');

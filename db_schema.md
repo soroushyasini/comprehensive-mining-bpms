@@ -574,3 +574,21 @@ Legacy meetings preserve their original numbers without consuming counters;
 unknown metadata stays NULL. Scan presence is derived independently of metadata
 completeness. Files are private, soft-deleted, and retain replaced scan versions.
 See `docs/MEETING_MINUTES_MODULE.md` for the API and business invariants.
+
+## 17. Business-card archive
+
+Migration `014_emcore_business_cards.sql` adds `emcore_business_cards` and seven
+`emcore_business_card_*` tables for countries, contact points, locations, files,
+immutable source records, import batches and download history. The module key is
+`business_cards`; API `/emcore_api/emcore_business_cards.php` and panel
+`panels/emcore_business_cards_panel.html` use the shared security stack.
+
+Each source entry remains a separate card; there are no automatic links to core
+companies/persons and no automatic contact merges. Business-country classification
+is separate from per-address geography. The generated unique `current_card_id`
+allows at most one active image. Replaced originals remain private and cannot be
+served by the public API. Initial acceptance counts: 443 cards, 304 images, 139
+image-less cards, 295 geolocated cards and 297 coordinate points.
+
+See `docs/BUSINESS_CARDS_MODULE.md` and `docs/BUSINESS_CARDS_DEPLOYMENT.md` for
+payloads, source/retry semantics, private storage, isolated tests and native rollout.
