@@ -10,6 +10,28 @@ let checks=0;function check(value,message){assert.ok(value,message);checks++;}
   const initialImageRequests=[];page.on('request',r=>{if((r.postData()||'').includes('action=preview_image'))initialImageRequests.push(r);});
   page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());
   await page.goto('http://127.0.0.1:33383/panel');await page.locator('#bc-summary p').first().waitFor();
+  // Panel WebControls live inside ProcessMaker's case form, unlike standalone pages.
+  await page.evaluate(()=>{
+   const root=document.querySelector('#bc-root'),host=document.createElement('form');
+   host.id='pm-case-form';host.action='/cases_NextStep';root.before(host);host.append(root);
+   window.__bcHostSubmits=0;host.addEventListener('submit',event=>{window.__bcHostSubmits++;event.preventDefault();});
+  });
+  await page.locator('#bc-rows').getByRole('button',{name:'جزئیات و ویرایش'}).first().click();await page.locator('#bc-editor-overlay').waitFor({state:'visible'});
+  check(await page.evaluate(()=>window.__bcHostSubmits===0),'editing a card never submits the ProcessMaker case form');
+  await page.locator('#bc-editor-close').click();
+  check(await page.locator('#bc-root form').count()===0,'panel contains no nested forms inside the case form');
+  const listedId=await page.locator('#bc-rows tr').first().locator('td').first().textContent();
+  check(/^\d+$/.test(listedId)&&await page.locator('#bc-table th').first().textContent()==='شناسه کارت','first table column displays the database card ID');
+  await page.locator('#bc-rows').getByRole('button',{name:'جزئیات و ویرایش'}).first().click();await page.locator('#bc-editor-overlay').waitFor({state:'visible'});
+  check(await page.locator('#bc-editor-title').textContent()==='کارت ویزیت '+listedId.replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[Number(d)]),'table ID identifies the same record opened for editing');
+  await page.locator('#bc-contact-name').press('Enter');await page.locator('#bc-editor-close').click();
+  await page.locator('#bc-table th[data-sort="id"] button').click();
+  await page.waitForResponse(r=>r.url().endsWith('emcore_business_cards.php')&&(r.request().postData()||'').includes('sort_order=asc'));
+  check(await page.locator('#bc-rows tr').first().locator('td').first().textContent()==='1','card ID sorts by its database value');
+  await page.locator('#bc-next').click();await page.locator('#bc-page').filter({hasText:'صفحهٔ ۲'}).waitFor();
+  await page.locator('#bc-prev').click();await page.locator('#bc-page').filter({hasText:'صفحهٔ ۱'}).waitFor();
+  await page.locator('#bc-search').press('Enter');await page.waitForResponse(r=>r.url().endsWith('emcore_business_cards.php')&&(r.request().postData()||'').includes('action=list'));
+  check(await page.evaluate(()=>window.__bcHostSubmits===0),'sorting, paging, and Enter in panel inputs never submit the case form');
   check(initialImageRequests.length===0&&await page.locator('#bc-rows img').count()===0,'archive table fetches no images before a popup is opened');
   await page.evaluate(()=>{
    window.__bcRevoked=[];window.__bcOriginalCallbacks=[];window.__bcAborts=0;
@@ -62,6 +84,10 @@ let checks=0;function check(value,message){assert.ok(value,message);checks++;}
   await page.locator('#bc-editor-close').click();
   await page.locator('#bc-new').click();await page.locator('#bc-contact-name').fill('<img src=x onerror=alert(1)>');await page.locator('#bc-organization-name').fill('تست مرورگر');
   const businessSearch=page.locator('#bc-business-country + .bc-country-picker input');await businessSearch.fill('France');await page.locator('#bc-business-country-suggestions').getByRole('option',{name:/France/}).click();
+  await businessSearch.fill('not a country');await page.locator('#bc-save').click();
+  check(await page.locator('#bc-editor-title').textContent()==='ثبت کارت ویزیت'&&!await businessSearch.evaluate(e=>e.validity.valid),'invalid country suggestion prevents saving without relying on a nested form');
+  check(await page.locator('#pm-case-form').evaluate(e=>e.checkValidity()),'local invalid country does not block native case-form validation');
+  await businessSearch.fill('France');await page.locator('#bc-business-country-suggestions').getByRole('option',{name:/France/}).click();
   await page.locator('#bc-add-contact').click();await page.locator('.bc-point-value').fill('+98 912 5555555');
   await page.locator('#bc-add-location').click();await page.locator('.bc-location-city').fill('تهران');
   const locationSearch=page.locator('.bc-location-country + .bc-country-picker input');await locationSearch.fill('Iran');await page.locator('.bc-location-country + .bc-country-picker').getByRole('option',{name:/Iran/}).click();
@@ -79,8 +105,16 @@ let checks=0;function check(value,message){assert.ok(value,message);checks++;}
   check(await page.locator('#bc-rows').getByRole('button',{name:'نمایش کارت ویزیت'}).first().isDisabled(),'image-less table action disabled');
   await page.setViewportSize({width:375,height:812});check(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1),'mobile document does not overflow');
   await page.locator('#bc-new').click();check(await page.locator('#bc-editor-overlay').isVisible(),'mobile form opens');await page.keyboard.press('Escape');
+  check(await page.evaluate(()=>window.__bcHostSubmits===0),'all editor, filter, preview, upload, and close actions leave the case form unsubmitted');
+  check(await page.locator('#bc-root button:not([type="button"])').count()===0,'all static and dynamic panel buttons have a non-submit type');
+  check(await page.locator('#bc-root').evaluate(e=>[...e.querySelectorAll('input,textarea,select')].every(field=>field.form===null)),'static and repeated panel fields stay outside native case submission');
   const reader=await browser.newContext({viewport:{width:1440,height:1000}});await reader.addCookies([{name:'bc_fixture_actor',value:'reader',url:'http://127.0.0.1:33383'}]);const readPage=await reader.newPage();
+  await readPage.route('**/panel',async route=>{
+   const response=await route.fetch(),html=await response.text();
+   await route.fulfill({response,body:html.replace('<body>','<body><form id="pm-parsed-case" action="/cases_NextStep">').replace('</body>','</form></body>')});
+  });
   await readPage.goto('http://127.0.0.1:33383/panel');await readPage.locator('#bc-summary p').first().waitFor();check(await readPage.locator('#bc-new').isHidden(),'read-only create hidden');
+  check(await readPage.locator('#pm-parsed-case #bc-root').count()===1&&await readPage.locator('#bc-root form').count()===0,'panel survives initial HTML parsing inside a ProcessMaker case form');
   await readPage.locator('#bc-rows').getByRole('button',{name:'جزئیات',exact:true}).first().click();await readPage.locator('#bc-editor-overlay').waitFor({state:'visible'});
   check(await readPage.locator('#bc-contact-name').isDisabled()&&await readPage.locator('#bc-save').isHidden(),'read-only detail disabled');
   check(await readPage.locator('#bc-business-country + .bc-country-picker input').isDisabled(),'read-only country suggestion disabled');

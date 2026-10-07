@@ -20,11 +20,14 @@
     function message(id, text, error) { $(el(id)).prop('hidden', !text).attr('class', 'ec-message' + (error ? ' error' : '')).text(text || ''); }
     function error(xhr) { return UI.errorText(xhr) || 'درخواست انجام نشد؛ دوباره تلاش کنید.'; }
     function api(action, data) { return $.ajax({ url: API, type: 'POST', dataType: 'json', data: $.extend({}, data || {}, { action: action }), headers: token ? { 'X-CSRF-Token': token } : {} }); }
+    // An explicit unbound form owner keeps local fields out of case validation/submission.
+    function localFields(root) { $(root).find('input,textarea,select').attr('form', 'bc-local-fields'); }
+    localFields(el('root'));
     function countryOptions(select, value, empty) {
       var code = $(select), picker = code.data('country-picker');
       if (!picker) {
         var root = $('<span>').addClass('bc-country-picker'), id = (code.attr('id') || 'bc-location-country-' + UI.requestId()) + '-suggestions';
-        var input = $('<input>').attr({ type: 'search', role: 'combobox', autocomplete: 'off', 'aria-autocomplete': 'list', 'aria-expanded': 'false', 'aria-controls': id, placeholder: empty || 'نام فارسی یا انگلیسی کشور' });
+        var input = $('<input>').attr({ type: 'search', form: 'bc-local-fields', role: 'combobox', autocomplete: 'off', 'aria-autocomplete': 'list', 'aria-expanded': 'false', 'aria-controls': id, placeholder: empty || 'نام فارسی یا انگلیسی کشور' });
         input.attr('aria-label', code.closest('label').contents().filter(function () { return this.nodeType === 3; }).text().trim() || 'انتخاب کشور');
         var list = $('<span>').attr({ id: id, role: 'listbox', hidden: true }).addClass('bc-country-suggestions'), active = -1;
         code.empty().append($('<option>').val('')); countries.forEach(function (c) { code.append($('<option>').val(c.code)); });
@@ -76,15 +79,14 @@
       if (!data.length) $(el('rows')).append($('<tr>').append($('<td>').attr('colspan', 10).text('کارت ویزیتی با این فیلترها پیدا نشد.')));
       data.forEach(function (row) {
         rows[row.id] = row;
-        var tr = $('<tr>'), pic = $('<td>'), ops = $('<div>').addClass('bc-row-actions');
-        pic.text(row.image_id ? 'دارای تصویر' : 'بدون تصویر');
-        tr.append(pic);
+        var tr = $('<tr>'), ops = $('<div>').addClass('bc-row-actions');
+        tr.append($('<td>').addClass('bc-ltr').text(row.id));
         row.primary_location = [row.city, row.location_country_name].filter(Boolean).join('، ') || row.primary_address;
         ['contact_name', 'organization_name', 'job_title', 'business_country_name', 'primary_location', 'phones', 'emails', 'related_unit'].forEach(function (key) {
           tr.append($('<td>').toggleClass('bc-ltr', key === 'phones' || key === 'emails').text(row[key] || 'نامشخص'));
         });
-        ops.append($('<button>').addClass('ec-btn ec-primary ec-small').text('نمایش کارت ویزیت').prop('disabled', !row.image_id).on('click', function () { showImage(row, this, false); }));
-        ops.append($('<button>').addClass('ec-btn ec-small').text(allowed('update') ? 'جزئیات و ویرایش' : 'جزئیات').on('click', function () { openCard(row.id, this); }));
+        ops.append($('<button>').attr('type', 'button').addClass('ec-btn ec-primary ec-small').text('نمایش کارت ویزیت').prop('disabled', !row.image_id).attr('title', row.image_id ? 'نمایش تصویر اصلی کارت' : 'برای این کارت تصویری ثبت نشده است').on('click', function () { showImage(row, this, false); }));
+        ops.append($('<button>').attr('type', 'button').addClass('ec-btn ec-small').text(allowed('update') ? 'جزئیات و ویرایش' : 'جزئیات').on('click', function () { openCard(row.id, this); }));
         tr.append($('<td>').append(ops)); $(el('rows')).append(tr);
       });
     }
@@ -136,7 +138,7 @@
       [['phone', 'تلفن'], ['mobile', 'همراه'], ['fax', 'فکس'], ['email', 'ایمیل'], ['website', 'وب‌سایت'], ['messenger', 'پیام‌رسان'], ['other', 'متن اصلی / سایر']].forEach(function (pair) { kind.append($('<option>').val(pair[0]).text(pair[1])); });
       root.append(kind.val(p.kind).addClass('bc-point-kind'), $('<input>').addClass('bc-point-label').attr({ 'aria-label': 'برچسب', maxlength: 255 }).val(p.label || ''), $('<input>').addClass('bc-point-value bc-ltr').attr({ 'aria-label': 'مقدار راه ارتباطی', maxlength: 1000 }).val(p.raw_value));
       root.append($('<button>').attr('type', 'button').addClass('ec-btn ec-danger bc-remove').text('حذف').on('click', function () { root.remove(); markDirty(); }));
-      $(el('contact-points')).append(root);
+      localFields(root); $(el('contact-points')).append(root);
     }
     function addLocation(loc) {
       loc = loc || {}; var root = $('<div>').addClass('bc-location-row').data('source', loc), grid = $('<div>').addClass('bc-location-grid');
@@ -150,7 +152,7 @@
       countryOptions(country, loc.country_code);
       root.append(grid, $('<label>').text('نشانی').append($('<textarea>').addClass('bc-location-address').attr('maxlength', 20000).val(loc.address || '')));
       root.append($('<label>').text('توضیح منبع موقعیت').append($('<textarea>').addClass('bc-location-source_note').attr('maxlength', 10000).val(loc.source_note || '')));
-      root.append($('<button>').attr('type', 'button').addClass('ec-btn ec-danger bc-remove').text('حذف نشانی').on('click', function () { root.remove(); markDirty(); })); $(el('locations')).append(root);
+      root.append($('<button>').attr('type', 'button').addClass('ec-btn ec-danger bc-remove').text('حذف نشانی').on('click', function () { root.remove(); markDirty(); })); localFields(root); $(el('locations')).append(root);
     }
     function controls() {
       var write = card && card.id ? allowed('update') : allowed('create');
@@ -203,8 +205,15 @@
         });
       }).fail(function (xhr) { message('editor-message', error(xhr), true); });
     }
-    $(el('editor-form')).on('input change', 'input,textarea,select', markDirty).on('submit', function (e) {
-      e.preventDefault(); if (busy) return; var data = payload(), isNew = !card.id;
+    function validFields(container) {
+      var fields = container.querySelectorAll('input,textarea,select');
+      for (var i = 0; i < fields.length; i++) if (!fields[i].disabled && !fields[i].checkValidity()) { fields[i].reportValidity(); return false; }
+      return true;
+    }
+    // No nested forms: ProcessMaker owns the case form and its submit behavior.
+    $(el('editor-form')).on('input change', 'input,textarea,select', markDirty);
+    $(el('save')).on('click', function () {
+      if (busy || !validFields(el('editor-form'))) return; var data = payload(), isNew = !card.id;
       if (isNew) data.request_id = createRequest; else { data.id = card.id; data.lock_version = card.lock_version; }
       busy = true; controls(); api(isNew ? 'create' : 'update', data).done(function (r) {
         busy = false; fillCard(r.data); message('editor-message', 'اطلاعات ذخیره شد.'); loadList(); checkDuplicates();
@@ -240,8 +249,14 @@
       }, function (text) { if (generation === imageGeneration) { $(el('image-message')).text(text).prop('hidden', false); $(el('download')).prop('disabled', false); } });
     });
     $(el('new')).on('click', function () { openCard(null, this); });
-    $(el('filters')).on('submit', function (e) { e.preventDefault(); page = 1; loadList(); });
-    $(el('reset')).on('click', function () { el('filters').reset(); countryOptions(el('country'), '', 'همه کشورها'); countryOptions(el('location-country'), '', 'همه کشورها'); page = 1; sort = 'id'; order = 'desc'; $(el('table')).find('th').removeAttr('aria-sort'); loadList(); });
+    function applyFilters() { if (!validFields(el('filters'))) return; page = 1; loadList(); }
+    $(el('apply')).on('click', applyFilters);
+    $(el('root')).on('keydown', 'input', function (e) {
+      if (e.key !== 'Enter' || e.isDefaultPrevented()) return;
+      e.preventDefault(); e.stopPropagation();
+      if (el('filters').contains(this)) applyFilters();
+    });
+    $(el('reset')).on('click', function () { $(el('filters')).find('input,select').val(''); countryOptions(el('country'), '', 'همه کشورها'); countryOptions(el('location-country'), '', 'همه کشورها'); page = 1; sort = 'id'; order = 'desc'; $(el('table')).find('th').removeAttr('aria-sort'); loadList(); });
     $(el('prev')).on('click', function () { if (page > 1) { page--; loadList(); } }); $(el('next')).on('click', function () { if (page < pages) { page++; loadList(); } }); $(el('size')).on('change', function () { page = 1; loadList(); });
     $(el('table')).find('th[data-sort] button').on('click', function () { var th = $(this).parent(), key = th.data('sort'); order = sort === key && order === 'asc' ? 'desc' : 'asc'; sort = key; page = 1; $(el('table')).find('th').removeAttr('aria-sort'); th.attr('aria-sort', order === 'asc' ? 'ascending' : 'descending'); loadList(); });
     window.addEventListener('beforeunload', clearImage);
