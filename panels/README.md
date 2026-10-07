@@ -15,8 +15,11 @@ These are the deployable Panel WebControl files corresponding to the secured API
 | `emcore_procurement_notices_panel.html` | `/emcore_api/emcore_procurement_notices.php` | `procurement_notices` |
 | `emcore_procurement_analytics_panel.html` | `/emcore_api/emcore_procurement_analytics.php` | `procurement_notices` |
 | `emcore_meeting_minutes_panel.html` | `/emcore_api/emcore_meeting_minutes.php` | `meeting_minutes` |
+| `emcore_business_cards_panel.html` | `/emcore_api/emcore_business_cards.php` | `business_cards` |
 
 ## Security integration
+
+The business-card panel loads same-origin `emcore_assets/emcore-ui.css`, `emcore-ui.js`, `business-cards.css`, and `business-cards.js`. Deploy these assets before installing the panel. It uses ProcessMaker's existing jQuery, one optional image per record, and a shared modal for authorized Blob image previews. See `docs/BUSINESS_CARDS_DEPLOYMENT.md`.
 
 Each panel:
 

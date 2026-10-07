@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/emcore_assets/emcore-ui.css">
+<link rel="stylesheet" href="/emcore_assets/business-cards.css"></head>
+<body><main class="emcore-ui bc-root" id="bc-root">
+  <header class="bc-heading"><div><h1>کارت‌های ویزیت</h1><p>آرشیو ارتباطات تجاری شرکت</p></div><button id="bc-new" class="ec-btn ec-primary" hidden>ثبت کارت جدید</button></header>
+  <div id="bc-message" role="status" aria-live="polite" hidden></div>
+  <section class="ec-card" aria-label="فیلتر آرشیو"><form id="bc-filters" class="bc-filters">
+    <label>جست‌وجو<input id="bc-search" placeholder="نام، سازمان، شماره یا نشانی"></label>
+    <label>کشور تجاری<select id="bc-country"><option value="">همه کشورها</option></select></label>
+    <label>کشور محل نشانی<select id="bc-location-country"><option value="">همه کشورها</option></select></label>
+    <label>شهر<input id="bc-city"></label>
+    <label>واحد مرتبط<select id="bc-unit"><option value="">همه واحدها</option></select></label>
+    <label>تصویر<select id="bc-has-image"><option value="">همه</option><option value="1">دارای تصویر</option><option value="0">بدون تصویر</option></select></label>
+    <label>مختصات<select id="bc-has-geo"><option value="">همه</option><option value="1">دارای مختصات</option><option value="0">بدون مختصات</option></select></label>
+    <label>بررسی اطلاعات<select id="bc-review"><option value="">همه</option><option value="needs_review">نیازمند بررسی</option><option value="reviewed">بررسی‌شده</option></select></label>
+    <label>منشأ ثبت<select id="bc-origin"><option value="">همه</option><option value="imported">ورود اولیه</option><option value="manual">ثبت دستی</option></select></label>
+    <div class="ec-actions"><button class="ec-btn ec-primary" type="submit">اعمال فیلتر</button><button class="ec-btn" type="button" id="bc-reset">پاک‌کردن فیلترها</button></div>
+  </form></section>
+  <div id="bc-summary" class="bc-summary" aria-label="خلاصهٔ نتایج"></div>
+  <section class="ec-card bc-table-card" aria-label="جدول کارت‌ها"><div class="bc-table-scroll"><table id="bc-table"><caption class="bc-sr">فهرست کارت‌های ویزیت مطابق فیلترهای انتخاب‌شده</caption>
+    <thead><tr><th scope="col">تصویر</th><th scope="col" data-sort="contact_name"><button>مخاطب</button></th><th scope="col" data-sort="organization_name"><button>سازمان</button></th><th scope="col">سمت</th><th scope="col" data-sort="business_country_code"><button>کشور تجاری</button></th><th scope="col">محل اصلی</th><th scope="col">تلفن / همراه</th><th scope="col">ایمیل</th><th scope="col" data-sort="related_unit"><button>واحد</button></th><th scope="col">عملیات</th></tr></thead><tbody id="bc-rows"></tbody>
+  </table></div><nav class="bc-pagination" aria-label="صفحه‌بندی"><button id="bc-prev" class="ec-btn">صفحهٔ قبل</button><span id="bc-page" aria-live="polite"></span><button id="bc-next" class="ec-btn">صفحهٔ بعد</button><label>تعداد در صفحه<select id="bc-size"><option>25</option><option>50</option><option>100</option></select></label></nav></section>
+
+  <div id="bc-editor-overlay" class="ec-modal" hidden><section class="ec-dialog bc-editor" role="dialog" aria-modal="true" aria-labelledby="bc-editor-title">
+    <div class="bc-heading"><h2 id="bc-editor-title">ثبت کارت ویزیت</h2><button type="button" id="bc-editor-close" class="ec-btn">بستن</button></div>
+    <div id="bc-editor-message" role="status" aria-live="polite" hidden></div>
+    <form id="bc-editor-form"><div class="ec-grid">
+      <label>نام مخاطب<input id="bc-contact-name" maxlength="500"></label><label>نام سازمان / شرکت<input id="bc-organization-name" maxlength="500"></label>
+      <label>سمت<input id="bc-job-title" maxlength="500"></label><label>کشور ارتباط تجاری<select id="bc-business-country"><option value="">نامشخص</option></select></label>
+      <label>واحد مرتبط<input id="bc-related-unit" maxlength="255"></label><label>دستهٔ اولیه<input id="bc-source-category" maxlength="255"></label>
+      <label>وضعیت بررسی<select id="bc-review-status"><option value="needs_review">نیازمند بررسی</option><option value="reviewed">بررسی‌شده</option></select></label>
+      <label>شرح فعالیت<textarea id="bc-activity" maxlength="10000"></textarea></label>
+      <label class="ec-wide">توضیحات<textarea id="bc-notes" maxlength="20000"></textarea></label>
+    </div>
+    <section class="bc-child-section"><div class="bc-heading"><h3>راه‌های ارتباطی</h3><button type="button" class="ec-btn" id="bc-add-contact">افزودن راه ارتباطی</button></div><div id="bc-contact-points"></div></section>
+    <section class="bc-child-section"><div class="bc-heading"><h3>نشانی‌ها و موقعیت‌ها</h3><button type="button" class="ec-btn" id="bc-add-location">افزودن نشانی</button></div><div id="bc-locations"></div></section>
+    <div class="ec-actions"><button type="submit" id="bc-save" class="ec-btn ec-primary">ذخیره اطلاعات</button><button type="button" id="bc-duplicates-button" class="ec-btn">بررسی موارد مشابه</button><button type="button" id="bc-delete" class="ec-btn ec-danger" hidden>حذف کارت</button></div>
+    </form>
+    <div id="bc-duplicates" class="bc-child-section" aria-live="polite"></div>
+    <section class="bc-child-section"><h3>تصویر کارت ویزیت</h3><p>برای هر کارت فقط یک تصویر ثبت می‌شود. در صورت نیاز، رو و پشت کارت را در یک فایل اسکن کنید.</p>
+      <p id="bc-image-state">برای بارگذاری تصویر، ابتدا اطلاعات کارت را ذخیره کنید.</p>
+      <label>انتخاب یک تصویر<input id="bc-image-file" type="file" accept="image/jpeg,image/png" disabled></label><small id="bc-image-limit"></small>
+      <div class="ec-actions"><button type="button" id="bc-upload" class="ec-btn ec-primary" disabled>افزودن تصویر</button><button type="button" id="bc-editor-preview" class="ec-btn" disabled>نمایش کارت ویزیت</button><button type="button" id="bc-delete-image" class="ec-btn ec-danger" hidden>حذف تصویر</button></div><progress id="bc-upload-progress" max="100" value="0" hidden></progress>
+    </section>
+    <details id="bc-sources"><summary>سابقهٔ منبع</summary><div id="bc-source-text"></div></details>
+  </section></div>
+
+  <div id="bc-image-overlay" class="ec-modal" hidden><section class="ec-dialog bc-image-dialog" role="dialog" aria-modal="true" aria-labelledby="bc-image-title">
+    <div class="bc-heading"><h2 id="bc-image-title">کارت ویزیت</h2><button type="button" id="bc-image-close" class="ec-btn">بستن</button></div>
+    <p id="bc-image-message" role="status" aria-live="polite">در حال بارگذاری تصویر…</p><img id="bc-full-image" alt="تصویر کارت ویزیت" hidden>
+    <button type="button" id="bc-download" class="ec-btn ec-primary" disabled>دانلود تصویر اصلی</button>
+  </section></div>
+</main><script src="/emcore_assets/emcore-ui.js"></script><script src="/emcore_assets/business-cards.js"></script></body></html>
