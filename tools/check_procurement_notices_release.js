@@ -121,6 +121,9 @@ requireText(endpoint, "'currency_options'", 'canonical currency options are miss
 requireText(endpoint, "'دلار'", 'Dollar is missing from currency options');
 requireText(endpoint, "emcore_procurement_jalali_date($db, 'registered_on_fa', false)", 'list API does not validate the Jalali registration-date filter');
 requireText(endpoint, 'p.registered_on_en = :registered_on_en_filter', 'list API does not filter records by registration date');
+requireText(endpoint, 'emcore_procurement_search_id($search)', 'list search does not normalize database IDs');
+requireText(endpoint, 'p.id = CAST(:search_id AS UNSIGNED)', 'list search does not include an exact parameterized database ID');
+requireText(panel, 'placeholder="شناسه، عنوان، شماره، دستگاه اجرایی، کالا…"', 'search hint does not mention database IDs');
 if (/:secondary_guarantee\b/.test(endpoint)) failures.push('secondary guarantee is still part of the write contract');
 requireText(endpoint, ": 'id';", 'list API does not default to descending database id');
 requireText(endpoint, ": 'desc';", 'list API default sort direction is not descending');

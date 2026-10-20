@@ -32,6 +32,8 @@ try {
         catch { Start-Sleep -Milliseconds 100 }
     }
     if(!$ready) { throw 'Fixture HTTP listener did not start.' }
+    & $php @phpFlags tools/test_procurement_search.php
+    if($LASTEXITCODE -ne 0) { throw 'Procurement ID search suite failed.' }
     & node tools/test_procurement_workflow_integration.js
     if($LASTEXITCODE -ne 0) { throw 'Workflow integration suite failed.' }
     & $php @phpFlags tools/test_procurement_workflow_initialization.php

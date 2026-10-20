@@ -7,6 +7,7 @@ const base='http://127.0.0.1:33380';let checks=0;
 function check(value,message){checks++;assert.ok(value,message);}
 async function main(){
   const browser=await chromium.launch({headless:true,executablePath:process.env.EMCORE_TEST_CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe'});
+  let cleanupFavorite=null;
   try{
     const context=await browser.newContext({viewport:{width:1440,height:1000},extraHTTPHeaders:{'x-emcore-fixture-actor':'operator'}});
     const lookups=await (await context.request.post(base+'/emcore_api/emcore_procurement_notices.php',{form:{action:'lookups'}})).json();
@@ -15,6 +16,7 @@ async function main(){
     const title='آزمون مرورگر مشاهدهٔ واقعی رویدادها '+crypto.randomBytes(8).toString('hex');
     const created=await api('create',{request_id:crypto.randomBytes(16).toString('hex'),notice_type:'tender',title,registered_on_fa:'1405/06/31',participation_status:'registered'});
     const notice=created.id;
+    cleanupFavorite=()=>api('set_favorite',{id:notice,is_favorite:'0'});
     for(let index=0;index<29;index++)await api('create_event',{id:notice,request_id:crypto.randomBytes(16).toString('hex'),body:'رویداد آزمایشی '+index+'\n'+('توضیح پیگیری برای کنترل محدودهٔ قابل مشاهده. '.repeat(8))});
     const page=await context.newPage();const errors=[];page.on('pageerror',error=>errors.push(error.message));
     await page.addInitScript(()=>{Date.prototype.getFullYear=function(){return 1405;};});
@@ -25,7 +27,15 @@ async function main(){
       page.locator('#filterButton').click()
     ]);
     await page.locator('[data-favorite-id="'+notice+'"]').waitFor();
-    async function listAfter(action){await Promise.all([page.waitForResponse(response=>new URLSearchParams(response.request().postData()||'').get('action')==='list'),action()]);}
+    async function listAfter(action){
+      await Promise.all([page.waitForResponse(response=>new URLSearchParams(response.request().postData()||'').get('action')==='list'),action()]);
+      await page.locator('#ledger[aria-busy="true"]').waitFor({state:'hidden'});
+    }
+    for(const search of [String(notice),String(notice).replace(/[0-9]/g,digit=>'۰۱۲۳۴۵۶۷۸۹'[Number(digit)])]){
+      await page.locator('#searchInput').fill(search);await listAfter(()=>page.locator('#searchInput').press('Enter'));
+      check(await page.locator('[data-favorite-id="'+notice+'"]').count()===1,'Search by database ID works via Enter: '+search);
+    }
+    await page.locator('#searchInput').fill(title);await listAfter(()=>page.locator('#filterButton').click());
     await listAfter(()=>page.locator('[data-favorite-id="'+notice+'"]').click());
     check(await page.locator('[data-favorite-id="'+notice+'"]').getAttribute('aria-pressed')==='true','Heart persists favorite');
     await page.reload();await page.locator('[data-favorite-id="'+notice+'"]').waitFor();
@@ -34,9 +44,23 @@ async function main(){
     await listAfter(()=>page.locator('#favoriteRecordsTab').click());
     check(await page.locator('#favoriteRecordsTab').getAttribute('aria-selected')==='true' && await page.locator('#ledger tbody tr').count()===1,'Personal favorites tab renders saved record only');
     check(await page.locator('#workflowQueue').isDisabled(),'Favorite view is independent of workflow queue');
+    await page.locator('#searchInput').fill(String(notice));await listAfter(()=>page.locator('#filterButton').click());
+    check(await page.locator('[data-favorite-id="'+notice+'"]').count()===1,'Favorite tab supports database ID search');
+    // Fixture XLSX stub verifies the filtered query/download contract, not serialization.
+    await page.waitForFunction(()=>!document.getElementById('exportButton').disabled);
+    const exportResponse=page.waitForResponse(response=>{
+      const query=new URLSearchParams(response.request().postData()||'');
+      return query.get('action')==='list' && query.get('page_size')==='100';
+    });
+    const download=page.waitForEvent('download');
+    await page.locator('#exportButton').click();
+    const exportQuery=new URLSearchParams((await exportResponse).request().postData());
+    check(exportQuery.get('search')===String(notice) && exportQuery.get('favorites_only')==='1','Excel export retains active ID search and personal favorites filter');
+    check((await download).suggestedFilename().endsWith('.xlsx'),'ID-filtered results trigger Excel download');
     if(process.env.EMCORE_FIXTURE_SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.EMCORE_FIXTURE_SCREENSHOT_DIR,'procurement-favorites-main.png'),fullPage:true});
     await listAfter(()=>page.locator('[data-favorite-id="'+notice+'"]').click());
     check(await page.locator('#ledger tbody tr').count()===0,'Unfavorite removes row from favorite tab');
+    cleanupFavorite=null;
     await listAfter(()=>page.locator('#allRecordsTab').click());
     await page.locator('#searchInput').fill(title);await listAfter(()=>page.locator('#filterButton').click());
     await page.locator('#allRecordsTab').focus();await listAfter(()=>page.keyboard.press('ArrowLeft'));
@@ -93,6 +117,9 @@ async function main(){
     check(await managerPage.locator('#addButton').isHidden(),'Manager cannot create from UI despite full CRUD permission');
     check(await managerPage.locator('#workflowQueue').inputValue()==='pending_review','Manager starts in review queue');
     await manager.close();console.log(`Procurement workflow browser: ${checks} assertions passed.`);
-  }finally{await browser.close();}
+  }finally{
+    if(cleanupFavorite)await cleanupFavorite().catch(()=>{});
+    await browser.close();
+  }
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});

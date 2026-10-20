@@ -79,6 +79,23 @@ function emcore_procurement_estimated_amount($name = 'estimated_amount')
     return $normalized === '' ? '0' : $normalized;
 }
 
+function emcore_procurement_search_id($search)
+{
+    $digits = strtr($search, [
+        '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4',
+        '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9',
+        '٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4',
+        '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9',
+    ]);
+    $digits = str_replace([',', '٬'], '', $digits);
+    if (!preg_match('/^[0-9]+$/D', $digits)) return null;
+    $digits = ltrim($digits, '0');
+    // Keep BIGINT UNSIGNED IDs as strings: no PHP/JavaScript float conversion.
+    if ($digits === '' || strlen($digits) > 20
+        || (strlen($digits) === 20 && strcmp($digits, '18446744073709551615') > 0)) return null;
+    return $digits;
+}
+
 function emcore_procurement_canonical_value($name, $allowed, $before = null)
 {
     $value = emcore_string($name, false, 255);
@@ -540,15 +557,22 @@ if ($action === 'list') {
         $where[] = 'p.response_deadline_en IS NULL';
     }
 
+    $searchId = null;
     $search = emcore_string('search', false, 150);
     if ($search !== null) {
-        $where[] = '(p.title LIKE :search_title'
+        $searchId = emcore_procurement_search_id($search);
+        $searchCondition = '(p.title LIKE :search_title'
             . ' OR p.reference_number LIKE :search_reference'
             . ' OR p.contracting_authority LIKE :search_authority'
             . ' OR p.source_name LIKE :search_source'
             . ' OR p.supplier_name LIKE :search_supplier'
             . ' OR p.category_name LIKE :search_category'
             . ' OR p.product_name LIKE :search_product)';
+        if ($searchId !== null) {
+            $searchCondition = '(p.id = CAST(:search_id AS UNSIGNED) OR ' . $searchCondition . ')';
+            $params[':search_id'] = $searchId;
+        }
+        $where[] = $searchCondition;
         foreach ([
             ':search_title', ':search_reference', ':search_authority', ':search_source',
             ':search_supplier', ':search_category', ':search_product',
@@ -588,6 +612,13 @@ if ($action === 'list') {
     $count->execute($params);
     $total = (int)$count->fetchColumn();
 
+    $listParams = $params + [':favorite_actor' => emcore_current_user()['USR_UID']];
+    $searchPriority = '';
+    if ($searchId !== null) {
+        // The exact ID must not disappear onto a later page of text matches.
+        $searchPriority = 'CASE WHEN p.id = CAST(:search_id_order AS UNSIGNED) THEN 0 ELSE 1 END, ';
+        $listParams[':search_id_order'] = $searchId;
+    }
     $stmt = $db->prepare(
         'SELECT ' . emcore_procurement_select_columns(true) . ",
                 (SELECT COUNT(*)
@@ -595,10 +626,10 @@ if ($action === 'list') {
                  WHERE f.procurement_id = p.id AND f.deleted_at IS NULL) AS file_count
          FROM emcore_procurement_notices p
          WHERE {$whereSql}
-         ORDER BY " . $sortColumns[$sortBy] . ' ' . strtoupper($sortOrder)
+         ORDER BY " . $searchPriority . $sortColumns[$sortBy] . ' ' . strtoupper($sortOrder)
             . ', p.id DESC LIMIT ' . (int)$pageSize . ' OFFSET ' . (int)$offset
     );
-    $stmt->execute($params + [':favorite_actor' => emcore_current_user()['USR_UID']]);
+    $stmt->execute($listParams);
 
     $rows = $stmt->fetchAll();
     if (emcore_pw_enabled()) foreach ($rows as &$row) $row['workflow_permissions'] = emcore_pw_permissions($row);

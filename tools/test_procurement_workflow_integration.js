@@ -35,6 +35,25 @@ async function main(){
   const created=await post('operator','create',original,201);const notice=created.id;
   check(created.data.participation_status==='registered','initial status forced');
   check(created.data.owner_usr_uid==='1'.repeat(32) && created.data.manager_usr_uid==='2'.repeat(32),'ownership separate from creator');
+  const persianId=String(notice).replace(/[0-9]/g,digit=>'۰۱۲۳۴۵۶۷۸۹'[Number(digit)]);
+  const arabicId=String(notice).replace(/[0-9]/g,digit=>'٠١٢٣٤٥٦٧٨٩'[Number(digit)]);
+  const referenceMatch=(await post('operator','create',{...original,request_id:id(),title:'آزمون تطبیق شماره با شناسه',reference_number:String(notice)},201)).id;
+  for(const search of [String(notice),persianId,arabicId,'000'+notice]) {
+    const matches=await post('operator','list',{search,page_size:100});
+    check(matches.data.some(record=>record.id==notice),'ID search accepts Latin/Persian/Arabic digits and leading zeros: '+search);
+  }
+  const firstMatch=await post('operator','list',{search:persianId,page_size:1});
+  check(firstMatch.data[0].id==notice && firstMatch.pagination.total>=2,'exact ID ranks ahead of newer text matches before pagination');
+  check((await post('operator','list',{search:String(notice),page_size:100})).data.some(record=>record.id==referenceMatch),'numeric text/reference search remains available');
+  check((await post('operator','list',{search:String(notice),page_size:1,sort_by:'title',sort_order:'asc'})).data[0].id==notice,'exact ID remains visible with user sorting');
+  const exact=await post('manager','list',{search:String(notice),workflow_queue:'pending_review'});
+  check(exact.data.some(record=>record.id==notice),'ID search combines with workflow queue');
+  check(!(await post('operator','list',{search:'2'})).data.some(record=>record.id==2),'ID search cannot bypass ownership scope');
+  check(!(await post('operator','list',{search:String(notice),workflow_queue:'result_review'})).data.some(record=>record.id==notice),'ID search cannot bypass queue filter');
+  check(!(await post('operator','list',{search:String(notice),notice_type:'auction'})).data.some(record=>record.id==notice),'ID search cannot bypass other active filters');
+  const literal=await post('operator','list',{search:"' OR 1=1 --"});
+  check(literal.pagination.total===0,'search payload remains parameterized');
+  await post('operator','list',{search:'18446744073709551616'});
   const beforeFavorite=(await fixture('operator',{mode:'counts'})).data;
   await post('operator','set_favorite',{id:notice,is_favorite:'yes'},422);
   const favoriteCsrf=clients.operator.csrf;clients.operator.csrf='';await post('operator','set_favorite',{id:notice,is_favorite:'1'},403);clients.operator.csrf=favoriteCsrf;
@@ -45,6 +64,8 @@ async function main(){
   check(Number((await get('operator',notice)).is_favorite)===1 && Number((await get('manager',notice)).is_favorite)===0,'favorites belong to authenticated user only');
   const favorites=await post('operator','list',{favorites_only:'1',search:original.title,page_size:1});
   check(favorites.pagination.total===1 && favorites.data.length===1 && favorites.data[0].id==notice,'favorite search and pagination use full filtered dataset');
+  check((await post('operator','list',{favorites_only:'1',search:persianId})).data.some(record=>record.id==notice),'personal favorites support Persian database ID search');
+  check(!(await post('manager','list',{favorites_only:'1',search:String(notice)})).data.some(record=>record.id==notice),'ID search cannot bypass personal favorite scope');
   await post('operator','set_favorite',{id:1,is_favorite:'1'});
   const favoritePage1=await post('operator','list',{favorites_only:'1',page_size:1,page:1});
   const favoritePage2=await post('operator','list',{favorites_only:'1',page_size:1,page:2});
