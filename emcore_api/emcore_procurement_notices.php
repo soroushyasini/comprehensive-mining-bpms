@@ -218,7 +218,7 @@ function emcore_procurement_input($db, $before = null)
     if (emcore_pw_enabled()) {
         $fixedStatus = $before === null ? 'registered' : $before['participation_status'];
         if ($participationStatus !== $fixedStatus || ($before && $interestReason !== $before['interest_reason'])) {
-            throw new EmcoreHttpException(403, 'تصمیم و وضعیت فقط از مسیر رسمی گردش کار تغییر می‌کند.');
+            throw new EmcoreHttpException(403, 'تصمیم و وضعیت فقط از بخش اقدامات و پیگیری‌های پنل تغییر می‌کند.');
         }
         $participationStatus = $fixedStatus;
         $interestReason = $before['interest_reason'] ?? null;

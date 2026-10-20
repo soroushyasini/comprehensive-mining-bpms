@@ -11,12 +11,6 @@ $env:EMCORE_DB_PASSWORD='emcore-isolated-fixture'
 $env:EMCORE_PROCUREMENT_WORKFLOW_ENABLED='true'
 $env:EMCORE_PROCUREMENT_WORKFLOW_OPERATOR='1'*32
 $env:EMCORE_PROCUREMENT_WORKFLOW_MANAGER='2'*32
-$env:EMCORE_PROCUREMENT_WORKFLOW_PROCESS='3'*32
-$env:EMCORE_PROCUREMENT_WORKFLOW_ACTIVATION_TASK='4'*32
-$env:EMCORE_PROCUREMENT_WORKFLOW_FOLLOW_UP_TASK='5'*32
-$env:EMCORE_PROCUREMENT_WORKFLOW_RESULT_TASK='6'*32
-$env:EMCORE_PROCUREMENT_WORKFLOW_START_URL='/native/start'
-$env:EMCORE_PROCUREMENT_WORKFLOW_CASE_URL_PREFIX='/native/case?APP_UID='
 $env:EMCORE_PROCUREMENT_STORAGE_ROOT=Join-Path $env:TEMP 'emcore-procurement-test-storage'
 New-Item -ItemType Directory -Path $env:EMCORE_PROCUREMENT_STORAGE_ROOT -Force | Out-Null
 $env:EMCORE_FIXTURE_JQUERY=Join-Path $env:TEMP 'emcore-fixture-jquery1113.js'
@@ -40,9 +34,13 @@ try {
     if(!$ready) { throw 'Fixture HTTP listener did not start.' }
     & node tools/test_procurement_workflow_integration.js
     if($LASTEXITCODE -ne 0) { throw 'Workflow integration suite failed.' }
+    & $php @phpFlags tools/test_procurement_workflow_initialization.php
+    if($LASTEXITCODE -ne 0) { throw 'Workflow initializer suite failed.' }
     if($env:EMCORE_TEST_NODE_MODULES) {
         & node tools/test_procurement_workflow_browser.js
         if($LASTEXITCODE -ne 0) { throw 'Workflow browser suite failed.' }
+        & node tools/test_procurement_panel_workflow_browser.js
+        if($LASTEXITCODE -ne 0) { throw 'Panel decision browser suite failed.' }
     }
 } finally {
     # Stop only the process created by this invocation, never other PHP servers.

@@ -5,7 +5,7 @@ function emcore_pw_actions()
 {
     return ['list_events','create_event','mark_events_seen','list_notifications',
         'set_review_decision','prepare_workflow_action','get_workflow','record_submission',
-        'get_native_context','cancel_stop_request'];
+        'get_native_context','cancel_stop_request','transition_workflow'];
 }
 
 function emcore_pw_attachments()
@@ -59,33 +59,8 @@ function emcore_pw_dispatch($db, $action)
         $q->execute($params);
         emcore_json(['success'=>true,'data'=>$q->fetchAll(),'unread_count'=>(int)$counts['unread_count'],'total'=>(int)$counts['total']]);
     }
-    if ($action === 'get_native_context') {
-        // These values belong to the authenticated native case session, not POST.
-        $app = $_SESSION['APPLICATION'] ?? ''; $index = (int)($_SESSION['INDEX'] ?? 0);
-        $case = emcore_pw_case_state($db, $app); $task = $case['tasks'][0] ?? null;
-        if (!$task || $task['USR_UID'] !== $actor || (int)$task['DEL_INDEX'] !== $index) throw new EmcoreHttpException(403, 'گام جاری به شما ارجاع نشده است.');
-        $settings = emcore_pw_settings();
-        if ($task['TAS_UID'] === $settings['activation_task'] && $role === 'manager') {
-            $q = $db->prepare("SELECT c.request_id,p.id,p.title,JSON_UNQUOTE(JSON_EXTRACT(c.payload,'$.body')) AS body
-                FROM emcore_procurement_commands c JOIN emcore_procurement_notices p ON p.id=c.procurement_id
-                WHERE c.actor_usr_uid=:actor AND c.command_type='activate'
-                AND c.expected_version=p.lock_version AND p.deleted_at IS NULL AND {$scope['sql']}
-                AND ((c.command_state='prepared' AND NOT EXISTS (SELECT 1 FROM emcore_procurement_workflows w WHERE w.procurement_id=p.id))
-                    OR (c.command_state='pending' AND c.app_uid=:native_app AND c.source_del_index=:native_index))
-                ORDER BY p.id DESC LIMIT 100");
-            $q->execute($scope['params'] + [':actor'=>$actor,':native_app'=>$app,':native_index'=>$index]);
-            emcore_json(['success'=>true,'data'=>['stage'=>'activation','commands'=>$q->fetchAll()]]);
-        }
-        $q = $db->prepare('SELECT procurement_id FROM emcore_procurement_workflows WHERE app_uid=:app');
-        $q->execute([':app'=>$app]); $id=$q->fetchColumn();
-        if (!$id) throw new EmcoreHttpException(404, 'فراخوان مرتبط یافت نشد.');
-        $row = emcore_pw_record($db,$id);
-        $expected = $settings[$row['workflow_stage']==='result_review'?'result_task':'follow_up_task'];
-        if ($task['TAS_UID'] !== $expected) throw new EmcoreHttpException(409,'گام پرونده با فراخوان همگام نیست.');
-        $q=$db->prepare("SELECT request_id,payload,command_type FROM emcore_procurement_commands WHERE procurement_id=:id AND app_uid=:app AND actor_usr_uid=:actor AND source_del_index=:idx AND command_state='pending' LIMIT 1");
-        $q->execute([':id'=>$id,':app'=>$app,':actor'=>$actor,':idx'=>$index]);$retry=$q->fetch();
-        if($retry)$retry['payload']=json_decode($retry['payload'],true);
-        emcore_json(['success'=>true,'data'=>['stage'=>$row['workflow_stage'],'notice'=>emcore_pw_snapshot($row),'workflow'=>emcore_pw_workflow($db,$row),'retry_command'=>$retry?:null]]);
+    if (in_array($action, ['get_native_context','prepare_workflow_action','cancel_stop_request'], true)) {
+        throw new EmcoreHttpException(410, 'نسخهٔ فرایندی کنار گذاشته شده است؛ پنل را به نسخهٔ پیگیری داخل ماژول به‌روز کنید.');
     }
     $id = emcore_positive_id('id');
     $row = emcore_pw_record($db,$id);
@@ -164,34 +139,15 @@ function emcore_pw_dispatch($db, $action)
             emcore_pw_add_files($db,$id,$event,$actor,$files,$stored);
             $db->commit();$stored=[];emcore_json(['success'=>true,'event_id'=>$event]);
         }
-        if ($action==='cancel_stop_request') {
-            if($role!=='manager')throw new EmcoreHttpException(403,'فقط مدیر می‌تواند درخواست توقف را پس بگیرد.');
-            $q=$db->prepare("SELECT * FROM emcore_procurement_commands WHERE request_id=:request AND procurement_id=:id FOR UPDATE");$q->execute([':request'=>$request,':id'=>$id]);$cmd=$q->fetch();
-            if(!$cmd || $cmd['command_type']!=='request_stop' || $cmd['actor_usr_uid']!==$actor)throw new EmcoreHttpException(409,'درخواست توقف معتبر نیست.');
-            if($cmd['command_state']==='abandoned'){$db->commit();emcore_json(['success'=>true]);}
-            $case=emcore_pw_case_state($db,$row['app_uid']);
-            if($cmd['command_state']!=='pending' || !in_array($case['APP_STATUS'],['TO_DO','DRAFT'],true))throw new EmcoreHttpException(409,'پرونده قبلاً تغییر کرده است.');
-            $task=$case['tasks'][0]??null;
-            if(!$task || (int)$task['DEL_INDEX']!==(int)$cmd['source_del_index'])throw new EmcoreHttpException(409,'گام پرونده قبلاً تغییر کرده است.');
-            $db->prepare("UPDATE emcore_procurement_commands SET command_state='abandoned',completed_at=NOW() WHERE request_id=:request")->execute([':request'=>$request]);
-            $db->prepare("UPDATE emcore_procurement_workflows SET sync_state='ready',last_sync_error=NULL WHERE procurement_id=:id")->execute([':id'=>$id]);
-            emcore_pw_audit($db,$actor,$id,'procurement_stop_request',$cmd,['command_state'=>'abandoned'],$request);
-            $db->commit();emcore_json(['success'=>true]);
-        }
         $type=$action==='set_review_decision'?'not_interested':($action==='record_submission'?'record_submission':emcore_string('command_type',true,32));
         if(!in_array($type,['not_interested','record_submission','activate','propose_result','approve_result','return_follow_up','request_stop'],true))throw new EmcoreHttpException(422,'فرمان معتبر نیست.');
-        if ($action==='prepare_workflow_action' && in_array($type,['not_interested','record_submission'],true))throw new EmcoreHttpException(422,'از عملیات رسمی همین تصمیم استفاده کنید.');
         $body=emcore_string('body',true,5000);$result=emcore_string('result',false,10);$version=emcore_positive_id('lock_version');
-        $command=emcore_pw_prepare($db,$row,$actor,$role,$type,$body,$result,$request,$version);
-        if(in_array($type,['not_interested','record_submission'],true) && $command['command_state']==='prepared') {
-            $next=emcore_pw_next($row,$role,$type,$result);
-            emcore_pw_business_update($db,$row,$next,$actor,$body,$request);
-            emcore_pw_event($db,$row,$actor,$role,$type,$body,$request,emcore_pw_snapshot($row),$next);
-            $db->prepare("UPDATE emcore_procurement_commands SET command_state='completed',completed_at=NOW() WHERE request_id=:request")->execute([':request'=>$request]);
-            $command['command_state']='completed';
-        }
+        if ($type!=='propose_result' && $result!==null) throw new EmcoreHttpException(422,'نتیجه فقط هنگام پیشنهاد اپراتور قابل ارسال است.');
+        $command=emcore_pw_apply($db,$row,$actor,$role,$type,$body,$result,$request,$version);
+        $fresh=emcore_pw_record($db,$id);
+        $workflow=emcore_pw_workflow($db,$fresh);
         $db->commit();
-        emcore_json(['success'=>true,'data'=>$command,'native_url'=>$type==='activate'?emcore_pw_settings()['start_url']:emcore_pw_case_url($row)]);
+        emcore_json(['success'=>true,'data'=>$command,'workflow'=>$workflow]);
     } catch(Throwable $e) {
         if($db->inTransaction())$db->rollBack();
         foreach($stored as $file)emcore_procurement_remove_failed_upload($file);

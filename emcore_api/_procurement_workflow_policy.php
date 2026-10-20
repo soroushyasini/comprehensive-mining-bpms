@@ -1,6 +1,6 @@
 <?php
 
-// Side-effect-free policy shared by HTTP handlers, native triggers and tests.
+// Side-effect-free policy shared by panel HTTP handlers and tests.
 function emcore_procurement_role($uid, $settings)
 {
     foreach (['operator', 'manager'] as $role) {
@@ -12,6 +12,7 @@ function emcore_procurement_role($uid, $settings)
 function emcore_procurement_can_edit($record, $role)
 {
     return $role === 'operator'
+        && empty($record['app_uid'])
         && ($record['sync_state'] ?? 'ready') === 'ready'
         && !in_array($record['workflow_stage'] ?? null, ['result_review', 'completed', 'stopped'], true)
         && !in_array($record['participation_status'], ['won', 'lost', 'withdrawn'], true);

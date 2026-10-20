@@ -2,6 +2,8 @@
 
 _Comprehensive Mining BPMS and related company tools · Prepared 11 October 2026 · Audience: developers, technical colleagues, ProcessMaker administrators, and project maintainers_
 
+> **Procurement update, 20 October 2026:** the native procurement workflow described in this historical source snapshot has been replaced by in-panel decisions and follow-up. Do not install its process definitions, native panel, triggers or reconciliation scheduler. Use the [current procurement deployment guide](PROCUREMENT_WORKFLOW.md), including migration 017 and the two participant settings. Other snapshot-specific source citations below remain historical.
+
 ---
 
 **Purpose of this document:** explain what the project does, what data it manages, how its parts work together, why its design makes sense, and how a colleague can safely maintain or extend it. The main subject is `comprehensive-mining-bpms`; the Todo plugin and Kanboard theme are supporting projects. The two abandoned repositories appear only as historical context.

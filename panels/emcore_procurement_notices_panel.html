@@ -416,10 +416,10 @@
     </div>
     <button type="button" class="btn btn-primary" id="addButton" hidden>+ ثبت فراخوان جدید</button>
   </header>
-  <section class="workflow-tools" id="workflowTools" aria-label="کارتابل فراخوان‌ها" hidden>
-    <div class="field"><label for="workflowQueue">نمای کارتابل</label><select id="workflowQueue"><option value="">همهٔ فراخوان‌های مجاز</option><option value="pending_review">در انتظار بررسی اولیه</option><option value="follow_up">نیازمند پیگیری</option><option value="result_review">نتیجه‌های منتظر تأیید</option><option value="new_events">پیگیری‌های مشاهده‌نشده</option><option value="history">سوابق</option></select></div>
+  <section class="workflow-tools" id="workflowTools" aria-label="نمای پیگیری فراخوان‌ها" hidden>
+    <div class="field"><label for="workflowQueue">نمای پیگیری</label><select id="workflowQueue"><option value="">همهٔ فراخوان‌های مجاز</option><option value="pending_review">در انتظار بررسی اولیه</option><option value="follow_up">نیازمند پیگیری</option><option value="result_review">نتیجه‌های منتظر تأیید</option><option value="new_events">پیگیری‌های مشاهده‌نشده</option><option value="history">سوابق</option></select></div>
     <button type="button" class="btn btn-light" id="notificationsButton" aria-haspopup="dialog">اعلان‌ها <span id="notificationCount">۰</span></button>
-    <small>موارد بررسی‌نشدهٔ روزهای قبل نیز در کارتابل باقی می‌مانند.</small>
+    <small>موارد بررسی‌نشدهٔ روزهای قبل نیز در صف بررسی باقی می‌مانند.</small>
   </section>
 
   <section class="summary-grid" aria-label="خلاصه مناقصات و مزایدات">
@@ -1085,7 +1085,7 @@
       var title = $('<td>').addClass('title-cell').append($('<span>').addClass('record-title').text(row.title));
       title.append($('<span>').addClass('secondary').attr('dir', 'ltr').text(row.reference_number ? 'شماره: ' + row.reference_number : 'بدون شماره'));
       if (row.record_origin === 'legacy') title.append($('<span>').addClass('secondary').text('سابقه منتقل‌شده #' + faNumber(row.legacy_source_id)));
-      if (workflowPermissions.enabled && row.sync_state !== 'ready') title.append($('<span>').addClass('secondary').text(row.sync_state === 'error' ? 'نیازمند بررسی تطبیق ارجاع' : 'در انتظار تکمیل ارجاع'));
+      if (workflowPermissions.enabled && row.app_uid) title.append($('<span>').addClass('secondary').text('سابقهٔ متصل به گردش کار بومی قدیمی'));
       if (row.pending_result) title.append($('<span>').addClass('secondary').text('پیشنهاد نتیجه: ' + labels.status[row.pending_result] + ' — منتظر تأیید مدیر'));
       tr.append(title);
       tr.append($('<td>').append($('<span>').addClass('badge badge-' + row.notice_type).text(labels.noticeType[row.notice_type] || row.notice_type)));
@@ -1102,7 +1102,7 @@
       tr.append($('<td>').text(faNumber(row.file_count || 0)));
       var actions = $('<div>').addClass('row-actions');
       actions.append($('<button>').attr('type', 'button').addClass('btn btn-light btn-small').text(Number(permissions.can_update) === 1 ? 'مشاهده / ویرایش' : 'مشاهده').on('click', function () { openRecord(row.id); }));
-      if (Number(permissions.can_delete) === 1 && (!workflowPermissions.enabled || (row.workflow_permissions && row.workflow_permissions.can_edit && !row.app_uid))) actions.append($('<button>').attr('type', 'button').addClass('btn btn-danger btn-small').text('حذف').on('click', function () { removeRecord(row); }));
+      if (Number(permissions.can_delete) === 1 && (!workflowPermissions.enabled || (row.workflow_permissions && row.workflow_permissions.can_edit && !row.app_uid && !row.workflow_stage))) actions.append($('<button>').attr('type', 'button').addClass('btn btn-danger btn-small').text('حذف').on('click', function () { removeRecord(row); }));
       if (workflowPermissions.enabled) actions.append($('<button>').attr('type','button').addClass('btn btn-light btn-small').text('اقدامات و پیگیری‌ها').on('click',function(){openWorkflow(row.id);}));
       tr.append($('<td>').append(actions));
       body.append(tr);
@@ -1545,28 +1545,15 @@
     }).fail(workflowError);
   }
   function workflowStatus(workflow) {
-    var stageLabels={activation:'تأیید انتخاب فراخوان',follow_up:'پیگیری اپراتور',result_review:'بررسی نتیجه توسط مدیر',completed:'پرونده نهایی',stopped:'پیگیری متوقف‌شده'};
+    var stageLabels={follow_up:'پیگیری اپراتور',result_review:'بررسی نتیجه توسط مدیر',completed:'پیگیری پایان‌یافته',stopped:'پیگیری متوقف‌شده'};
     var host=$('<div>').addClass('workflow-status');
-    host.append($('<p>').text('وضعیت: '+(labels.status[workflowNotice.participation_status] || 'نامشخص')+' · '+(stageLabels[workflow.workflow_stage] || (Number(workflowNotice.workflow_history_only)?'سابقه — بدون پروندهٔ پیگیری':'در انتظار تصمیم مدیر'))));
+    host.append($('<p>').text('وضعیت: '+(labels.status[workflowNotice.participation_status] || 'نامشخص')+' · '+(stageLabels[workflow.workflow_stage] || (Number(workflowNotice.workflow_history_only)?'سابقه، بدون پیگیری فعال':'در انتظار تصمیم مدیر'))));
     if (workflow.pending_result) host.append($('<p>').text('پیشنهاد اپراتور: '+labels.status[workflow.pending_result]+'؛ هنوز تأیید نشده است.'));
-    if (workflow.sync_state!=='ready') host.append($('<p>').text(workflow.sync_state==='error'?'ارجاع نیازمند بررسی تطبیق است؛ با مسئول سامانه هماهنگ کنید.':'در انتظار تکمیل ارجاع در ProcessMaker.'));
-    if (workflow.case_url) host.append($('<a>').addClass('btn btn-light').attr({href:workflow.case_url,target:'_top'}).text('بازکردن پرونده در کارتابل'));
-    var manager=workflowPermissions.role==='manager';
-    if (manager && !workflow.app_uid && ['registered','not_interested','interested','documents_submitted'].indexOf(workflowNotice.participation_status)>=0) {
-      host.append(workflowButton('انتخاب برای پیگیری',function(){showWorkflowDecision('activate');}));
-      if (['registered','not_interested'].indexOf(workflowNotice.participation_status)>=0) host.append(workflowButton('عدم علاقه‌مندی',function(){showWorkflowDecision('not_interested');}));
-    }
-    if (!manager && workflow.workflow_stage==='follow_up' && workflow.sync_state==='ready') {
-      if (workflowNotice.participation_status==='interested') host.append(workflowButton('ثبت ارسال مدارک',function(){showWorkflowDecision('record_submission');}));
-      host.append($('<p>').text('برای پیشنهاد نتیجه، پرونده را در کارتابل باز کنید. ثبت یادداشت به‌تنهایی پرونده را ارجاع نمی‌دهد.'));
-    }
-    if (workflow.permissions.can_stop) host.append(workflowButton('درخواست توقف پیگیری',function(){showWorkflowDecision('request_stop');}));
-    if (manager && workflow.pending_command && workflow.pending_command.command_type==='request_stop') {
-      host.append($('<p>').text('دلیل توقف ثبت شده است. اکنون از اقدام رسمی «لغو پرونده» در ProcessMaker استفاده کنید؛ پس از تأیید لغو، پنل همگام می‌شود.'));
-      host.append(workflowButton('انصراف از درخواست توقف',function(){
-        api('cancel_stop_request',{id:workflowNotice.id,request_id:workflow.pending_command.request_id}).done(function(){openWorkflow(workflowNotice.id);loadRows();}).fail(workflowError);
-      }));
-    }
+    if (workflow.legacy_native_link) host.append($('<p>').text('این سابقه به گردش کار بومی قدیمی متصل است؛ تصمیم و ویرایش مشخصات تا بررسی مسئول سامانه غیرفعال است. یادداشت و سابقه همچنان در دسترس‌اند.'));
+    var titles={activate:'انتخاب برای پیگیری',not_interested:'عدم علاقه‌مندی',record_submission:'ثبت ارسال مدارک',propose_result:'ارسال نتیجه برای تأیید',approve_result:'تأیید نتیجهٔ پیشنهادی',return_follow_up:'بازگشت به پیگیری',request_stop:'توقف پیگیری'};
+    $.each(workflow.permissions.allowed_actions || [],function(_,type){
+      if(titles[type])host.append(workflowButton(titles[type],function(){showWorkflowDecision(type);}).attr('data-workflow-action',type));
+    });
     return host;
   }
   function loadWorkflowEvents(targetEvent) {
@@ -1596,6 +1583,9 @@
     var tr=$('<tr>');
     tr.append($('<td>').append($('<span>').addClass('workflow-event-heading').attr('data-event-id',event.id).text((event.author_name || roles[event.actor_role] || 'کاربر')+' · '+(roles[event.actor_role] || ''))).append($('<small>').text(workflowTime(event.created_at))));
     var message=$('<td>').append($('<strong>').text(types[event.event_type] || 'رویداد')).append($('<p>').addClass('workflow-message').text(event.body));
+    if(event.event_type==='propose_result' && event.after_data && event.after_data.pending_result)message.append($('<small>').text('نتیجهٔ پیشنهادی: '+labels.status[event.after_data.pending_result]));
+    if(event.event_type==='approve_result' && event.after_data)message.append($('<small>').text('نتیجهٔ نهایی: '+(labels.status[event.after_data.participation_status] || 'نامشخص')));
+    if(event.before_data && event.after_data && event.after_data.participation_status && event.before_data.participation_status!==event.after_data.participation_status)message.append($('<small>').text('تغییر وضعیت از '+(labels.status[event.before_data.participation_status] || 'نامشخص')+' به '+labels.status[event.after_data.participation_status]));
     if(event.corrects_event_id)message.append($('<small>').text('اصلاحیهٔ رویداد '+faNumber(event.corrects_event_id)));
     var fieldLabels={title:'عنوان',notice_type:'نوع',source_name:'منبع',supplier_name:'تأمین‌کننده',quantity_text:'تناژ',reference_number:'شماره',amount_text:'مبلغ تضمین',estimated_amount:'مبلغ برآوردشده',currency:'واحد پول',contracting_authority:'دستگاه اجرایی',submission_method:'نحوهٔ شرکت',delivery_term:'تحویل بار',primary_guarantee:'ضمانت‌نامه',registered_on_fa:'تاریخ ثبت',registered_on_en:'تاریخ ثبت',documents_deadline_fa:'مهلت اسناد',documents_deadline_en:'مهلت اسناد',response_deadline_fa:'مهلت پاسخ',response_deadline_en:'مهلت پاسخ',alert_lead_days:'هشدار',responsible_unit:'واحد مربوطه',category_name:'گروه',subcategory_name:'زیرگروه',product_name:'کالا',drilling_area:'محدودهٔ حفاری',is_extended:'تمدید'};
     if(event.after_data && event.after_data.changed_fields) message.append($('<small>').text('فیلدهای تغییرکرده: '+event.after_data.changed_fields.map(function(field){return fieldLabels[field] || 'مشخصات';}).filter(function(value,index,array){return array.indexOf(value)===index;}).join('، ')));
@@ -1635,26 +1625,35 @@
       .always(function(){if(generation!==workflowGeneration)return;$('#workflowPublish,#workflowBodyText').prop('disabled',false);$('#workflowAttachments').prop('disabled',!lookups.storage_ready);$('#workflowUploadProgress').prop('hidden',true);});
   }
   function showWorkflowDecision(type) {
-    var titles={activate:'انتخاب برای پیگیری',not_interested:'عدم علاقه‌مندی',record_submission:'ثبت ارسال مدارک',request_stop:'درخواست توقف پیگیری'};
+    var titles={activate:'انتخاب برای پیگیری',not_interested:'عدم علاقه‌مندی',record_submission:'ثبت ارسال مدارک',propose_result:'ارسال نتیجه برای تأیید',approve_result:'تأیید نتیجهٔ پیشنهادی',return_follow_up:'بازگشت به پیگیری',request_stop:'توقف پیگیری'};
+    var descriptions={activate:'با تأیید، فراخوان برای پیگیری فعال و اپراتور مطلع می‌شود.',not_interested:'این تصمیم پروندهٔ پیگیری نمی‌سازد؛ دلیل ثبت و به اپراتور اعلام می‌شود.',record_submission:'ارسال مدارک ثبت می‌شود؛ پیگیری همچنان ادامه دارد.',propose_result:'پیشنهاد برای مدیر ارسال می‌شود. تا تأیید مدیر، نتیجهٔ نهایی تغییر نمی‌کند و ویرایش مشخصات بسته خواهد بود.',approve_result:'نتیجهٔ پیشنهادی اپراتور نهایی و پیگیری پایان می‌یابد. بازگشایی در این نسخه ممکن نیست.',return_follow_up:'نتیجه برای ادامهٔ پیگیری به اپراتور بازگردانده می‌شود.',request_stop:'با تأیید، پیگیری فوراً متوقف و اپراتور مطلع می‌شود. بازگشایی در این نسخه ممکن نیست.'};
     workflowGeneration++;workflowSince={};$('#workflowFeedback').empty();
+    var generation=workflowGeneration, id=workflowNotice.id, version=workflowNotice.lock_version;
     var host=$('#workflowContent').empty().append($('<h3>').text(titles[type]));
+    if(type==='approve_result')host.append($('<p>').text('نتیجهٔ پیشنهادی برای تأیید: '+(labels.status[workflowNotice.pending_result] || 'نامشخص')));
+    host.append($('<p>').text(descriptions[type]));
+    if(type==='propose_result') {
+      host.append($('<label>').attr('for','workflowDecisionResult').text('نتیجهٔ پیشنهادی'));
+      host.append($('<select>').attr('id','workflowDecisionResult').append($('<option>').val('').text('نتیجه را انتخاب کنید'),$('<option>').val('won').text('برنده'),$('<option>').val('lost').text('شکست')));
+    }
     host.append($('<label>').attr('for','workflowDecisionReason').text('دلیل / توضیح')).append($('<textarea>').attr({id:'workflowDecisionReason',maxlength:5000,rows:4}));
-    if(type==='activate')host.append($('<p>').text('ثبت این درخواست هنوز علاقه‌مندی محسوب نمی‌شود. پس از بازکردن فرم آغاز فرایند، انتخاب را تأیید و ارجاع بومی را تکمیل کنید.'));
-    if(type==='request_stop')host.append($('<p>').text('پس از ثبت دلیل، پرونده را با اقدام رسمی ProcessMaker لغو کنید. تا تأیید لغو، وضعیت نهایی تغییر نمی‌کند.'));
-    var request=workflowRequestId(), lastBody='';
-    host.append(workflowButton('ثبت و ادامه',function(){
-      var button=$(this), body=$.trim($('#workflowDecisionReason').val());
+    var request=workflowRequestId(), lastSignature='';
+    host.append(workflowButton('تأیید و ثبت تصمیم',function(){
+      var body=$.trim($('#workflowDecisionReason').val()), result=type==='propose_result'?$('#workflowDecisionResult').val():null;
       if(!body){$('#workflowFeedback').text('دلیل / توضیح الزامی است.');return;}
-      if(lastBody && lastBody!==body)request=workflowRequestId();lastBody=body;
-      button.prop('disabled',true);
-      var action=type==='not_interested'?'set_review_decision':(type==='record_submission'?'record_submission':'prepare_workflow_action');
-      api(action,{id:workflowNotice.id,command_type:type,body:body,request_id:request,lock_version:workflowNotice.lock_version}).done(function(response){
-        if(response.native_url){host.empty().append($('<p>').text('درخواست ثبت شد. برای تکمیل اقدام، پرونده را در ProcessMaker باز کنید.')).append($('<a>').addClass('btn btn-primary').attr({href:response.native_url,target:'_top'}).text('بازکردن فرم بومی ProcessMaker'));}
-        else openWorkflow(workflowNotice.id);
-        loadRows();
-      }).fail(workflowError).always(function(){button.prop('disabled',false);});
-    }));
-    host.append(workflowButton('بازگشت به اقدامات',function(){openWorkflow(workflowNotice.id);}));$('#workflowDecisionReason').trigger('focus');
+      if(type==='propose_result' && !result){$('#workflowFeedback').text('نتیجهٔ پیشنهادی را انتخاب کنید.');return;}
+      var signature=JSON.stringify([body,result]);
+      if(lastSignature && lastSignature!==signature)request=workflowRequestId();lastSignature=signature;
+      var data={id:id,command_type:type,body:body,request_id:request,lock_version:version};
+      if(result)data.result=result;
+      host.find('button,textarea,select').prop('disabled',true);$('#workflowFeedback').empty();
+      api('transition_workflow',data).done(function(){
+        loadRows();pollWorkflowNotifications();
+        if(generation===workflowGeneration)openWorkflow(id);
+      }).fail(function(xhr){if(generation===workflowGeneration)workflowError(xhr);})
+        .always(function(){if(generation===workflowGeneration)host.find('button,textarea,select').prop('disabled',false);});
+    }).attr('id','workflowDecisionConfirm'));
+    host.append(workflowButton('بازگشت به اقدامات',function(){openWorkflow(id);}));$('#workflowDecisionReason').trigger('focus');
   }
   function pollWorkflowNotifications() {
     if(!workflowPermissions.enabled || document.hidden)return;

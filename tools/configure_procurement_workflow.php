@@ -16,11 +16,9 @@ try {
         if (!$permission || !$permission['can_read'] || ($role==='operator' && (!$permission['can_create'] || !$permission['can_update']))) throw new RuntimeException('Grant required module permissions first: '.$role);
         $users[$role]=$user;
     }
-    foreach (['activation_task','follow_up_task','result_task'] as $key) {
-        $q=$db->prepare('SELECT TAS_UID FROM TASK WHERE TAS_UID=:task AND PRO_UID=:process');
-        $q->execute([':task'=>$settings[$key],':process'=>$settings['process']]);
-        if(!$q->fetchColumn())throw new RuntimeException('Task does not belong to configured process: '.$key);
-    }
+    $column=$db->query("SHOW COLUMNS FROM emcore_procurement_workflows LIKE 'app_uid'")->fetch();
+    if(!$column || $column['Null']!=='YES')throw new RuntimeException('Apply migration 017 before enabling in-panel follow-up.');
+    if($db->query('SELECT COUNT(*) FROM emcore_procurement_workflows WHERE app_uid IS NOT NULL')->fetchColumn())throw new RuntimeException('Historical native case links exist. Do not convert or clear them automatically; review deployment separately.');
     $q=$db->prepare('SELECT COUNT(*) FROM emcore_procurement_notices WHERE (owner_usr_uid IS NOT NULL AND owner_usr_uid<>:owner) OR (manager_usr_uid IS NOT NULL AND manager_usr_uid<>:manager)');
     $q->execute([':owner'=>$settings['operator'],':manager'=>$settings['manager']]);
     if($q->fetchColumn())throw new RuntimeException('Existing participant assignments differ; do not overwrite automatically.');

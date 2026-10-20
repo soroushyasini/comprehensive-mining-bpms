@@ -15,16 +15,9 @@ return [
     'minutes_max_upload_bytes' => 52428800,
     'business_cards_storage_root' => 'C:\\pmlearning\\emcore-private\\business-cards',
     'business_cards_max_upload_bytes' => 10485760,
-    // Keep disabled until migration 012, participant initialization and native
-    // process installation are complete. Never guess user/task/process UIDs.
+    // In-panel review/follow-up. Apply 012 and 017, then initialize participants.
+    // Authentication still uses the existing session; no native process is needed.
     'procurement_workflow_enabled' => false,
     'procurement_workflow_operator' => '',
     'procurement_workflow_manager' => '',
-    'procurement_workflow_process' => '',
-    'procurement_workflow_activation_task' => '',
-    'procurement_workflow_follow_up_task' => '',
-    'procurement_workflow_result_task' => '',
-    // Same-origin URLs verified in your installation. Case UID is appended.
-    'procurement_workflow_start_url' => '',
-    'procurement_workflow_case_url_prefix' => '',
 ];

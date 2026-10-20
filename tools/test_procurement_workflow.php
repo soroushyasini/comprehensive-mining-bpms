@@ -35,4 +35,15 @@ check(emcore_procurement_role('op', ['operator' => 'op', 'manager' => 'mgr']) ==
 check(emcore_procurement_role('stranger', ['operator' => 'op', 'manager' => 'mgr']) === null, 'no implicit administrator role');
 check(!emcore_procurement_can_edit($proposal, 'operator'), 'pending result freezes core details');
 check(!emcore_procurement_can_edit($closed, 'operator'), 'closed record freezes core details');
+check(emcore_procurement_can_edit($active, 'operator'), 'active operator may edit');
+check(!emcore_procurement_can_edit($active, 'manager'), 'manager cannot edit operator core fields');
+$native = $active; $native['app_uid'] = str_repeat('a', 32);
+check(!emcore_procurement_can_edit($native, 'operator'), 'native association is read-only');
+rejected(function () use ($stopped) { emcore_procurement_transition($stopped, 'manager', 'activate'); }, 'stopped record cannot reopen');
+rejected(function () use ($active) { emcore_procurement_transition($active, 'operator', 'request_stop'); }, 'operator cannot stop');
+$lostProposal = emcore_procurement_transition($active, 'operator', 'propose_result', 'lost');
+check(emcore_procurement_transition($lostProposal, 'manager', 'approve_result')['participation_status'] === 'lost', 'lost result finalized by manager');
+$declined = emcore_procurement_transition($base, 'manager', 'not_interested');
+check($declined['workflow_stage'] === null, 'decline does not start a workflow');
+check(emcore_procurement_transition($declined, 'manager', 'activate')['workflow_stage'] === 'follow_up', 'declined record may be selected later');
 echo "Procurement workflow policy: {$checks} checks passed.\n";
