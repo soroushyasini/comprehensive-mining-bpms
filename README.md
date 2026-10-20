@@ -6,6 +6,7 @@ ProcessMaker provides authentication, sessions, Dynaforms, and routed workflows.
 
 ## Start here
 
+- [Project architecture and onboarding guide](docs/PROJECT_ONBOARDING.md) — business objectives, data model, module workflows, package inventory, setup, maintenance, and related-project history, with source references pinned to the reviewed commits.
 - [Developer and module authoring guide](docs/DEVELOPER_GUIDE.md) — canonical architecture, security, API/panel contracts, and end-to-end module instructions.
 - [Roadmap](docs/ROADMAP.md) — current implementation status and planned phases.
 - [Drilling deployment runbook](docs/DRILLING_DEPLOYMENT.md) — migrations, legacy import, ProcessMaker panel installation, acceptance, and rollback.
