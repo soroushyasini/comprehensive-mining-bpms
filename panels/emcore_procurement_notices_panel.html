@@ -373,6 +373,15 @@
       .dialog { max-height: calc(100vh - 16px); }
       .overlay { padding: 8px; }
     }
+    .record-tabs { display:flex; flex-wrap:wrap; gap:8px; margin-block:14px; }
+    .record-tab { font:inherit; background:var(--surface); color:var(--ink-soft); border:1px solid var(--line); border-radius:var(--radius); padding:10px 16px; cursor:pointer; }
+    .record-tab[aria-selected="true"] { background:var(--green-soft); color:var(--green-dark); border-color:var(--green); }
+    .favorite-button { display:inline-flex; align-items:center; justify-content:center; inline-size:44px; block-size:44px; background:var(--surface); color:var(--ink-soft); border:1px solid var(--line); border-radius:var(--radius); padding:9px; cursor:pointer; }
+    .favorite-button svg { inline-size:22px; block-size:22px; stroke:currentColor; stroke-width:2; fill:none; }
+    .favorite-button[aria-pressed="true"] { color:var(--red); background:var(--red-soft); }
+    .favorite-button[aria-pressed="true"] svg { fill:currentColor; }
+    .record-tab:focus-visible,.favorite-button:focus-visible { outline:2px solid var(--green); outline-offset:3px; }
+    .favorites-hint { color:var(--ink-soft); font-size:12px; margin-block:8px; }
     .workflow-tools { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-block:12px; }
     .workflow-tools[hidden], .workflow-overlay[hidden] { display:none; }
     .workflow-overlay { position:fixed; inset:0; z-index:1200; background:var(--paper); display:flex; align-items:center; justify-content:center; padding:16px; }
@@ -422,6 +431,11 @@
     <div class="summary-card won"><span class="summary-label">برنده</span><strong class="summary-value" id="wonCount">—</strong></div>
   </section>
 
+  <div class="record-tabs" role="tablist" aria-label="فهرست شخصی فراخوان‌ها">
+    <button type="button" class="record-tab" role="tab" id="allRecordsTab" aria-selected="true" aria-controls="ledger" tabindex="0">فهرست فراخوان‌ها</button>
+    <button type="button" class="record-tab" role="tab" id="favoriteRecordsTab" aria-selected="false" aria-controls="ledger" tabindex="-1">نشان‌شده‌های من</button>
+  </div>
+  <p class="favorites-hint">قلب کنار هر ردیف، نشان شخصی شماست و وضعیت شرکت یا تصمیم مدیر را تغییر نمی‌دهد.</p>
   <section class="toolbar" aria-label="فیلترها">
     <div class="filter-grid">
       <div class="field">
@@ -438,7 +452,7 @@
   </section>
 
   <div id="notice" class="notice" role="status" aria-live="polite"></div>
-  <section id="ledger" class="ledger" aria-live="polite" aria-busy="true"><div class="empty">در حال دریافت اطلاعات…</div></section>
+  <section id="ledger" class="ledger" role="tabpanel" aria-labelledby="allRecordsTab" aria-live="polite" aria-busy="true"><div class="empty">در حال دریافت اطلاعات…</div></section>
   <nav class="pagination" aria-label="صفحه‌بندی">
     <button type="button" class="btn btn-light btn-small" id="previousButton">صفحه قبل</button>
     <span class="pagination-label" id="pageLabel">—</span>
@@ -498,7 +512,7 @@
         <section class="files-panel" id="filesPanel" aria-label="فایل‌های فراخوان">
           <div class="upload-row" id="uploadControls">
             <div class="field"><label for="fileRole">نوع فایل</label><select id="fileRole"><option value="notice_document">مدارک فراخوان</option><option value="final_submission">فایل ارسال نهایی</option></select></div>
-            <div class="field"><label for="fileInput">انتخاب فایل‌ها</label><input type="file" id="fileInput" accept=".doc,.docx,.pdf,.xls,.xlsx,.jpg,.jpeg,.png,.zip" multiple><small class="file-selection-status" id="fileSelectionStatus" aria-live="polite">می‌توانید چند فایل را هم‌زمان انتخاب کنید.</small></div>
+            <div class="field"><label for="fileInput">انتخاب فایل‌ها</label><input type="file" id="fileInput" accept=".doc,.docx,.pdf,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.rar" multiple><small class="file-selection-status" id="fileSelectionStatus" aria-live="polite">می‌توانید چند فایل را هم‌زمان انتخاب کنید.</small></div>
             <button type="button" class="btn btn-primary upload-button" id="uploadButton">بارگذاری فایل‌ها</button>
           </div>
           <div class="upload-progress" id="uploadProgress" role="status" aria-live="polite" hidden><div class="upload-progress-head"><span class="upload-progress-label" id="uploadProgressLabel">آمادهٔ بارگذاری</span><strong class="upload-progress-value" id="uploadProgressValue">۰٪</strong></div><progress id="uploadProgressBar" max="100" value="0" aria-label="پیشرفت بارگذاری فایل‌ها">۰٪</progress></div>
@@ -536,6 +550,8 @@
   var sortBy = 'id';
   var sortOrder = 'desc';
   var activeQuery = null;
+  var favoritesOnly = false;
+  var listGeneration = 0;
   var excelReady = false;
   var exportInProgress = false;
   var activeFiles = [];
@@ -912,6 +928,7 @@
   }
 
   function applyLookups() {
+    $('#fileInput').attr('accept', uploadAccept());
     fillDatalist('#sourceOptions', lookups.source_name);
     fillDatalist('#authorityOptions', lookups.contracting_authority);
     fillDatalist('#guaranteeOptions', lookups.primary_guarantee);
@@ -947,7 +964,8 @@
       deadline_state: $('#deadlineFilter').val(),
       participation_status: $('#statusFilter').val(),
       responsible_unit: $('#unitFilter').val(),
-      workflow_queue: workflowPermissions.enabled ? $('#workflowQueue').val() : '',
+      workflow_queue: workflowPermissions.enabled && !favoritesOnly ? $('#workflowQueue').val() : '',
+      favorites_only: favoritesOnly ? '1' : '0',
       registered_on_fa: toLatinDigits($.trim($('#registeredOnFilter').val())),
       page: page,
       page_size: pageSize,
@@ -957,24 +975,56 @@
   }
 
   function loadRows() {
+    var generation = ++listGeneration;
     var requestData = filterData();
     $('#exportButton').prop('disabled', true);
     $('#ledger').attr('aria-busy', 'true').empty().append($('<div>').addClass('empty').text('در حال دریافت اطلاعات…'));
     return api('list', requestData).done(function (response) {
+      if (generation !== listGeneration) return;
       csrfToken = response.csrf_token || csrfToken;
       permissions = response.permissions || permissions;
       total = Number((response.pagination && response.pagination.total) || 0);
+      if (page > Number(response.pagination.total_pages || 1)) { page = Math.max(1, Number(response.pagination.total_pages || 1)); loadRows(); return; }
       activeQuery = $.extend({}, requestData);
       renderSummary(response.summary || {});
       renderTable(response.data || []);
       renderPagination(response.pagination || {});
       $('#addButton').prop('hidden', Number(permissions.can_create) !== 1 || (workflowPermissions.enabled && !workflowPermissions.can_create));
     }).fail(function (xhr) {
+      if (generation !== listGeneration) return;
       total = 0;
       activeQuery = null;
       $('#ledger').empty().append($('<div>').addClass('empty').text('اطلاعات قابل نمایش نیست.'));
       showNotice(errorText(xhr), 'error');
-    }).always(function () { $('#ledger').attr('aria-busy', 'false'); updateExportButton(); });
+    }).always(function () { if (generation === listGeneration) { $('#ledger').attr('aria-busy', 'false'); updateExportButton(); } });
+  }
+
+  function uploadAccept() { return (lookups.allowed_extensions || ['doc','docx','pdf','xls','xlsx','jpg','jpeg','png','zip','rar']).map(function(extension){return '.'+extension;}).join(','); }
+
+  function selectRecordsTab(favorite) {
+    favoritesOnly = favorite; page = 1;
+    $('#allRecordsTab').attr({'aria-selected':favorite?'false':'true',tabindex:favorite?'-1':'0'});
+    $('#favoriteRecordsTab').attr({'aria-selected':favorite?'true':'false',tabindex:favorite?'0':'-1'});
+    $('#ledger').attr('aria-labelledby',favorite?'favoriteRecordsTab':'allRecordsTab');
+    $('#workflowQueue').prop('disabled',favorite);
+    closeJalaliDatepicker(false); hideNotice(); loadRows();
+  }
+
+  function favoriteButton(row) {
+    var selected = Number(row.is_favorite) === 1;
+    var button = $('<button>').attr({type:'button','data-favorite-id':row.id,'aria-pressed':selected?'true':'false',
+      'aria-label':(selected?'برداشتن نشان از فراخوان ':'نشان‌کردن فراخوان ')+toPersianDigits(row.id)}).addClass('favorite-button');
+    var svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');
+    var path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d','M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z');svg.appendChild(path);button.append(svg);
+    button.on('click',function(){
+      if (button.prop('disabled')) return;
+      button.prop('disabled',true);
+      api('set_favorite',{id:row.id,is_favorite:selected?'0':'1'}).done(function(){
+        var restoreFocus = document.activeElement === button[0];
+        loadRows().done(function(){if(restoreFocus){var next=$('[data-favorite-id="'+row.id+'"]');if(next.length)next.trigger('focus');else $('#favoriteRecordsTab').trigger('focus');}});
+      }).fail(function(xhr){showNotice(errorText(xhr),'error');}).always(function(){button.prop('disabled',false);});
+    });
+    return button;
   }
 
   function renderSummary(summary) {
@@ -1011,10 +1061,11 @@
 
   function renderTable(rows) {
     var ledger = $('#ledger').empty();
-    if (!rows.length) { ledger.append($('<div>').addClass('empty').text('رکوردی با این فیلتر پیدا نشد.')); return; }
+    if (!rows.length) { ledger.append($('<div>').addClass('empty').text(favoritesOnly?'در نشان‌شده‌های شما رکوردی با این فیلتر پیدا نشد.':'رکوردی با این فیلتر پیدا نشد.')); return; }
     var table = $('<table>');
     var head = $('<tr>');
     head.append(sortableHeader('شناسه', 'id', 'desc'));
+    head.append($('<th>').attr('scope','col').text('نشان شخصی'));
     head.append(sortableHeader('عنوان و شماره', 'title', 'asc'));
     head.append(sortableHeader('نوع', 'notice_type', 'asc'));
     head.append(sortableHeader('دستگاه اجرایی', 'contracting_authority', 'asc'));
@@ -1030,6 +1081,7 @@
     $.each(rows, function (_, row) {
       var tr = $('<tr>').addClass('row-' + row.deadline_state);
       tr.append($('<td>').addClass('id-cell').attr('dir', 'ltr').text(toPersianDigits(row.id)));
+      tr.append($('<td>').append(favoriteButton(row)));
       var title = $('<td>').addClass('title-cell').append($('<span>').addClass('record-title').text(row.title));
       title.append($('<span>').addClass('secondary').attr('dir', 'ltr').text(row.reference_number ? 'شماره: ' + row.reference_number : 'بدون شماره'));
       if (row.record_origin === 'legacy') title.append($('<span>').addClass('secondary').text('سابقه منتقل‌شده #' + faNumber(row.legacy_source_id)));
@@ -1558,7 +1610,7 @@
     var form=$('<div>').addClass('workflow-publish');
     form.append($('<input>').attr({type:'hidden',id:'workflowCorrects'}));
     form.append($('<div>').append($('<label>').attr('for','workflowBodyText').text('شرح اقدام یا اصلاحیه')).append($('<textarea>').attr({id:'workflowBodyText',maxlength:5000,rows:4})).append($('<small>').attr('id','workflowCorrectionLabel')));
-    form.append($('<div>').append($('<label>').attr('for','workflowAttachments').text('پیوست‌های اختیاری — مجموع حداکثر ۵۰ مگابایت')).append($('<input>').attr({id:'workflowAttachments',type:'file',multiple:'multiple',accept:'.doc,.docx,.pdf,.xls,.xlsx,.jpg,.jpeg,.png,.zip'}).prop('disabled',!lookups.storage_ready)));
+    form.append($('<div>').append($('<label>').attr('for','workflowAttachments').text('پیوست‌های اختیاری، مجموع حداکثر ۵۰ مگابایت')).append($('<input>').attr({id:'workflowAttachments',type:'file',multiple:'multiple',accept:uploadAccept()}).prop('disabled',!lookups.storage_ready)));
     form.append($('<progress>').attr({id:'workflowUploadProgress',max:100,value:0,'aria-label':'پیشرفت انتشار اقدام',hidden:true}));
     form.append(workflowButton('انتشار اقدام',publishWorkflowEvent).attr('id','workflowPublish'));
     form.append(workflowButton('یادداشت جدید / پاک‌کردن اصلاحیه',function(){ $('#workflowCorrects').val('');$('#workflowCorrectionLabel').text(''); }));
@@ -1653,6 +1705,13 @@
   $('#workflowOverlay').on('click',function(event){if(event.target===this)closeWorkflow();});
   $('#notificationsButton').on('click',function(){openWorkflowNotifications(1);});
   $('#workflowQueue').on('change',function(){page=1;loadRows();});
+  $('#allRecordsTab,#favoriteRecordsTab').on('click',function(){selectRecordsTab(this.id==='favoriteRecordsTab');}).on('keydown',function(event){
+    var key=event.key || (event.originalEvent && event.originalEvent.key);
+    if(['ArrowLeft','ArrowRight','Home','End'].indexOf(key)<0)return;
+    event.preventDefault();
+    var favorite=key==='End' || (key!=='Home' && this.id==='allRecordsTab');
+    $(favorite?'#favoriteRecordsTab':'#allRecordsTab').trigger('focus');selectRecordsTab(favorite);
+  });
   $(document).on('visibilitychange.procurementWorkflow blur.procurementWorkflow',function(){workflowSince={};});
   $('#workflowOverlay').on('keydown',function(event){
     if(event.which===27){event.stopPropagation();closeWorkflow();return;}

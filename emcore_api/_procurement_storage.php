@@ -83,7 +83,7 @@ function emcore_procurement_max_upload_bytes()
 
 function emcore_procurement_allowed_extensions()
 {
-    return ['doc', 'docx', 'pdf', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'zip'];
+    return ['doc', 'docx', 'pdf', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'zip', 'rar'];
 }
 
 function emcore_procurement_allowed_mimes($extension)
@@ -106,8 +106,16 @@ function emcore_procurement_allowed_mimes($extension)
         'jpeg' => ['image/jpeg'],
         'png' => ['image/png'],
         'zip' => ['application/zip', 'application/x-zip-compressed', 'application/octet-stream'],
+        'rar' => ['application/vnd.rar', 'application/x-rar', 'application/x-rar-compressed', 'application/octet-stream'],
     ];
     return isset($map[$extension]) ? $map[$extension] : [];
+}
+
+function emcore_procurement_archive_signature_matches($extension, $header)
+{
+    if ($extension === 'zip') return in_array(substr($header, 0, 4), ["PK\x03\x04", "PK\x05\x06", "PK\x07\x08"], true);
+    if ($extension === 'rar') return substr($header, 0, 7) === "Rar!\x1a\x07\x00" || substr($header, 0, 8) === "Rar!\x1a\x07\x01\x00";
+    return true;
 }
 
 function emcore_procurement_clean_filename($name)
@@ -152,6 +160,12 @@ function emcore_procurement_store_upload_data($upload, $procurementId, $fieldNam
     $mimeType = (string)$finfo->file($temporaryPath);
     if (!in_array($mimeType, emcore_procurement_allowed_mimes($extension), true)) {
         throw new EmcoreHttpException(422, 'محتوای فایل با پسوند آن سازگار نیست', [$fieldName => 'mime_mismatch']);
+    }
+    if (in_array($extension, ['zip', 'rar'], true)) {
+        $header = file_get_contents($temporaryPath, false, null, 0, 8);
+        if ($header === false || !emcore_procurement_archive_signature_matches($extension, $header)) {
+            throw new EmcoreHttpException(422, 'امضای فایل فشرده با پسوند آن سازگار نیست.', [$fieldName => 'archive_signature_mismatch']);
+        }
     }
 
     $relativeDirectory = 'notices/' . (int)$procurementId;

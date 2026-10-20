@@ -24,7 +24,27 @@ async function main(){
       page.waitForResponse(response=>response.url().endsWith('emcore_procurement_notices.php')&&new URLSearchParams(response.request().postData()||'').get('search')===title),
       page.locator('#filterButton').click()
     ]);
+    await page.locator('[data-favorite-id="'+notice+'"]').waitFor();
+    async function listAfter(action){await Promise.all([page.waitForResponse(response=>new URLSearchParams(response.request().postData()||'').get('action')==='list'),action()]);}
+    await listAfter(()=>page.locator('[data-favorite-id="'+notice+'"]').click());
+    check(await page.locator('[data-favorite-id="'+notice+'"]').getAttribute('aria-pressed')==='true','Heart persists favorite');
+    await page.reload();await page.locator('[data-favorite-id="'+notice+'"]').waitFor();
+    check(await page.locator('[data-favorite-id="'+notice+'"]').getAttribute('aria-pressed')==='true','Favorite survives page reload');
+    await page.locator('#searchInput').fill(title);await listAfter(()=>page.locator('#filterButton').click());
+    await listAfter(()=>page.locator('#favoriteRecordsTab').click());
+    check(await page.locator('#favoriteRecordsTab').getAttribute('aria-selected')==='true' && await page.locator('#ledger tbody tr').count()===1,'Personal favorites tab renders saved record only');
+    check(await page.locator('#workflowQueue').isDisabled(),'Favorite view is independent of workflow queue');
+    if(process.env.EMCORE_FIXTURE_SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.EMCORE_FIXTURE_SCREENSHOT_DIR,'procurement-favorites-main.png'),fullPage:true});
+    await listAfter(()=>page.locator('[data-favorite-id="'+notice+'"]').click());
+    check(await page.locator('#ledger tbody tr').count()===0,'Unfavorite removes row from favorite tab');
+    await listAfter(()=>page.locator('#allRecordsTab').click());
+    await page.locator('#searchInput').fill(title);await listAfter(()=>page.locator('#filterButton').click());
+    await page.locator('#allRecordsTab').focus();await listAfter(()=>page.keyboard.press('ArrowLeft'));
+    check(await page.locator('#favoriteRecordsTab').getAttribute('aria-selected')==='true' && await page.locator('#favoriteRecordsTab').evaluate(el=>el===document.activeElement),'Tabs support RTL keyboard navigation');
+    await listAfter(()=>page.keyboard.press('Home'));
+    check(await page.locator('#allRecordsTab').getAttribute('aria-selected')==='true','Home activates first tab');
     await page.getByRole('button',{name:'اقدامات و پیگیری‌ها'}).click();await page.locator('.workflow-event-heading').first().waitFor();
+    check((await page.locator('#workflowAttachments').getAttribute('accept')).includes('.rar') && (await page.locator('#fileInput').getAttribute('accept')).includes('.zip'),'Archive selection supported in both attachment controls');
     let reads=(await api('list_events',{id:notice})).data;
     check(reads.every(event=>event.readers.length===0),'Opening/fetching the modal does not immediately mark seen');
     await page.waitForTimeout(1600);

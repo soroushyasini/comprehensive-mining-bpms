@@ -14,7 +14,7 @@ $db->exec("CREATE TABLE USERS (USR_UID CHAR(32) PRIMARY KEY,USR_USERNAME VARCHAR
     CREATE TABLE APPLICATION (APP_UID CHAR(32) PRIMARY KEY,PRO_UID CHAR(32),APP_STATUS VARCHAR(32));
     CREATE TABLE APP_DELEGATION (APP_UID CHAR(32),DEL_INDEX INT,TAS_UID CHAR(32),USR_UID CHAR(32),DEL_THREAD_STATUS VARCHAR(16),DEL_FINISH_DATE DATETIME DEFAULT NULL,PRIMARY KEY(APP_UID,DEL_INDEX));
     CREATE FUNCTION shamsi_slash_to_gregorian_date(input_fa VARCHAR(10)) RETURNS DATE DETERMINISTIC RETURN DATE('2026-09-22');");
-foreach(['002_emcore_audit_log.sql','010_emcore_procurement_notices.sql','011_emcore_procurement_classification.sql','012_emcore_procurement_workflow.sql'] as $file) {
+foreach(['002_emcore_audit_log.sql','010_emcore_procurement_notices.sql','011_emcore_procurement_classification.sql','012_emcore_procurement_workflow.sql','016_emcore_procurement_favorites.sql'] as $file) {
     $db->exec(file_get_contents(__DIR__.'/../../database/migrations/'.$file));
 }
 foreach(['operator'=>str_repeat('1',32),'manager'=>str_repeat('2',32),'outsider'=>str_repeat('7',32)] as $name=>$uid){

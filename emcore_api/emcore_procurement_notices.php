@@ -301,7 +301,7 @@ function emcore_procurement_input($db, $before = null)
     ];
 }
 
-function emcore_procurement_select_columns()
+function emcore_procurement_select_columns($includeFavorite = false)
 {
     $workflowColumns = emcore_pw_enabled() ? "p.owner_usr_uid,p.manager_usr_uid,p.workflow_history_only,
         (SELECT app_uid FROM emcore_procurement_workflows WHERE procurement_id=p.id) AS app_uid,
@@ -309,7 +309,9 @@ function emcore_procurement_select_columns()
         (SELECT last_del_index FROM emcore_procurement_workflows WHERE procurement_id=p.id) AS last_del_index,
         COALESCE((SELECT sync_state FROM emcore_procurement_workflows WHERE procurement_id=p.id),'ready') AS sync_state,
         (SELECT pending_result FROM emcore_procurement_workflows WHERE procurement_id=p.id) AS pending_result," : '';
-    return $workflowColumns . "p.id, p.legacy_source_id, p.record_origin, p.notice_type,
+    $favoriteColumns = $includeFavorite ? "EXISTS (SELECT 1 FROM emcore_procurement_favorites fav
+        WHERE fav.procurement_id=p.id AND fav.usr_uid=:favorite_actor) AS is_favorite," : '';
+    return $workflowColumns . $favoriteColumns . "p.id, p.legacy_source_id, p.record_origin, p.notice_type,
             p.source_name, p.supplier_name, p.title, p.quantity_text,
             p.reference_number, p.amount_text, p.estimated_amount, p.currency,
             p.contracting_authority, p.submission_method, p.delivery_term,
@@ -334,16 +336,18 @@ function emcore_procurement_select_columns()
             END AS deadline_state";
 }
 
-function emcore_procurement_row($db, $id, $forUpdate = false, $includeDeleted = false)
+function emcore_procurement_row($db, $id, $forUpdate = false, $includeDeleted = false, $includeFavorite = false)
 {
     $scope = emcore_pw_scope();
-    $sql = 'SELECT ' . emcore_procurement_select_columns()
+    $sql = 'SELECT ' . emcore_procurement_select_columns($includeFavorite)
         . ' FROM emcore_procurement_notices p WHERE p.id = :id'
         . ($includeDeleted ? '' : ' AND p.deleted_at IS NULL')
         . ' AND ' . $scope['sql']
         . ' LIMIT 1' . ($forUpdate ? ' FOR UPDATE' : '');
     $stmt = $db->prepare($sql);
-    $stmt->execute($scope['params'] + [':id' => $id]);
+    $params = $scope['params'] + [':id' => $id];
+    if ($includeFavorite) $params[':favorite_actor'] = emcore_current_user()['USR_UID'];
+    $stmt->execute($params);
     return $stmt->fetch() ?: null;
 }
 
@@ -406,7 +410,7 @@ function emcore_procurement_distinct_lookup($db, $column, $limit = 200)
 
 $action = emcore_action(array_merge([
     'lookups', 'list', 'get', 'download_file',
-    'create', 'update', 'upload_file', 'delete_file', 'delete',
+    'create', 'update', 'upload_file', 'delete_file', 'delete', 'set_favorite',
 ], emcore_pw_actions()));
 $capabilityMap = [
     'lookups' => 'read',
@@ -418,6 +422,7 @@ $capabilityMap = [
     'upload_file' => 'update',
     'delete_file' => 'delete',
     'delete' => 'delete',
+    'set_favorite' => 'read',
 ];
 emcore_require_permission(EMCORE_PROCUREMENT_MODULE, $capabilityMap[$action] ?? 'read');
 $db = emcore_db();
@@ -468,6 +473,14 @@ if ($action === 'list') {
     $scope = emcore_pw_scope();
     $where = ['p.deleted_at IS NULL', $scope['sql']];
     $params = $scope['params'];
+    $favoritesOnly = emcore_string('favorites_only', false, 1);
+    if ($favoritesOnly !== null && !in_array($favoritesOnly, ['0', '1'], true)) {
+        throw new EmcoreHttpException(422, 'فیلتر نشان‌شده‌ها معتبر نیست.');
+    }
+    if ($favoritesOnly === '1') {
+        $where[] = 'EXISTS (SELECT 1 FROM emcore_procurement_favorites fav WHERE fav.procurement_id=p.id AND fav.usr_uid=:favorite_filter_actor)';
+        $params[':favorite_filter_actor'] = emcore_current_user()['USR_UID'];
+    }
     if (emcore_pw_enabled()) {
         $queue = emcore_procurement_enum('workflow_queue', ['pending_review','follow_up','result_review','new_events','history'], false);
         if ($queue === 'history') $where[] = 'p.workflow_history_only=1';
@@ -576,7 +589,7 @@ if ($action === 'list') {
     $total = (int)$count->fetchColumn();
 
     $stmt = $db->prepare(
-        'SELECT ' . emcore_procurement_select_columns() . ",
+        'SELECT ' . emcore_procurement_select_columns(true) . ",
                 (SELECT COUNT(*)
                  FROM emcore_procurement_files f
                  WHERE f.procurement_id = p.id AND f.deleted_at IS NULL) AS file_count
@@ -585,7 +598,7 @@ if ($action === 'list') {
          ORDER BY " . $sortColumns[$sortBy] . ' ' . strtoupper($sortOrder)
             . ', p.id DESC LIMIT ' . (int)$pageSize . ' OFFSET ' . (int)$offset
     );
-    $stmt->execute($params);
+    $stmt->execute($params + [':favorite_actor' => emcore_current_user()['USR_UID']]);
 
     $rows = $stmt->fetchAll();
     if (emcore_pw_enabled()) foreach ($rows as &$row) $row['workflow_permissions'] = emcore_pw_permissions($row);
@@ -623,7 +636,7 @@ if ($action === 'list') {
 
 if ($action === 'get') {
     $id = emcore_positive_id('id');
-    $notice = emcore_procurement_row($db, $id);
+    $notice = emcore_procurement_row($db, $id, false, false, true);
     if (!$notice) {
         throw new EmcoreHttpException(404, 'مناقصه یا مزایده یافت نشد');
     }
@@ -634,6 +647,27 @@ if ($action === 'get') {
 
 emcore_require_csrf();
 $actor = emcore_current_user();
+
+if ($action === 'set_favorite') {
+    $id = emcore_positive_id('id');
+    $favorite = emcore_string('is_favorite', true, 1);
+    if (!in_array($favorite, ['0', '1'], true)) throw new EmcoreHttpException(422, 'وضعیت نشان معتبر نیست.');
+    $db->beginTransaction();
+    try {
+        if (!emcore_procurement_row($db, $id, true)) throw new EmcoreHttpException(404, 'فراخوان یافت نشد یا دسترسی ندارید.');
+        if ($favorite === '1') {
+            $stmt = $db->prepare('INSERT INTO emcore_procurement_favorites (usr_uid,procurement_id) VALUES (:actor,:id) ON DUPLICATE KEY UPDATE created_at=created_at');
+        } else {
+            $stmt = $db->prepare('DELETE FROM emcore_procurement_favorites WHERE usr_uid=:actor AND procurement_id=:id');
+        }
+        $stmt->execute([':actor' => $actor['USR_UID'], ':id' => $id]);
+        $db->commit();
+        emcore_json(['success' => true, 'data' => ['id' => $id, 'is_favorite' => $favorite === '1']]);
+    } catch (Throwable $exception) {
+        if ($db->inTransaction()) $db->rollBack();
+        throw $exception;
+    }
+}
 
 if ($action === 'delete') {
     $id = emcore_positive_id('id');
