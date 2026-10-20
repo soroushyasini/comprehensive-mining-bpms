@@ -18,6 +18,8 @@ return [
     // In-panel review/follow-up. Apply 012 and 017, then initialize participants.
     // Authentication still uses the existing session; no native process is needed.
     'procurement_workflow_enabled' => false,
+    // Temporary delegation to the configured operator; keep false for manager approval.
+    'procurement_workflow_operator_managed' => false,
     'procurement_workflow_operator' => '',
     'procurement_workflow_manager' => '',
 ];

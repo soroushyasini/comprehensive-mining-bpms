@@ -10,12 +10,14 @@ function emcore_pw_settings()
     $local = is_file($file) ? require $file : [];
     if (!is_array($local)) throw new RuntimeException('Invalid EMCORE local configuration.');
     $settings = [];
-    foreach (['enabled', 'operator', 'manager'] as $key) {
+    foreach (['enabled', 'operator', 'manager', 'operator_managed'] as $key) {
         $env = getenv('EMCORE_PROCUREMENT_WORKFLOW_' . strtoupper($key));
         $settings[$key] = $env !== false ? $env : ($local['procurement_workflow_' . $key] ?? '');
     }
     $settings['enabled'] = filter_var($settings['enabled'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
     if ($settings['enabled'] === null) throw new RuntimeException('Invalid procurement workflow enable flag.');
+    $settings['operator_managed'] = filter_var($settings['operator_managed'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+    if ($settings['operator_managed'] === null) throw new RuntimeException('Invalid procurement operator-managed flag.');
     if ($settings['enabled']) {
         foreach (['operator', 'manager'] as $key) {
             if (!preg_match('/^[a-zA-Z0-9]{32}$/', (string)$settings[$key])) throw new RuntimeException('Incomplete procurement participant configuration: ' . $key);
@@ -26,6 +28,13 @@ function emcore_pw_settings()
 }
 
 function emcore_pw_enabled() { return emcore_pw_settings()['enabled']; }
+function emcore_pw_operator_managed() { return emcore_pw_settings()['operator_managed']; }
+function emcore_pw_can_update()
+{
+    static $allowed;
+    if ($allowed === null) $allowed = (bool)emcore_module_permissions('procurement_notices')['can_update'];
+    return $allowed;
+}
 
 function emcore_pw_user_role()
 {
@@ -70,7 +79,7 @@ function emcore_pw_assert_edit($db, $id, $delete = false)
 {
     if (!emcore_pw_enabled()) return;
     $row = emcore_pw_record($db, $id, true);
-    if (!emcore_procurement_can_edit($row, emcore_pw_user_role()) || ($delete && $row['workflow_stage'] !== null)) {
+    if (!emcore_procurement_can_edit($row, emcore_pw_user_role(), emcore_pw_operator_managed()) || ($delete && $row['workflow_stage'] !== null)) {
         throw new EmcoreHttpException(403, 'ویرایش یا حذف این مورد در مرحلهٔ جاری مجاز نیست.');
     }
 }
@@ -81,16 +90,18 @@ function emcore_pw_permissions($row = null)
     $role = emcore_pw_user_role();
     $actions = [];
     if ($row && empty($row['app_uid'])) {
-        foreach (['activate', 'not_interested', 'record_submission', 'propose_result', 'approve_result', 'return_follow_up', 'request_stop'] as $action) {
+        foreach (['activate', 'not_interested', 'record_submission', 'propose_result', 'approve_result', 'return_follow_up', 'request_stop', 'record_result'] as $action) {
+            if ($role === 'operator' && emcore_pw_operator_managed() && $action === 'propose_result') continue;
             try {
-                emcore_procurement_transition($row, $role, $action, $action === 'propose_result' ? 'won' : null);
-                $actions[] = $action;
+                emcore_procurement_transition($row, $role, $action, in_array($action, ['propose_result','record_result'], true) ? 'won' : null, emcore_pw_operator_managed());
+                if ($role !== 'operator' || emcore_pw_can_update()) $actions[] = $action;
             } catch (DomainException $ignored) { /* Forbidden actions are not offered. */ }
         }
     }
-    return ['enabled' => true, 'mode' => 'panel', 'role' => $role,
+    return ['enabled' => true, 'mode' => 'panel', 'role' => $role, 'operator_managed' => emcore_pw_operator_managed(),
         'can_create' => $role === 'operator', 'allowed_actions' => $actions,
-        'can_edit' => $row ? emcore_procurement_can_edit($row, $role) : false,
+        'can_edit' => $row ? emcore_procurement_can_edit($row, $role, emcore_pw_operator_managed()) : false,
+        'can_update_stage' => $row ? emcore_procurement_can_update_stage($row, $role) && emcore_pw_can_update() : false,
         'can_decide' => in_array('activate', $actions, true) || in_array('not_interested', $actions, true),
         'can_stop' => in_array('request_stop', $actions, true)];
 }
@@ -151,16 +162,18 @@ function emcore_pw_business_update($db, $row, $next, $actor, $reason, $request, 
 
 function emcore_pw_next($row, $role, $action, $result = null)
 {
-    try { return emcore_procurement_transition($row, $role, $action, $result); }
+    try { return emcore_procurement_transition($row, $role, $action, $result, emcore_pw_operator_managed()); }
     catch (DomainException $error) { throw new EmcoreHttpException(422, $error->getMessage()); }
 }
 
 // The caller holds the notice lock and owns the transaction. A command, state
 // update, event and notifications commit together; there is no prepared phase.
-function emcore_pw_apply($db, $row, $actor, $role, $type, $body, $result, $request, $version)
+function emcore_pw_apply($db, $row, $actor, $role, $type, $body, $result, $request, $version, $trackingStage = null)
 {
     emcore_pw_assert_panel($row);
+    if ($role === 'operator' && !emcore_pw_can_update()) throw new EmcoreHttpException(403, 'مجوز ویرایش فراخوان ندارید.');
     $payload = ['body' => $body, 'result' => $result];
+    if ($type === 'set_follow_up_stage') $payload['follow_up_stage'] = $trackingStage;
     $hash = hash('sha256', emcore_audit_json([$row['id'], $actor, $type, $version, $payload]));
     $q = $db->prepare('SELECT * FROM emcore_procurement_commands WHERE request_id=:request FOR UPDATE');
     $q->execute([':request' => $request]);
@@ -175,21 +188,30 @@ function emcore_pw_apply($db, $row, $actor, $role, $type, $body, $result, $reque
     $q->execute([':request' => $request]);
     if ($q->fetchColumn()) throw new EmcoreHttpException(409, 'شناسهٔ درخواست برای رویداد دیگری استفاده شده است.');
     emcore_pw_version($row, $version);
-    $next = emcore_pw_next($row, $role, $type, $result);
+    if ($type === 'set_follow_up_stage') {
+        try { $next = emcore_procurement_stage_transition($row, $role, $trackingStage); }
+        catch (DomainException $error) { throw new EmcoreHttpException(422, $error->getMessage()); }
+    } else $next = emcore_pw_next($row, $role, $type, $result);
     $db->prepare("INSERT INTO emcore_procurement_commands
         (request_id,procurement_id,actor_usr_uid,command_type,expected_version,payload,payload_hash,command_state,completed_at)
         VALUES (:request,:id,:actor,:type,:version,:payload,:hash,'completed',NOW())")
         ->execute([':request' => $request, ':id' => $row['id'], ':actor' => $actor, ':type' => $type,
             ':version' => $version, ':payload' => emcore_audit_json($payload), ':hash' => $hash]);
-    emcore_pw_business_update($db, $row, $next, $actor, $body, $request, $type);
-    if ($next['workflow_stage'] !== null) {
+    if ($type === 'set_follow_up_stage') {
+        $update = $db->prepare('UPDATE emcore_procurement_notices SET follow_up_stage=:stage,updated_by_usr_uid=:actor,lock_version=lock_version+1 WHERE id=:id AND lock_version=:version');
+        $update->execute([':stage'=>$trackingStage, ':actor'=>$actor, ':id'=>$row['id'], ':version'=>$version]);
+        if ($update->rowCount() !== 1) throw new EmcoreHttpException(409, 'نسخهٔ فراخوان تغییر کرده است.');
+        emcore_pw_audit($db, $actor, $row['id'], 'procurement_notice', emcore_pw_snapshot($row), $next, $request);
+    } else emcore_pw_business_update($db, $row, $next, $actor, $body, $request, $type);
+    if ($type !== 'set_follow_up_stage' && $next['workflow_stage'] !== null) {
         $db->prepare("INSERT INTO emcore_procurement_workflows (procurement_id,app_uid,workflow_stage,pending_result,sync_state)
             VALUES (:id,NULL,:stage,:result,'ready') ON DUPLICATE KEY UPDATE
             workflow_stage=VALUES(workflow_stage),pending_result=VALUES(pending_result),sync_state='ready',last_sync_error=NULL")
             ->execute([':id' => $row['id'], ':stage' => $next['workflow_stage'], ':result' => $next['pending_result']]);
     }
     if ($type === 'activate') $next['interest_reason'] = $body;
-    $event = emcore_pw_event($db, $row, $actor, $role, $type, $body, $request, emcore_pw_snapshot($row), $next);
+    if ($type !== 'set_follow_up_stage' && $role === 'operator' && emcore_pw_operator_managed()) $next['operator_managed'] = true;
+    $event = emcore_pw_event($db, $row, $actor, $role, $type === 'set_follow_up_stage' ? 'stage_changed' : $type, $body, $request, emcore_pw_snapshot($row), $next);
     return ['request_id' => $request, 'command_type' => $type, 'command_state' => 'completed', 'event_id' => $event, 'replayed' => false];
 }
 

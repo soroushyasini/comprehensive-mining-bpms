@@ -46,4 +46,15 @@ check(emcore_procurement_transition($lostProposal, 'manager', 'approve_result')[
 $declined = emcore_procurement_transition($base, 'manager', 'not_interested');
 check($declined['workflow_stage'] === null, 'decline does not start a workflow');
 check(emcore_procurement_transition($declined, 'manager', 'activate')['workflow_stage'] === 'follow_up', 'declined record may be selected later');
+check(count(emcore_procurement_follow_up_stages()) === 5, 'five distinct tracking stages');
+check(emcore_procurement_stage_transition($closed, 'operator', 'analysis')['follow_up_stage'] === 'analysis', 'tracking metadata may be corrected on a closed outcome');
+rejected(function () use ($base) { emcore_procurement_stage_transition($base, 'manager', 'analysis'); }, 'manager cannot impersonate operator tracking');
+rejected(function () use ($native) { emcore_procurement_stage_transition($native, 'operator', 'analysis'); }, 'native-linked tracking stays protected');
+rejected(function () use ($base) { emcore_procurement_stage_transition($base, 'operator', 'other'); }, 'tracking enum enforced');
+rejected(function () use ($base) { emcore_procurement_transition($base, 'operator', 'record_result', 'won'); }, 'direct result disabled without explicit delegation');
+check(emcore_procurement_transition($base, 'operator', 'record_result', 'won', true)['participation_status'] === 'won', 'delegated operator records result without manager');
+check(emcore_procurement_transition($base, 'operator', 'record_result', 'withdrawn', true)['workflow_stage'] === 'stopped', 'delegated operator may stop without starting a workflow');
+check(emcore_procurement_transition($base, 'operator', 'activate', null, true)['workflow_stage'] === 'follow_up', 'temporary operator interest decision');
+check(emcore_procurement_can_edit($proposal, 'operator', true), 'temporary operator not blocked on manager review');
+rejected(function () use ($closed) { emcore_procurement_transition($closed, 'operator', 'record_result', 'lost', true); }, 'delegation does not overwrite final outcomes');
 echo "Procurement workflow policy: {$checks} checks passed.\n";

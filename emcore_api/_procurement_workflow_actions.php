@@ -5,7 +5,7 @@ function emcore_pw_actions()
 {
     return ['list_events','create_event','mark_events_seen','list_notifications',
         'set_review_decision','prepare_workflow_action','get_workflow','record_submission',
-        'get_native_context','cancel_stop_request','transition_workflow'];
+        'get_native_context','cancel_stop_request','transition_workflow','set_follow_up_stage'];
 }
 
 function emcore_pw_attachments()
@@ -139,11 +139,13 @@ function emcore_pw_dispatch($db, $action)
             emcore_pw_add_files($db,$id,$event,$actor,$files,$stored);
             $db->commit();$stored=[];emcore_json(['success'=>true,'event_id'=>$event]);
         }
-        $type=$action==='set_review_decision'?'not_interested':($action==='record_submission'?'record_submission':emcore_string('command_type',true,32));
-        if(!in_array($type,['not_interested','record_submission','activate','propose_result','approve_result','return_follow_up','request_stop'],true))throw new EmcoreHttpException(422,'فرمان معتبر نیست.');
-        $body=emcore_string('body',true,5000);$result=emcore_string('result',false,10);$version=emcore_positive_id('lock_version');
-        if ($type!=='propose_result' && $result!==null) throw new EmcoreHttpException(422,'نتیجه فقط هنگام پیشنهاد اپراتور قابل ارسال است.');
-        $command=emcore_pw_apply($db,$row,$actor,$role,$type,$body,$result,$request,$version);
+        $type=$action==='set_follow_up_stage'?'set_follow_up_stage':($action==='set_review_decision'?'not_interested':($action==='record_submission'?'record_submission':emcore_string('command_type',true,32)));
+        if(!in_array($type,['not_interested','record_submission','activate','propose_result','approve_result','return_follow_up','request_stop','record_result','set_follow_up_stage'],true))throw new EmcoreHttpException(422,'فرمان معتبر نیست.');
+        $trackingStage=$type==='set_follow_up_stage'?emcore_string('follow_up_stage',true,32):null;
+        $body=$type==='set_follow_up_stage'?'مرحلهٔ پیگیری: '.(emcore_procurement_follow_up_stages()[$trackingStage]??'نامعتبر'):emcore_string('body',true,5000);
+        $result=emcore_string('result',false,10);$version=emcore_positive_id('lock_version');
+        if (!in_array($type,['propose_result','record_result'],true) && $result!==null) throw new EmcoreHttpException(422,'نتیجه فقط هنگام پیشنهاد یا ثبت نتیجه قابل ارسال است.');
+        $command=emcore_pw_apply($db,$row,$actor,$role,$type,$body,$result,$request,$version,$trackingStage);
         $fresh=emcore_pw_record($db,$id);
         $workflow=emcore_pw_workflow($db,$fresh);
         $db->commit();

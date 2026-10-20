@@ -90,6 +90,7 @@ function emcore_procurement_analytics_filters($db)
         'registered', 'interested', 'documents_submitted', 'won', 'lost', 'unknown', 'not_interested', 'withdrawn',
     ]);
     $sourceName = emcore_string('source_name', false, 255);
+    $trackingStage = emcore_procurement_analytics_enum('follow_up_stage', array_merge(array_keys(emcore_procurement_follow_up_stages()), ['unassigned']));
     $authority = emcore_string('contracting_authority', false, 255);
     $unit = emcore_string('responsible_unit', false, 64);
     $category = emcore_string('category_name', false, 255);
@@ -120,6 +121,8 @@ function emcore_procurement_analytics_filters($db)
         $where[] = 'p.participation_status = :participation_status';
         $params[':participation_status'] = $participationStatus;
     }
+    if ($trackingStage === 'unassigned') $where[] = 'p.follow_up_stage IS NULL';
+    elseif ($trackingStage !== null) { $where[] = 'p.follow_up_stage=:tracking_stage'; $params[':tracking_stage'] = $trackingStage; }
     foreach ([
         ['value' => $sourceName, 'column' => 'source_name', 'placeholder' => ':source_name'],
         ['value' => $authority, 'column' => 'contracting_authority', 'placeholder' => ':contracting_authority'],
@@ -142,6 +145,7 @@ function emcore_procurement_analytics_filters($db)
             'date_to_fa' => $dateTo ? $dateTo['fa'] : null,
             'notice_type' => $noticeType,
             'participation_status' => $participationStatus,
+            'follow_up_stage' => $trackingStage,
             'source_name' => $sourceName,
             'contracting_authority' => $authority,
             'responsible_unit' => $unit,
@@ -245,6 +249,7 @@ if ($action === 'lookups') {
     $lookups['participation_statuses'] = [
         'registered', 'interested', 'documents_submitted', 'won', 'lost', 'unknown', 'not_interested', 'withdrawn',
     ];
+    $lookups['follow_up_stages'] = emcore_procurement_follow_up_stages();
     $lookups['date_bounds'] = $dateBounds;
     emcore_json([
         'success' => true,
@@ -357,6 +362,11 @@ $statuses = emcore_procurement_analytics_rows(
     emcore_procurement_analytics_query($db, $statusSql, $params)->fetchAll(),
     ['notice_count']
 );
+$trackingStages = emcore_procurement_analytics_rows(
+    emcore_procurement_analytics_query($db, "SELECT COALESCE(p.follow_up_stage,'unassigned') AS stage,COUNT(*) AS notice_count
+        FROM emcore_procurement_notices p WHERE {$whereSql} GROUP BY p.follow_up_stage ORDER BY notice_count DESC,stage", $params)->fetchAll(),
+    ['notice_count']
+);
 
 $deadlineSql = "SELECT CASE
         WHEN p.response_deadline_en IS NULL THEN 'no_deadline'
@@ -416,6 +426,7 @@ emcore_json([
         'authorities' => $authorities,
         'responsible_units' => $responsibleUnits,
         'participation_statuses' => $statuses,
+        'follow_up_stages' => $trackingStages,
         'deadline_states' => $deadlineStates,
         'categories' => $categories,
         'category_hierarchy' => $hierarchy,

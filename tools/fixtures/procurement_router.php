@@ -10,8 +10,9 @@ if($path==='/panel') {
     echo str_replace('<script>','<script src="/lib/jquery-1.11.js"></script><script>',file_get_contents($root.'/panels/emcore_procurement_notices_panel.html'));exit;
 }
 if($path==='/lib/jquery-1.11.js') {header('Content-Type: application/javascript');readfile(getenv('EMCORE_FIXTURE_JQUERY'));exit;}
-if($path==='/lib/xlsx.full.min_2.js') {header('Content-Type: application/javascript');echo 'window.XLSX={write:function(){return new ArrayBuffer(1);}};';exit;}
+if($path==='/lib/xlsx.full.min_2.js') {header('Content-Type: application/javascript');echo 'window.XLSX={write:function(workbook){window.__fixtureWorkbook=workbook;return new ArrayBuffer(1);}};';exit;}
 session_start();
+putenv('EMCORE_PROCUREMENT_WORKFLOW_OPERATOR_MANAGED=' . (($_SERVER['HTTP_X_EMCORE_FIXTURE_OPERATOR_MANAGED'] ?? '') === '1' ? 'true' : 'false'));
 $role=$_SERVER['HTTP_X_EMCORE_FIXTURE_ACTOR']??'operator';
 if($role==='anonymous')unset($_SESSION['USER_LOGGED']);
 else $_SESSION['USER_LOGGED']=str_repeat($role==='manager'?'2':($role==='outsider'?'7':'1'),32);
@@ -30,6 +31,12 @@ if($path==='/__fixture/state') {
         }
         if($mode==='historical_guarantee') {
             $db->prepare("UPDATE emcore_procurement_notices SET secondary_guarantee='سابقهٔ ضمانت' WHERE id=:id")->execute([':id'=>$_POST['id']]);emcore_json(['success'=>true]);
+        }
+        if($mode==='legacy_stage') {
+            $db->prepare("UPDATE emcore_procurement_notices SET follow_up_stage=NULL,participation_status='won',interest_reason='دلیل تاریخی',workflow_history_only=1 WHERE id=:id")->execute([':id'=>$_POST['id']]);emcore_json(['success'=>true]);
+        }
+        if($mode==='operator_write_permission') {
+            $db->prepare("UPDATE emcore_user_permissions SET can_update=:allowed WHERE usr_uid=:uid AND module_key='procurement_notices'")->execute([':allowed'=>($_POST['allowed']??'')==='1'?1:0,':uid'=>str_repeat('1',32)]);emcore_json(['success'=>true]);
         }
         if($mode==='native_history') {
             $db->prepare("INSERT INTO emcore_procurement_workflows (procurement_id,app_uid,workflow_stage) VALUES (:id,:app,'follow_up')")

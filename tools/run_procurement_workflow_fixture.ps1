@@ -36,6 +36,8 @@ try {
     if($LASTEXITCODE -ne 0) { throw 'Procurement ID search suite failed.' }
     & node tools/test_procurement_workflow_integration.js
     if($LASTEXITCODE -ne 0) { throw 'Workflow integration suite failed.' }
+    & node tools/test_procurement_stages.js
+    if($LASTEXITCODE -ne 0) { throw 'Independent stage suite failed.' }
     & $php @phpFlags tools/test_procurement_workflow_initialization.php
     if($LASTEXITCODE -ne 0) { throw 'Workflow initializer suite failed.' }
     if($env:EMCORE_TEST_NODE_MODULES) {
@@ -43,6 +45,8 @@ try {
         if($LASTEXITCODE -ne 0) { throw 'Workflow browser suite failed.' }
         & node tools/test_procurement_panel_workflow_browser.js
         if($LASTEXITCODE -ne 0) { throw 'Panel decision browser suite failed.' }
+        & node tools/test_procurement_stages_browser.js
+        if($LASTEXITCODE -ne 0) { throw 'Inline stage browser suite failed.' }
     }
 } finally {
     # Stop only the process created by this invocation, never other PHP servers.

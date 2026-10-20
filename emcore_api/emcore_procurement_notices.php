@@ -338,7 +338,7 @@ function emcore_procurement_select_columns($includeFavorite = false)
             p.response_deadline_fa, p.response_deadline_en,
             p.alert_lead_days, p.responsible_unit,
             p.category_name, p.subcategory_name, p.product_name, p.drilling_area,
-            p.participation_status, p.interest_reason, p.is_extended,
+            p.participation_status, p.follow_up_stage, p.interest_reason, p.is_extended,
             p.created_by_usr_uid, p.updated_by_usr_uid,
             p.created_at, p.updated_at, p.deleted_at, p.lock_version,
             CASE
@@ -469,6 +469,7 @@ if ($action === 'lookups') {
     $lookups['participation_statuses'] = [
         'registered', 'interested', 'documents_submitted', 'won', 'lost', 'not_interested', 'withdrawn',
     ];
+    $lookups['follow_up_stages'] = emcore_procurement_follow_up_stages();
     $lookups['today_gregorian'] = $db->query("SELECT DATE_FORMAT(CURDATE(), '%Y-%m-%d')")->fetchColumn();
     $lookups['classification_tree'] = emcore_procurement_classification_tree($db);
     $lookups['responsible_unit_options'] = ['بازرگانی', 'حفاری', 'اکتشاف', 'محدوده معدنی', 'استخراج'];
@@ -523,6 +524,9 @@ if ($action === 'list') {
         $where[] = 'p.participation_status = :participation_status';
         $params[':participation_status'] = $participationStatus;
     }
+    $stageFilter = emcore_procurement_enum('follow_up_stage', array_merge(array_keys(emcore_procurement_follow_up_stages()), ['unassigned']), false);
+    if ($stageFilter === 'unassigned') $where[] = 'p.follow_up_stage IS NULL';
+    elseif ($stageFilter !== null) { $where[] = 'p.follow_up_stage = :follow_up_stage'; $params[':follow_up_stage'] = $stageFilter; }
     $responsibleUnit = emcore_string('responsible_unit', false, 64);
     if ($responsibleUnit !== null) {
         $where[] = 'p.responsible_unit = :responsible_unit';
@@ -597,6 +601,7 @@ if ($action === 'list') {
         'contracting_authority' => 'p.contracting_authority IS NULL, p.contracting_authority',
         'responsible_unit' => 'p.responsible_unit IS NULL, p.responsible_unit',
         'participation_status' => 'p.participation_status',
+        'follow_up_stage' => 'p.follow_up_stage',
         'file_count' => 'file_count',
         'id' => 'p.id',
     ];
@@ -862,7 +867,7 @@ try {
                  documents_deadline_fa, documents_deadline_en,
                  response_deadline_fa, response_deadline_en, alert_lead_days,
                  responsible_unit, category_name, subcategory_name, product_name,
-                 drilling_area, participation_status, interest_reason, is_extended,
+                 drilling_area, participation_status, follow_up_stage, interest_reason, is_extended,
                  created_by_usr_uid, updated_by_usr_uid)
              VALUES
                 ('managed', :notice_type, :source_name, :supplier_name, :title,
@@ -873,7 +878,7 @@ try {
                  :documents_deadline_fa, :documents_deadline_en,
                  :response_deadline_fa, :response_deadline_en, :alert_lead_days,
                  :responsible_unit, :category_name, :subcategory_name, :product_name,
-                 :drilling_area, :participation_status, :interest_reason, :is_extended,
+                 :drilling_area, :participation_status, 'registered', :interest_reason, :is_extended,
                  :created_by_usr_uid, :updated_by_usr_uid)"
         );
         $input[':created_by_usr_uid'] = $actor['USR_UID'];

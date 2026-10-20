@@ -134,6 +134,7 @@
 
     <div class="content">
       <form id="analyticsFilters" class="filters" aria-label="فیلترهای تحلیل مناقصات و مزایدات">
+        <div class="field"><label for="followUpStage">مرحلهٔ پیگیری</label><select id="followUpStage" name="follow_up_stage"><option value="">همهٔ مراحل</option><option value="unassigned">تعیین‌نشده (سوابق)</option></select></div>
         <div class="field primary-filter"><label for="minimumTotal">حداقل مجموع مناقصات و مزایدات</label><select id="minimumTotal" name="minimum_authority_total"><option value="1">۱</option><option value="2">۲</option><option value="3">۳</option><option value="4">۴</option><option value="5" selected>۵</option><option value="6">۶</option><option value="7">۷</option><option value="8">۸</option><option value="9">۹</option><option value="10">۱۰</option><option value="11">۱۱</option><option value="12">۱۲</option></select><small class="field-help">فقط دستگاه‌هایی نمایش داده می‌شوند که مجموع فراخوانشان حداقل این مقدار باشد.</small></div>
         <div class="field"><label for="dateFrom">از تاریخ ثبت</label><input id="dateFrom" class="date-field" name="date_from_fa" maxlength="10" inputmode="numeric" placeholder="۱۴۰۴/۰۱/۰۱" autocomplete="off"></div>
         <div class="field"><label for="dateTo">تا تاریخ ثبت</label><input id="dateTo" class="date-field" name="date_to_fa" maxlength="10" inputmode="numeric" placeholder="۱۴۰۴/۱۲/۲۹" autocomplete="off"></div>
@@ -199,6 +200,11 @@
           </article>
 
           <article class="card compact-chart">
+            <header class="card-head"><div><h2>مرحله‌های پیگیری</h2><p>مرحلهٔ عملیاتی مستقل از وضعیت و نتیجهٔ فراخوان است.</p></div></header>
+            <div class="chart-frame"><canvas id="stageChart" role="img" aria-label="نمودار مرحله‌های پیگیری"></canvas></div>
+            <details class="data-details"><summary>جدول مرحله‌های پیگیری</summary><div id="stageTableHost" class="table-scroll"></div></details>
+          </article>
+          <article class="card compact-chart">
             <header class="card-head"><div><h2>دسته‌بندی‌های اصلی</h2><p>نمای فشردهٔ دسته‌ها؛ جزئیات در تب کالا و دسته‌بندی</p></div></header>
             <div class="chart-frame"><canvas id="categoryChart" role="img" aria-label="نمودار فراخوان‌ها بر اساس دسته‌بندی"></canvas></div>
             <details class="data-details"><summary>جدول دسته‌بندی‌های اصلی</summary><div id="categoryTableHost" class="table-scroll"></div></details>
@@ -241,6 +247,7 @@
   var percentFormatter = new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 1 });
   var typeLabels = { tender: 'مناقصه', auction: 'مزایده', unknown: 'نوع نامشخص' };
   var statusLabels = { registered: 'ثبت', interested: 'علاقه‌مند', documents_submitted: 'ارسال مدارک', won: 'برنده', lost: 'شکست', unknown: 'وضعیت نامشخص', not_interested:'عدم علاقه‌مندی', withdrawn:'توقف پیگیری' };
+  var stageLabels={registered:'ثبت اولیه',analysis:'تحلیل و تصمیم‌گیری',document_preparation:'آماده‌سازی اسناد',awaiting_envelope_opening:'در انتظار بازگشایی پاکت',awaiting_price_meeting:'در انتظار جلسه قیمت',unassigned:'تعیین‌نشده (سوابق)'};
   var deadlineLabels = { open: 'باز', urgent: 'فوری', expired: 'منقضی', no_deadline: 'بدون مهلت' };
   var palette = ['#17664b', '#32627d', '#b0781b', '#a13f36', '#6f5d86', '#4e7773', '#9a623f', '#68736e'];
   var tenderColor = 'rgba(0, 102, 204, 0.60)';
@@ -592,14 +599,17 @@
     var deadlineRows = (data.deadline_states || []).map(function (row) { return { label: deadlineLabels[row.deadline_state] || row.deadline_state, notice_count: row.notice_count }; });
     var unitRows = compactSeries(data.responsible_units || [], 7);
     var statusRows = (data.participation_statuses || []).map(function (row) { return { label: statusLabels[row.status] || row.status, notice_count: row.notice_count }; });
+    var stageRows = (data.follow_up_stages || []).map(function(row){return {label:stageLabels[row.stage] || row.stage,notice_count:row.notice_count};});
     var categoryRows = compactSeries(data.categories || [], 9);
     renderPie('deadlineChart', deadlineRows, { labelKey: 'label', valueKey: 'notice_count', colors: ['#17664b', '#b0781b', '#a13f36', '#68736e'], type: 'doughnut', title: 'وضعیت مهلت پاسخ' });
     renderPie('unitChart', unitRows, { labelKey: 'label', valueKey: 'notice_count', colors: palette, type: 'pie', title: 'فراخوان‌ها بر اساس واحد مربوطه' });
     renderPie('statusChart', statusRows, { labelKey: 'label', valueKey: 'notice_count', colors: palette, type: 'pie', title: 'وضعیت شرکت در فراخوان' });
+    renderPie('stageChart', stageRows, {labelKey:'label',valueKey:'notice_count',colors:palette,type:'doughnut',title:'مرحله‌های پیگیری'});
     renderPie('categoryChart', categoryRows, { labelKey: 'label', valueKey: 'notice_count', colors: palette, type: 'pie', title: 'فراخوان‌ها بر اساس دسته‌بندی' });
     renderSimpleTable('deadlineTableHost', deadlineRows, 'وضعیت مهلت', 'label', 'notice_count');
     renderSimpleTable('unitTableHost', unitRows, 'واحد مربوطه', 'label', 'notice_count');
     renderSimpleTable('statusTableHost', statusRows, 'وضعیت شرکت', 'label', 'notice_count');
+    renderSimpleTable('stageTableHost', stageRows, 'مرحلهٔ پیگیری', 'label', 'notice_count');
     renderSimpleTable('categoryTableHost', categoryRows, 'دسته‌بندی', 'label', 'notice_count');
     currentHierarchy = data.category_hierarchy || [];
     hierarchyPath = [];
@@ -627,6 +637,7 @@
     setBusy(true);
     request('lookups').done(function (response) {
       var data = response.data || {};
+      $.each(data.follow_up_stages || {},function(value,label){stageLabels[value]=label;$('#followUpStage').append($('<option>').val(value).text(label));});
       populateSelect('#sourceName', data.source_name);
       populateSelect('#authority', data.contracting_authority);
       populateSelect('#responsibleUnit', data.responsible_unit);

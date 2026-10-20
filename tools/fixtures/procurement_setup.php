@@ -11,7 +11,7 @@ $db->exec("CREATE TABLE USERS (USR_UID CHAR(32) PRIMARY KEY,USR_USERNAME VARCHAR
     CREATE TABLE emcore_modules (module_key VARCHAR(64) PRIMARY KEY,name_fa VARCHAR(255),name_en VARCHAR(255),sort_order INT,is_active TINYINT DEFAULT 1);
     CREATE TABLE emcore_user_permissions (usr_uid CHAR(32),module_key VARCHAR(64),can_create TINYINT,can_read TINYINT,can_update TINYINT,can_delete TINYINT,granted_by CHAR(32),PRIMARY KEY(usr_uid,module_key));
     CREATE FUNCTION shamsi_slash_to_gregorian_date(input_fa VARCHAR(10)) RETURNS DATE DETERMINISTIC RETURN DATE('2026-09-22');");
-foreach(['002_emcore_audit_log.sql','010_emcore_procurement_notices.sql','011_emcore_procurement_classification.sql','012_emcore_procurement_workflow.sql','016_emcore_procurement_favorites.sql','017_emcore_procurement_panel_workflow.sql'] as $file) {
+foreach(['002_emcore_audit_log.sql','010_emcore_procurement_notices.sql','011_emcore_procurement_classification.sql','012_emcore_procurement_workflow.sql','016_emcore_procurement_favorites.sql','017_emcore_procurement_panel_workflow.sql','018_emcore_procurement_follow_up_stages.sql'] as $file) {
     $db->exec(file_get_contents(__DIR__.'/../../database/migrations/'.$file));
 }
 foreach(['operator'=>str_repeat('1',32),'manager'=>str_repeat('2',32),'outsider'=>str_repeat('7',32)] as $name=>$uid){

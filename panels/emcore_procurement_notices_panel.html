@@ -374,6 +374,11 @@
       .overlay { padding: 8px; }
     }
     .record-tabs { display:flex; flex-wrap:wrap; gap:8px; margin-block:14px; }
+    .stage-editor { display:grid; gap:6px; min-inline-size:210px; }
+    .stage-editor select { inline-size:100%; font:inherit; background:var(--surface); color:var(--ink); border:1px solid var(--line); border-radius:var(--radius); }
+    .stage-editor select:focus-visible { outline:2px solid var(--green); outline-offset:2px; }
+    .stage-feedback { white-space:normal; color:var(--ink-soft); max-inline-size:230px; }
+    @supports (-webkit-touch-callout: none) { .stage-editor select { font-size:16px; } }
     .record-tab { font:inherit; background:var(--surface); color:var(--ink-soft); border:1px solid var(--line); border-radius:var(--radius); padding:10px 16px; cursor:pointer; }
     .record-tab[aria-selected="true"] { background:var(--green-soft); color:var(--green-dark); border-color:var(--green); }
     .favorite-button { display:inline-flex; align-items:center; justify-content:center; inline-size:44px; block-size:44px; background:var(--surface); color:var(--ink-soft); border:1px solid var(--line); border-radius:var(--radius); padding:9px; cursor:pointer; }
@@ -444,7 +449,8 @@
       </div>
       <div class="field"><label for="typeFilter">نوع</label><select id="typeFilter"><option value="">همه</option><option value="tender">مناقصه</option><option value="auction">مزایده</option></select></div>
       <div class="field"><label for="deadlineFilter">وضعیت مهلت</label><select id="deadlineFilter"><option value="">همه</option><option value="open">دارای فرصت</option><option value="urgent">نیازمند اقدام</option><option value="expired">مهلت گذشته</option><option value="no_deadline">بدون مهلت</option></select></div>
-      <div class="field"><label for="statusFilter">وضعیت شرکت</label><select id="statusFilter"><option value="">همه</option><option value="registered">ثبت اولیه</option><option value="interested">علاقه‌مند</option><option value="documents_submitted">ارسال مدارک</option><option value="won">برنده</option><option value="lost">شکست</option></select></div>
+      <div class="field"><label for="stageFilter">مرحلهٔ پیگیری</label><select id="stageFilter"><option value="">همهٔ مراحل</option><option value="unassigned">تعیین‌نشده (سوابق)</option></select></div>
+      <div class="field"><label for="statusFilter">وضعیت / نتیجه</label><select id="statusFilter"><option value="">همه</option><option value="registered">ثبت اولیه</option><option value="interested">علاقه‌مند</option><option value="documents_submitted">ارسال مدارک</option><option value="won">برنده</option><option value="lost">شکست</option></select></div>
       <div class="field"><label for="unitFilter">واحد مربوطه</label><select id="unitFilter"><option value="">همه واحدها</option></select></div>
       <div class="field"><label for="registeredOnFilter">تاریخ ثبت رکورد</label><div class="date-input-wrap"><input type="text" id="registeredOnFilter" maxlength="10" inputmode="numeric" placeholder="۱۴۰۵/۰۱/۰۱" autocomplete="off"><button type="button" class="date-trigger" data-date-target="registeredOnFilter" aria-label="انتخاب تاریخ ثبت رکورد از تقویم" aria-haspopup="dialog" aria-expanded="false" aria-controls="jalaliDatepicker"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"></path><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"></path></svg></button></div></div>
       <div class="filter-actions"><button type="button" class="btn btn-primary" id="filterButton">اعمال</button><button type="button" class="btn btn-light" id="resetButton">پاک‌کردن</button><button type="button" class="btn btn-light" id="exportButton" disabled>خروجی اکسل</button></div>
@@ -505,7 +511,8 @@
         <div class="field span-4 drilling-field conditional"><label for="drillingArea">محدوده حفاری / معدنی</label><textarea id="drillingArea" maxlength="2000" data-editable></textarea></div>
 
         <div class="form-section">نتیجه و پیگیری</div>
-        <div class="field"><label for="participationStatus">وضعیت شرکت</label><select id="participationStatus" data-editable><option value="registered">ثبت اولیه</option><option value="interested">علاقه‌مند</option><option value="documents_submitted">ارسال مدارک</option><option value="won">برنده</option><option value="lost">شکست</option><option value="unknown" disabled>نامشخص — نیازمند اصلاح</option></select></div>
+        <div class="field"><label for="followUpStageText">مرحلهٔ پیگیری</label><input type="text" id="followUpStageText" readonly><small>برای تغییر مرحله از فهرست جدول استفاده کنید.</small></div>
+        <div class="field"><label for="participationStatus">وضعیت / نتیجه</label><select id="participationStatus" data-editable><option value="registered">ثبت اولیه</option><option value="interested">علاقه‌مند</option><option value="documents_submitted">ارسال مدارک</option><option value="won">برنده</option><option value="lost">شکست</option><option value="unknown" disabled>نامشخص — نیازمند اصلاح</option></select></div>
         <div class="field span-4 interest-field conditional"><label for="interestReason">دلیل علاقه</label><textarea id="interestReason" maxlength="5000" data-editable></textarea></div>
 
         <div class="form-section files-panel-section">اسناد و فایل‌ها</div>
@@ -578,6 +585,7 @@
     noticeType: { tender: 'مناقصه', auction: 'مزایده', unknown: 'نامشخص' },
     deadline: { open: 'دارای فرصت', urgent: 'نیازمند اقدام', expired: 'مهلت گذشته', no_deadline: 'بدون مهلت' },
     status: { registered: 'ثبت اولیه', interested: 'علاقه‌مند', documents_submitted: 'ارسال مدارک', won: 'برنده', lost: 'شکست', unknown: 'نامشخص', not_interested:'عدم علاقه‌مندی', withdrawn:'توقف پیگیری' },
+    followUpStage: { registered:'ثبت اولیه', analysis:'تحلیل و تصمیم‌گیری', document_preparation:'آماده‌سازی اسناد', awaiting_envelope_opening:'در انتظار بازگشایی پاکت', awaiting_price_meeting:'در انتظار جلسه قیمت' },
     fileRole: { notice_document: 'مدارک فراخوان', final_submission: 'فایل ارسال نهایی' },
     method: { physical: 'فیزیکی', online: 'آنلاین', other: 'سایر' }
   };
@@ -945,6 +953,11 @@
       csrfToken = response.csrf_token || csrfToken;
       permissions = response.permissions || permissions;
       workflowPermissions = response.workflow_permissions || { enabled:false };
+      labels.followUpStage = lookups.follow_up_stages || labels.followUpStage;
+      $('#stageFilter option[data-stage]').remove();
+      $.each(labels.followUpStage,function(value,label){$('#stageFilter').append($('<option>').attr('data-stage','1').val(value).text(label));});
+      $('#operatorManagedNotice').remove();
+      if(workflowPermissions.operator_managed)$('#workflowTools').append($('<small>').attr('id','operatorManagedNotice').text('حالت موقت مدیریت توسط اپراتور فعال است؛ ثبت تصمیم و نتیجه بدون انتظار برای مدیر انجام می‌شود.'));
       applyLookups();
       $('#addButton').prop('hidden', Number(permissions.can_create) !== 1 || (workflowPermissions.enabled && !workflowPermissions.can_create));
       $('#workflowTools').prop('hidden', !workflowPermissions.enabled);
@@ -963,6 +976,7 @@
       notice_type: $('#typeFilter').val(),
       deadline_state: $('#deadlineFilter').val(),
       participation_status: $('#statusFilter').val(),
+      follow_up_stage: $('#stageFilter').val(),
       responsible_unit: $('#unitFilter').val(),
       workflow_queue: workflowPermissions.enabled && !favoritesOnly ? $('#workflowQueue').val() : '',
       favorites_only: favoritesOnly ? '1' : '0',
@@ -1059,6 +1073,34 @@
     return th.append(button);
   }
 
+  function stageEditor(row) {
+    var current=row.follow_up_stage || '';
+    if(!workflowPermissions.enabled || !row.workflow_permissions || !row.workflow_permissions.can_update_stage || Number(permissions.can_update)!==1)return $('<span>').text(labels.followUpStage[current] || 'تعیین‌نشده (سابقه)');
+    var host=$('<div>').addClass('stage-editor'), select=$('<select>').attr({'data-stage-id':row.id,'aria-label':'مرحلهٔ پیگیری فراخوان '+toPersianDigits(row.id)});
+    if(!current)select.append($('<option>').val('').prop('disabled',true).text('تعیین‌نشده (سابقه)'));
+    $.each(labels.followUpStage,function(value,label){select.append($('<option>').val(value).text(label));});select.val(current);
+    var wrap=$('<div>').addClass('select-wrap').append(select).append($('<svg class="select-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>'));
+    var feedback=$('<small>').addClass('stage-feedback').attr({role:'status','aria-live':'polite'});
+    var save=$('<button>').attr({type:'button','data-stage-save':row.id}).addClass('btn btn-light btn-small').text('ثبت مرحله').prop('disabled',true);
+    var request='', lastValue='';
+    select.on('change',function(){save.prop('disabled',!select.val() || select.val()===current);feedback.empty();});
+    save.on('click',function(){
+      var value=select.val();if(!value || value===current)return;
+      if(!request || value!==lastValue){request=workflowRequestId();lastValue=value;}
+      select.add(save).prop('disabled',true);host.attr('aria-busy','true');feedback.text('در حال ثبت…');
+      api('set_follow_up_stage',{id:row.id,follow_up_stage:value,lock_version:row.lock_version,request_id:request}).done(function(){
+        pollWorkflowNotifications();loadRows().done(function(){
+          showNotice('مرحلهٔ پیگیری ثبت شد و در سابقه باقی ماند.','success');
+          var next=$('[data-stage-id="'+row.id+'"]');(next.length?next:$('#stageFilter')).trigger('focus');
+        });
+      }).fail(function(xhr){
+        feedback.text(errorText(xhr));
+        if(xhr.status===409)loadRows().done(function(){showNotice(errorText(xhr),'warning');});
+      }).always(function(){host.attr('aria-busy','false');select.prop('disabled',false);save.prop('disabled',select.val()===current);});
+    });
+    return host.append(wrap,save,feedback);
+  }
+
   function renderTable(rows) {
     var ledger = $('#ledger').empty();
     if (!rows.length) { ledger.append($('<div>').addClass('empty').text(favoritesOnly?'در نشان‌شده‌های شما رکوردی با این فیلتر پیدا نشد.':'رکوردی با این فیلتر پیدا نشد.')); return; }
@@ -1073,7 +1115,8 @@
     head.append(sortableHeader('تاریخ ثبت', 'registered_on', 'desc'));
     head.append(sortableHeader('مهلت پاسخ', 'response_deadline', 'asc'));
     head.append(sortableHeader('فرصت', 'days_left', 'asc'));
-    head.append(sortableHeader('وضعیت شرکت', 'participation_status', 'asc'));
+    head.append(sortableHeader('مرحلهٔ پیگیری', 'follow_up_stage', 'asc'));
+    head.append(sortableHeader('وضعیت / نتیجه', 'participation_status', 'asc'));
     head.append(sortableHeader('فایل', 'file_count', 'desc'));
     head.append($('<th>').attr('scope', 'col').text('عملیات'));
     table.append($('<thead>').append(head));
@@ -1098,6 +1141,7 @@
       tr.append($('<td>').text(row.registered_on_fa ? toPersianDigits(row.registered_on_fa) : '—'));
       tr.append($('<td>').text(row.response_deadline_fa ? toPersianDigits(row.response_deadline_fa) : '—'));
       tr.append($('<td>').append($('<span>').addClass('badge badge-' + row.deadline_state).text(deadlineLabel(row))));
+      tr.append($('<td>').append(stageEditor(row)));
       tr.append($('<td>').append($('<span>').addClass('badge badge-' + String(row.participation_status).replace(/_/g, '-')).text(labels.status[row.participation_status] || row.participation_status)));
       tr.append($('<td>').text(faNumber(row.file_count || 0)));
       var actions = $('<div>').addClass('row-actions');
@@ -1232,7 +1276,7 @@
       'نحوه تحویل بار', 'تاریخ ثبت', 'مهلت دریافت اسناد', 'مهلت پاسخ', 'فرصت',
       'هشدار از چند روز قبل', 'ضمانت‌نامه', 'ضمانت‌نامه دوم (سابقه)', 'واحد مربوطه',
       'گروه اصلی', 'زیرگروه', 'کالا', 'محدوده حفاری / معدنی', 'وضعیت شرکت', 'دلیل علاقه',
-      'تمدید شده', 'تعداد فایل', 'منشأ رکورد', 'شناسه منبع قدیمی', 'تاریخ ایجاد در سامانه',
+      'مرحلهٔ پیگیری', 'تمدید شده', 'تعداد فایل', 'منشأ رکورد', 'شناسه منبع قدیمی', 'تاریخ ایجاد در سامانه',
       'تاریخ آخرین ویرایش'
     ]];
     $.each(rows, function (_, row) {
@@ -1248,7 +1292,7 @@
         Number(row.alert_lead_days || 0), row.primary_guarantee || '', row.secondary_guarantee || '',
         row.responsible_unit || '', row.category_name || '', row.subcategory_name || '', row.product_name || '',
         row.drilling_area || '', labels.status[row.participation_status] || row.participation_status || '',
-        row.interest_reason || '', extended, Number(row.file_count || 0),
+        row.interest_reason || '', labels.followUpStage[row.follow_up_stage] || 'تعیین‌نشده (سابقه)', extended, Number(row.file_count || 0),
         row.record_origin === 'legacy' ? 'منتقل‌شده از سامانه قدیمی' : 'ثبت‌شده در EMCORE',
         row.legacy_source_id ? Number(row.legacy_source_id) : '', row.created_at || '', row.updated_at || ''
       ]);
@@ -1257,9 +1301,9 @@
   }
 
   function styleExcelSheet(sheet, rowCount) {
-    var widths = [10, 14, 18, 20, 42, 16, 18, 18, 20, 13, 28, 17, 15, 14, 17, 17, 16, 18, 24, 25, 17, 19, 19, 22, 28, 18, 30, 13, 12, 24, 18, 21, 21];
+    var widths = [10, 14, 18, 20, 42, 16, 18, 18, 20, 13, 28, 17, 15, 14, 17, 17, 16, 18, 24, 25, 17, 19, 19, 22, 28, 18, 30, 28, 13, 12, 24, 18, 21, 21];
     sheet['!cols'] = $.map(widths, function (width) { return { wch: width }; });
-    sheet['!autofilter'] = { ref: 'A1:AG' + Math.max(1, rowCount + 1) };
+    sheet['!autofilter'] = { ref: 'A1:AH' + Math.max(1, rowCount + 1) };
     sheet['!freeze'] = { xSplit: 0, ySplit: 1, topLeftCell: 'A2', activePane: 'bottomLeft', state: 'frozen' };
     for (var column = 0; column < widths.length; column += 1) {
       var cell = sheet[excelCellAddress(0, column)];
@@ -1317,6 +1361,7 @@
     $('#recordId,#lockVersion,#sourceName,#supplierName,#title,#referenceNumber,#quantityText,#amountText,#estimatedAmount,#contractingAuthority,#deliveryTerm,#documentsDeadline,#responseDeadline,#primaryGuarantee,#responsibleUnit,#drillingArea,#interestReason').val('');
     $('#noticeType').val('tender'); $('#registeredOn').val(todayJalali()); $('#submissionMethod').val('');
     $('#currency').val('تومان'); $('#alertLeadDays').val('5'); $('#extensionStatus').val(''); $('#participationStatus').val('registered');
+    $('#followUpStageText').val(labels.followUpStage.registered);
     updateClassificationSelects('', '', '', false); updateEstimatedAmountPreview();
     $('#fileInput').val(''); $('#fileRole').val('notice_document'); $('#fileList').empty();
     $('#fileSelectionStatus').text('می‌توانید چند فایل را هم‌زمان انتخاب کنید.');
@@ -1361,6 +1406,7 @@
       $('#primaryGuarantee').val(row.primary_guarantee || ''); setNativeSelectValue('#responsibleUnit', row.responsible_unit || '');
       updateClassificationSelects(row.category_name || '', row.subcategory_name || '', row.product_name || '', true);
       $('#drillingArea').val(row.drilling_area || ''); $('#participationStatus').val(row.participation_status); updateEstimatedAmountPreview();
+      $('#followUpStageText').val(labels.followUpStage[row.follow_up_stage] || 'تعیین‌نشده (سابقه)');
       $('#interestReason').val(row.interest_reason || ''); activeFiles = row.files || []; updateConditionalFields(); renderFiles();
       setDialogMode(Number(permissions.can_update) !== 1 || (workflowPermissions.enabled && !(row.workflow && row.workflow.permissions.can_edit))); $('#dialogTitle').text(dialogReadOnly ? 'مشاهده فراخوان' : 'ویرایش فراخوان');
       $('.files-panel-section,#filesPanel').show(); openOverlay();
@@ -1550,7 +1596,7 @@
     host.append($('<p>').text('وضعیت: '+(labels.status[workflowNotice.participation_status] || 'نامشخص')+' · '+(stageLabels[workflow.workflow_stage] || (Number(workflowNotice.workflow_history_only)?'سابقه، بدون پیگیری فعال':'در انتظار تصمیم مدیر'))));
     if (workflow.pending_result) host.append($('<p>').text('پیشنهاد اپراتور: '+labels.status[workflow.pending_result]+'؛ هنوز تأیید نشده است.'));
     if (workflow.legacy_native_link) host.append($('<p>').text('این سابقه به گردش کار بومی قدیمی متصل است؛ تصمیم و ویرایش مشخصات تا بررسی مسئول سامانه غیرفعال است. یادداشت و سابقه همچنان در دسترس‌اند.'));
-    var titles={activate:'انتخاب برای پیگیری',not_interested:'عدم علاقه‌مندی',record_submission:'ثبت ارسال مدارک',propose_result:'ارسال نتیجه برای تأیید',approve_result:'تأیید نتیجهٔ پیشنهادی',return_follow_up:'بازگشت به پیگیری',request_stop:'توقف پیگیری'};
+    var titles={activate:'انتخاب برای پیگیری',not_interested:'عدم علاقه‌مندی',record_submission:'ثبت ارسال مدارک',propose_result:'ارسال نتیجه برای تأیید',approve_result:'تأیید نتیجهٔ پیشنهادی',return_follow_up:'بازگشت به پیگیری',request_stop:'توقف پیگیری',record_result:'ثبت نتیجه توسط اپراتور'};
     $.each(workflow.permissions.allowed_actions || [],function(_,type){
       if(titles[type])host.append(workflowButton(titles[type],function(){showWorkflowDecision(type);}).attr('data-workflow-action',type));
     });
@@ -1578,13 +1624,15 @@
     }).fail(function(xhr){if(generation===workflowGeneration){$('#workflowContent').attr('aria-busy','false').empty();workflowError(xhr);}});
   }
   function renderWorkflowEvent(event) {
-    var types={registered:'ثبت اولیه',activate:'تأیید علاقه‌مندی',not_interested:'عدم علاقه‌مندی',record_submission:'ارسال مدارک',propose_result:'پیشنهاد نتیجه',approve_result:'تأیید نهایی',return_follow_up:'بازگشت به پیگیری',request_stop:'توقف پیگیری',note:'یادداشت',correction:'اصلاحیه',record_updated:'تغییر مشخصات',file_uploaded:'افزودن مدرک',file_deleted:'حذف مدرک از فهرست فعال'};
+    var types={registered:'ثبت اولیه',activate:'تأیید علاقه‌مندی',not_interested:'عدم علاقه‌مندی',record_submission:'ارسال مدارک',propose_result:'پیشنهاد نتیجه',approve_result:'تأیید نهایی',return_follow_up:'بازگشت به پیگیری',request_stop:'توقف پیگیری',record_result:'ثبت نتیجه توسط اپراتور',stage_changed:'تغییر مرحلهٔ پیگیری',note:'یادداشت',correction:'اصلاحیه',record_updated:'تغییر مشخصات',file_uploaded:'افزودن مدرک',file_deleted:'حذف مدرک از فهرست فعال'};
     var roles={operator:'اپراتور',manager:'مدیر',system:'سامانه'};
     var tr=$('<tr>');
     tr.append($('<td>').append($('<span>').addClass('workflow-event-heading').attr('data-event-id',event.id).text((event.author_name || roles[event.actor_role] || 'کاربر')+' · '+(roles[event.actor_role] || ''))).append($('<small>').text(workflowTime(event.created_at))));
     var message=$('<td>').append($('<strong>').text(types[event.event_type] || 'رویداد')).append($('<p>').addClass('workflow-message').text(event.body));
     if(event.event_type==='propose_result' && event.after_data && event.after_data.pending_result)message.append($('<small>').text('نتیجهٔ پیشنهادی: '+labels.status[event.after_data.pending_result]));
-    if(event.event_type==='approve_result' && event.after_data)message.append($('<small>').text('نتیجهٔ نهایی: '+(labels.status[event.after_data.participation_status] || 'نامشخص')));
+    if(['approve_result','record_result'].indexOf(event.event_type)>=0 && event.after_data)message.append($('<small>').text('نتیجهٔ نهایی: '+(labels.status[event.after_data.participation_status] || 'نامشخص')));
+    if(event.event_type==='stage_changed' && event.after_data)message.append($('<small>').text('مرحله از '+(labels.followUpStage[(event.before_data || {}).follow_up_stage] || 'تعیین‌نشده')+' به '+labels.followUpStage[event.after_data.follow_up_stage]));
+    if(event.after_data && event.after_data.operator_managed)message.append($('<small>').text('ثبت با اختیار موقت اپراتور؛ تأیید مدیر محسوب نمی‌شود.'));
     if(event.before_data && event.after_data && event.after_data.participation_status && event.before_data.participation_status!==event.after_data.participation_status)message.append($('<small>').text('تغییر وضعیت از '+(labels.status[event.before_data.participation_status] || 'نامشخص')+' به '+labels.status[event.after_data.participation_status]));
     if(event.corrects_event_id)message.append($('<small>').text('اصلاحیهٔ رویداد '+faNumber(event.corrects_event_id)));
     var fieldLabels={title:'عنوان',notice_type:'نوع',source_name:'منبع',supplier_name:'تأمین‌کننده',quantity_text:'تناژ',reference_number:'شماره',amount_text:'مبلغ تضمین',estimated_amount:'مبلغ برآوردشده',currency:'واحد پول',contracting_authority:'دستگاه اجرایی',submission_method:'نحوهٔ شرکت',delivery_term:'تحویل بار',primary_guarantee:'ضمانت‌نامه',registered_on_fa:'تاریخ ثبت',registered_on_en:'تاریخ ثبت',documents_deadline_fa:'مهلت اسناد',documents_deadline_en:'مهلت اسناد',response_deadline_fa:'مهلت پاسخ',response_deadline_en:'مهلت پاسخ',alert_lead_days:'هشدار',responsible_unit:'واحد مربوطه',category_name:'گروه',subcategory_name:'زیرگروه',product_name:'کالا',drilling_area:'محدودهٔ حفاری',is_extended:'تمدید'};
@@ -1625,23 +1673,24 @@
       .always(function(){if(generation!==workflowGeneration)return;$('#workflowPublish,#workflowBodyText').prop('disabled',false);$('#workflowAttachments').prop('disabled',!lookups.storage_ready);$('#workflowUploadProgress').prop('hidden',true);});
   }
   function showWorkflowDecision(type) {
-    var titles={activate:'انتخاب برای پیگیری',not_interested:'عدم علاقه‌مندی',record_submission:'ثبت ارسال مدارک',propose_result:'ارسال نتیجه برای تأیید',approve_result:'تأیید نتیجهٔ پیشنهادی',return_follow_up:'بازگشت به پیگیری',request_stop:'توقف پیگیری'};
+    var titles={activate:'انتخاب برای پیگیری',not_interested:'عدم علاقه‌مندی',record_submission:'ثبت ارسال مدارک',propose_result:'ارسال نتیجه برای تأیید',approve_result:'تأیید نتیجهٔ پیشنهادی',return_follow_up:'بازگشت به پیگیری',request_stop:'توقف پیگیری',record_result:'ثبت نتیجه توسط اپراتور'};
     var descriptions={activate:'با تأیید، فراخوان برای پیگیری فعال و اپراتور مطلع می‌شود.',not_interested:'این تصمیم پروندهٔ پیگیری نمی‌سازد؛ دلیل ثبت و به اپراتور اعلام می‌شود.',record_submission:'ارسال مدارک ثبت می‌شود؛ پیگیری همچنان ادامه دارد.',propose_result:'پیشنهاد برای مدیر ارسال می‌شود. تا تأیید مدیر، نتیجهٔ نهایی تغییر نمی‌کند و ویرایش مشخصات بسته خواهد بود.',approve_result:'نتیجهٔ پیشنهادی اپراتور نهایی و پیگیری پایان می‌یابد. بازگشایی در این نسخه ممکن نیست.',return_follow_up:'نتیجه برای ادامهٔ پیگیری به اپراتور بازگردانده می‌شود.',request_stop:'با تأیید، پیگیری فوراً متوقف و اپراتور مطلع می‌شود. بازگشایی در این نسخه ممکن نیست.'};
     workflowGeneration++;workflowSince={};$('#workflowFeedback').empty();
     var generation=workflowGeneration, id=workflowNotice.id, version=workflowNotice.lock_version;
     var host=$('#workflowContent').empty().append($('<h3>').text(titles[type]));
     if(type==='approve_result')host.append($('<p>').text('نتیجهٔ پیشنهادی برای تأیید: '+(labels.status[workflowNotice.pending_result] || 'نامشخص')));
-    host.append($('<p>').text(descriptions[type]));
-    if(type==='propose_result') {
-      host.append($('<label>').attr('for','workflowDecisionResult').text('نتیجهٔ پیشنهادی'));
+    host.append($('<p>').text(type==='record_result'?'نتیجه با اختیار موقت اپراتور و توضیح شما ثبت می‌شود؛ پیگیری پایان می‌یابد و بازگشایی در این نسخه ممکن نیست.':descriptions[type]));
+    if(type==='propose_result' || type==='record_result') {
+      host.append($('<label>').attr('for','workflowDecisionResult').text(type==='record_result'?'نتیجهٔ نهایی':'نتیجهٔ پیشنهادی'));
       host.append($('<select>').attr('id','workflowDecisionResult').append($('<option>').val('').text('نتیجه را انتخاب کنید'),$('<option>').val('won').text('برنده'),$('<option>').val('lost').text('شکست')));
+      if(type==='record_result')$('#workflowDecisionResult').append($('<option>').val('withdrawn').text('توقف پیگیری'));
     }
     host.append($('<label>').attr('for','workflowDecisionReason').text('دلیل / توضیح')).append($('<textarea>').attr({id:'workflowDecisionReason',maxlength:5000,rows:4}));
     var request=workflowRequestId(), lastSignature='';
     host.append(workflowButton('تأیید و ثبت تصمیم',function(){
-      var body=$.trim($('#workflowDecisionReason').val()), result=type==='propose_result'?$('#workflowDecisionResult').val():null;
+      var body=$.trim($('#workflowDecisionReason').val()), result=['propose_result','record_result'].indexOf(type)>=0?$('#workflowDecisionResult').val():null;
       if(!body){$('#workflowFeedback').text('دلیل / توضیح الزامی است.');return;}
-      if(type==='propose_result' && !result){$('#workflowFeedback').text('نتیجهٔ پیشنهادی را انتخاب کنید.');return;}
+      if(['propose_result','record_result'].indexOf(type)>=0 && !result){$('#workflowFeedback').text(type==='record_result'?'نتیجهٔ نهایی را انتخاب کنید.':'نتیجهٔ پیشنهادی را انتخاب کنید.');return;}
       var signature=JSON.stringify([body,result]);
       if(lastSignature && lastSignature!==signature)request=workflowRequestId();lastSignature=signature;
       var data={id:id,command_type:type,body:body,request_id:request,lock_version:version};
@@ -1784,7 +1833,7 @@
   $('#cancelButton,#closeButton').on('click', closeDialog);
   $('#formOverlay').on('click', function (event) { if (event.target === this) closeDialog(); });
   $('#filterButton').on('click', function () { page = 1; closeJalaliDatepicker(false); hideNotice(); loadRows(); });
-  $('#resetButton').on('click', function () { $('#searchInput,#typeFilter,#deadlineFilter,#statusFilter,#unitFilter,#registeredOnFilter').val(''); page = 1; sortBy = 'id'; sortOrder = 'desc'; closeJalaliDatepicker(false); hideNotice(); loadRows(); });
+  $('#resetButton').on('click', function () { $('#searchInput,#typeFilter,#deadlineFilter,#statusFilter,#stageFilter,#unitFilter,#registeredOnFilter').val(''); page = 1; sortBy = 'id'; sortOrder = 'desc'; closeJalaliDatepicker(false); hideNotice(); loadRows(); });
   $('#exportButton').on('click', exportFilteredRows);
   $('#searchInput').on('keydown', function (event) { if (event.which === 13) { page = 1; loadRows(); } });
   $('#previousButton').on('click', function () { if (page > 1) { page--; loadRows(); } });
