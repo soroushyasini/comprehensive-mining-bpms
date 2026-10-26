@@ -16,7 +16,7 @@ for(const source of [bridge,actions,read('tools/configure_procurement_workflow.p
 }
 for(const text of ['emcore_pw_assert_panel','emcore_pw_version','payload_hash',"'completed',NOW()",'permissions','allowed_actions'])assert.ok(bridge.includes(text),text);
 assert.ok(!bridge.includes('case_url_prefix') && !bridge.includes('activation_task'),'only participant configuration required');
-assert.ok(actions.includes('52428800') && actions.includes('emcore_procurement_remove_failed_upload'),'atomic publication cleanup/limit');
+assert.ok(actions.includes('209715200') && actions.includes('emcore_procurement_remove_failed_upload'),'atomic publication cleanup/200 MiB limit');
 assert.ok(actions.includes("$event['readers']") && actions.includes('first_seen_at'),'server view receipts');
 assert.ok(actions.includes('410') && actions.includes("'transition_workflow'"),'retire old protocol and expose local transitions');
 assert.ok(read('tools/reconcile_procurement_workflow.php').includes("'state' => 'retired'"),'obsolete scheduler is inert');

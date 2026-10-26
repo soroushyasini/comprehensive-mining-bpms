@@ -166,7 +166,21 @@ result=won|lost (فقط برای propose_result)
 
 عملیات `list_events`، `create_event`، `mark_events_seen`، `list_notifications` و `get_workflow` حفظ شده‌اند. دو نام قدیمی `set_review_decision` و `record_submission` به تصمیم مستقیم معادل متصل‌اند. مسیرهای `prepare_workflow_action`، `get_native_context` و `cancel_stop_request` با قابلیت روشن پاسخ `410` می‌دهند؛ فراخوانی آن‌ها نشانهٔ پنل قدیمی است.
 
-فرمان، تغییر نسخه و وضعیت، رویداد، ممیزی و اعلان در یک تراکنش ثبت می‌شوند. انتشار اقدام با پیوست نیز یا کامل ثبت می‌شود یا متن و فایل ناقص منتشر نمی‌کند. حداکثر مجموع پیوست‌های اقدام ۵۰ مگابایت و ۲۰ فایل است؛ محدودیت هر فایل و نوع‌های مجاز قبلی همچنان اعمال می‌شوند.
+فرمان، تغییر نسخه و وضعیت، رویداد، ممیزی و اعلان در یک تراکنش ثبت می‌شوند. انتشار اقدام با پیوست نیز یا کامل ثبت می‌شود یا متن و فایل ناقص منتشر نمی‌کند. حداکثر مجموع پیوست‌های اقدام ۲۰۰ مگابایت و ۲۰ فایل است؛ محدودیت هر فایل و نوع‌های مجاز قبلی همچنان اعمال می‌شوند.
+
+### تنظیم بارگذاری ۲۰۰ مگابایتی
+
+برای این افزایش سقف، فقط `_procurement_workflow_actions.php` را در مسیر API و محتوای `panels/emcore_procurement_notices_panel.html` را در WebControl به‌روز کنید؛ migration لازم نیست. تنظیمات زیر را نیز در فایل `php.ini` مورد استفادهٔ Apache بررسی کنید:
+
+```ini
+post_max_size = 220M
+upload_max_filesize = 50M
+max_file_uploads = 20
+```
+
+سقف درخواست کمی بیشتر از مجموع فایل‌هاست تا متن و سربرگ‌های multipart هم جا شوند. در صورت وجود مقادیر بزرگ‌تر، آن‌ها را بی‌دلیل کاهش ندهید. پس از تغییر تنظیمات، سرویس `pmlearningApache` را در بازهٔ مناسب راه‌اندازی مجدد کنید. فایل تنظیمات فعال Apache ممکن است با PHP خط فرمان متفاوت باشد؛ بررسی `php --ini` به‌تنهایی تنظیمات وب را تأیید نمی‌کند.
+
+سقف هر فایل در این تغییر افزایش نمی‌یابد؛ مقدار `procurement_max_upload_bytes` در تنظیمات EMCORE همچنان اعمال می‌شود و پیش‌فرضش ۵۰ مگابایت است. بنابراین ۱۱ فایل با مجموع ۱۵۰ مگابایت مجازند، به‌شرط اینکه تک‌تک فایل‌ها از سقف جداگانهٔ هر فایل عبور نکنند. برای تغییر آن سقف، تنظیم EMCORE و `upload_max_filesize` باید با هم هماهنگ شوند. در اتصال کند، زمان دریافت ورودی PHP و محدودیت زمانی وب‌سرور نیز باید متناسب بررسی شوند.
 
 ## آزمون‌های مخزن
 
@@ -176,6 +190,7 @@ node tools/check_procurement_workflow_release.js
 node tools/check_procurement_notices_release.js
 node tools/check_procurement_analytics_release.js
 node tools/check_procurement_favorites_release.js
+node tools/test_procurement_attachment_limits.js
 ```
 
 آزمون‌های integration و مرورگر فقط با روتر محلی و دیتابیس دورریختنی، طبق `tools/run_procurement_workflow_fixture.ps1`، اجرا می‌شوند. این محیط جدول‌های مسیریابی ProcessMaker را ندارد تا استقلال قابلیت از موتور فرایند آزموده شود.

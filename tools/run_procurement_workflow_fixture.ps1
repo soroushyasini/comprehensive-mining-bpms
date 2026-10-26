@@ -24,7 +24,7 @@ if($Initialize) {
     & $php @phpFlags tools/fixtures/procurement_setup.php
     if($LASTEXITCODE -ne 0) { throw 'Fixture schema initialization failed.' }
 }
-$listener=Start-Process -FilePath $php -ArgumentList ($phpFlags+@('-d','upload_max_filesize=50M','-d','post_max_size=55M','-S','127.0.0.1:33380','-t','tools/fixtures','tools/fixtures/procurement_router.php')) -WindowStyle Hidden -PassThru -RedirectStandardError (Join-Path $env:TEMP 'emcore-fixture-api-errors.log')
+$listener=Start-Process -FilePath $php -ArgumentList ($phpFlags+@('-d','upload_max_filesize=50M','-d','post_max_size=220M','-d','max_file_uploads=20','-S','127.0.0.1:33380','-t','tools/fixtures','tools/fixtures/procurement_router.php')) -WindowStyle Hidden -PassThru -RedirectStandardError (Join-Path $env:TEMP 'emcore-fixture-api-errors.log')
 try {
     $ready=$false
     for($attempt=0;$attempt -lt 30;$attempt++) {
@@ -38,6 +38,10 @@ try {
     if($LASTEXITCODE -ne 0) { throw 'Workflow integration suite failed.' }
     & node tools/test_procurement_stages.js
     if($LASTEXITCODE -ne 0) { throw 'Independent stage suite failed.' }
+    & node tools/test_procurement_attachment_limits.js
+    if($LASTEXITCODE -ne 0) { throw 'Attachment boundary suite failed.' }
+    & node tools/test_procurement_attachment_upload.js
+    if($LASTEXITCODE -ne 0) { throw 'Large multi-attachment suite failed.' }
     & $php @phpFlags tools/test_procurement_workflow_initialization.php
     if($LASTEXITCODE -ne 0) { throw 'Workflow initializer suite failed.' }
     if($env:EMCORE_TEST_NODE_MODULES) {

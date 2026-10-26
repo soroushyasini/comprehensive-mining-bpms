@@ -26,7 +26,7 @@ function emcore_pw_attachments()
         $file['sha256'] = hash_file('sha256', $file['tmp_name']);
         $files[] = $file;
     }
-    if ($total > 52428800) throw new EmcoreHttpException(422, 'مجموع پیوست‌های اقدام نباید بیش از ۵۰ مگابایت باشد.');
+    if ($total > 209715200) throw new EmcoreHttpException(422, 'مجموع پیوست‌های اقدام نباید بیش از ۲۰۰ مگابایت باشد.');
     return $files;
 }
 

@@ -1648,19 +1648,25 @@
     var form=$('<div>').addClass('workflow-publish');
     form.append($('<input>').attr({type:'hidden',id:'workflowCorrects'}));
     form.append($('<div>').append($('<label>').attr('for','workflowBodyText').text('شرح اقدام یا اصلاحیه')).append($('<textarea>').attr({id:'workflowBodyText',maxlength:5000,rows:4})).append($('<small>').attr('id','workflowCorrectionLabel')));
-    form.append($('<div>').append($('<label>').attr('for','workflowAttachments').text('پیوست‌های اختیاری، مجموع حداکثر ۵۰ مگابایت')).append($('<input>').attr({id:'workflowAttachments',type:'file',multiple:'multiple',accept:uploadAccept()}).prop('disabled',!lookups.storage_ready)));
+    form.append($('<div>').append($('<label>').attr('for','workflowAttachments').text('پیوست‌های اختیاری، حداکثر ۲۰ فایل با مجموع ۲۰۰ مگابایت')).append($('<input>').attr({id:'workflowAttachments',type:'file',multiple:'multiple',accept:uploadAccept()}).prop('disabled',!lookups.storage_ready)));
     form.append($('<progress>').attr({id:'workflowUploadProgress',max:100,value:0,'aria-label':'پیشرفت انتشار اقدام',hidden:true}));
     form.append(workflowButton('انتشار اقدام',publishWorkflowEvent).attr('id','workflowPublish'));
     form.append(workflowButton('یادداشت جدید / پاک‌کردن اصلاحیه',function(){ $('#workflowCorrects').val('');$('#workflowCorrectionLabel').text(''); }));
     form.append($('<small>').text('نوشته و پیوست منتشرشده حذف یا بازنویسی نمی‌شود؛ برای تصحیح، اصلاحیه ثبت کنید. «مشاهده‌شده» به معنای تأیید مدیریتی نیست.'));
     host.append(form);
   }
+  function workflowAttachmentError(files) {
+    if(files.length>20)return 'تعداد فایل‌های انتخاب‌شده '+faNumber(files.length)+' است؛ حداکثر ۲۰ پیوست برای هر اقدام مجاز است.';
+    var sum=files.reduce(function(total,file){return total+file.size;},0);
+    if(sum>209715200)return 'مجموع حجم '+faNumber(files.length)+' فایل انتخاب‌شده '+fileSize(sum)+' است؛ سقف پیوست‌های هر اقدام ۲۰۰ مگابایت است.';
+    return '';
+  }
   function publishWorkflowEvent() {
     var body=$.trim($('#workflowBodyText').val()), corrects=$('#workflowCorrects').val();
     var files=Array.prototype.slice.call(($('#workflowAttachments')[0] || {}).files || []);
     if(!body){$('#workflowFeedback').text('شرح اقدام الزامی است.');return;}
-    var sum=files.reduce(function(total,file){return total+file.size;},0);
-    if(sum>52428800 || files.length>20){$('#workflowFeedback').text('حداکثر ۲۰ پیوست با مجموع اندازهٔ ۵۰ مگابایت مجاز است.');return;}
+    var attachmentError=workflowAttachmentError(files);
+    if(attachmentError){$('#workflowFeedback').text(attachmentError);return;}
     var signature=JSON.stringify([workflowNotice.id,body,corrects,files.map(function(file){return [file.name,file.size,file.lastModified];})]);
     if(!publicationRequest || signature!==publicationSignature){publicationRequest=workflowRequestId();publicationSignature=signature;}
     var data=new FormData();data.append('csrf_token',csrfToken);data.append('id',workflowNotice.id);data.append('request_id',publicationRequest);data.append('body',body);data.append('corrects_event_id',corrects);
