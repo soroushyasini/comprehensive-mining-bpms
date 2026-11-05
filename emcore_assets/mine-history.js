@@ -5,6 +5,33 @@
   var generation = 0, activeCategory = null, editing, createRequest, baseline = '', busy = false, switching = false, saved = false, queue;
   var root = $('<div>').addClass('emcore-ui mh-root').attr({id:'mh-root',dir:'rtl'}).appendTo(document.body);
   function button(text, fn, primary) { return $('<button>').attr('type','button').addClass('ec-btn' + (primary ? ' ec-primary' : '')).text(text).on('click', fn); }
+  function icon(name) {
+    var ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg');
+    $(svg).attr({viewBox:'0 0 24 24',fill:'none',stroke:'currentColor','stroke-width':'1.7','stroke-linecap':'round','stroke-linejoin':'round','aria-hidden':'true',focusable:'false'});
+    var paths={edit:['M16 3a2.1 2.1 0 0 1 3 3L8 17l-4 1 1-4Z','m14 5 3 3','M20 14v6H3V4h7'],
+      delete:['M3 6h18','M9 6V3h6v3','m5 6 1 15h12l1-15','M10 10v7','M14 10v7'],file:['M14 2H5v20h14V7Z','M14 2v6h5','M8 13h8','M8 17h5']};
+    (paths[name]||paths.file).forEach(function(d){var path=document.createElementNS(ns,'path');path.setAttribute('d',d);svg.appendChild(path);});return svg;
+  }
+  function iconButton(label, name, fn) {
+    return button('',fn).addClass('mh-icon-button mh-'+name).attr({'aria-label':label,title:label}).append(icon(name));
+  }
+  // SQL timestamps have no timezone suffix: convert their calendar date without
+  // parsing through the browser timezone or shifting the stored clock time.
+  function registeredAt(value) {
+    var m=/^(\d{4})-(\d{2})-(\d{2})[ T]([0-2]\d):([0-5]\d):([0-5]\d)$/.exec(String(value||''));
+    if(!m || Number(m[4])>23)return 'نامشخص';
+    var d=new Date(Date.UTC(Number(m[1]),Number(m[2])-1,Number(m[3])));
+    if(d.getUTCFullYear()!==Number(m[1]) || d.getUTCMonth()+1!==Number(m[2]) || d.getUTCDate()!==Number(m[3]))return 'نامشخص';
+    return UI.todayFromGregorian(m[1]+'-'+m[2]+'-'+m[3])+'، ساعت '+UI.persianDigits(m[4]+':'+m[5]+':'+m[6]);
+  }
+  function updateAttachmentHints() {
+    root.find('.mh-attachment-list:visible').each(function(){
+      var overflow=this.scrollHeight>this.clientHeight+1;
+      $(this).attr('tabindex',overflow?'0':'-1').siblings('.mh-attachment-hint').prop('hidden',!overflow);
+    });
+  }
+  $(global).on('resize.mineHistory',function(){global.requestAnimationFrame(updateAttachmentHints);});
+  if(document.fonts && document.fonts.ready)document.fonts.ready.then(updateAttachmentHints);
   function allowed(cap) { return Number(permissions['can_'+cap]) === 1; }
   function message(host, text, error) { host.empty(); if (text) host.append($('<p>').addClass('ec-message'+(error?' error':'')).attr('role',error?'alert':'status').text(text)); }
   function request(action, data) {
@@ -150,24 +177,35 @@
   }
   function renderEntry(record,host) {
     var entry=$('<article>').addClass('mh-entry').appendTo(host),meta=$('<div>').addClass('mh-meta').appendTo(entry);
-    meta.append($('<strong>').text('تاریخ اجرا: '+UI.persianDigits(record.executed_on_fa)),$('<span>').text('ثبت‌کننده: '+record.creator_name),$('<span>').text('زمان ثبت: '+UI.persianDigits(record.created_at)));
+    function metadata(label,value,tag){meta.append($('<div>').addClass('mh-meta-item').append($('<span>').addClass('mh-meta-label').text(label),$('<'+(tag||'span')+'>').addClass('mh-meta-value').text(value)));}
+    metadata('تاریخ اجرا',UI.persianDigits(record.executed_on_fa),'strong');metadata('ثبت‌کننده',record.creator_name);
+    metadata('زمان ثبت',registeredAt(record.created_at));
     if(record.edited_at)meta.append($('<span>').addClass('ec-badge').text('ویرایش‌شده'));
-    entry.append($('<p>').addClass('mh-description').text(record.description));
-    var attachments=$('<div>').appendTo(entry);$.each(record.files,function(_,f){
-      var line=$('<div>').addClass('ec-file').appendTo(attachments);download(f,record.id,line);
-      if(allowed('delete'))line.append(button('حذف پیوست',function(){
+    var body=$('<div>').addClass('mh-entry-body').toggleClass('mh-has-files',record.files.length>0).appendTo(entry);
+    var content=$('<div>').addClass('mh-entry-content').appendTo(body);
+    content.append($('<p>').addClass('mh-description').text(record.description));
+    var attachments=$('<aside>').addClass('mh-attachments').attr('aria-label','پیوست‌های سابقه');
+    if(record.files.length)body.append(attachments.append($('<h3>').text('پیوست‌ها ('+UI.persianDigits(record.files.length)+')')));
+    var attachmentList=$('<div>').addClass('mh-attachment-list').attr({role:'region','aria-label':'فهرست پیوست‌های سابقه',tabindex:'0'}).appendTo(attachments);
+    attachments.append($('<small>').addClass('mh-attachment-hint').prop('hidden',true).text('برای دیدن فایل‌های بیشتر، فهرست را اسکرول کنید.'));
+    $.each(record.files,function(_,f){
+      var line=$('<div>').addClass('ec-file mh-attachment').appendTo(attachmentList);
+      download(f,record.id,line).addClass('mh-download').attr({'aria-label':'دانلود '+f.original_filename,title:f.original_filename}).empty()
+        .append(icon('file'),$('<span>').addClass('mh-file-info').append($('<bdi>').attr('dir','auto').addClass('mh-filename').text(f.original_filename),$('<small>').text(UI.fileSize(f.file_size))));
+      if(allowed('delete'))line.append(iconButton('حذف پیوست','delete',function(){
         if(busy || !global.confirm('این پیوست حذف شود؟'))return;busy=true;
         request('delete_file',{mine_id:mine.id,id:record.id,file_id:f.id,lock_version:record.lock_version})
           .done(function(){showViewer(record.category_id);}).fail(function(x){message(viewMessage,error(x),true);}).always(function(){busy=false;});
       }));
     });
-    var actions=$('<div>').addClass('ec-actions').appendTo(entry);
-    if(allowed('update'))actions.append(button('ویرایش',function(){openEditor(record.id);}));
-    if(allowed('delete'))actions.append(button('حذف',function(){
+    var actions=$('<div>').addClass('ec-actions mh-entry-actions').attr('aria-label','عملیات سابقه').appendTo(meta);
+    if(allowed('update'))actions.append(iconButton('ویرایش','edit',function(){openEditor(record.id);}));
+    if(allowed('delete'))actions.append(iconButton('حذف','delete',function(){
       if(busy || !global.confirm('این سابقه و دسترسی به پیوست‌های آن حذف شود؟'))return;busy=true;
       request('delete',{mine_id:mine.id,id:record.id,lock_version:record.lock_version}).done(function(){showViewer(record.category_id);})
         .fail(function(x){message(viewMessage,error(x),true);}).always(function(){busy=false;});
     }));
+    global.requestAnimationFrame(updateAttachmentHints);
   }
   function showViewer(preferred) {
     activeCategory=preferred || activeCategory;
@@ -190,7 +228,7 @@
             $.each(result.data,function(_,record){renderEntry(record,rows);});more.toggle(result.has_more);
           }).fail(function(x){if(epoch===generation){message(status,error(x),true);more.show();}}).always(function(){loading=false;more.prop('disabled',false);});
         }
-        details.on('toggle',function(){if(this.open){activeCategory=c.id;if(!loaded)load();}});
+        details.on('toggle',function(){if(this.open){activeCategory=c.id;if(!loaded)load();global.requestAnimationFrame(updateAttachmentHints);}});
         if(found?String(c.id)===String(activeCategory):i===0)details.prop('open',true);
       });
     }).fail(function(x){if(epoch===generation)message(viewMessage,error(x),true);});
