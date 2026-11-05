@@ -1,4 +1,4 @@
-.emcore-ui.mh-root{padding:0;background:transparent;position:relative;z-index:2000}
+.emcore-ui.mh-root{--mh-asset-version:20261105-2;padding:0;background:transparent;position:relative;z-index:2000}
 .mh-root .ec-dialog{max-width:940px}.mh-root .mh-editor{max-width:720px}
 .mh-root .mh-groups details{border:1px solid var(--ec-line);border-radius:6px;margin:12px 0;background:#fff}
 .mh-root .mh-groups summary{cursor:pointer;padding:12px 16px;font-weight:700;background:#edf5df;color:var(--ec-ink)}

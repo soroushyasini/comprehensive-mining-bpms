@@ -4,10 +4,23 @@
   var api = '/emcore_api/emcore_mine_history.php', token = '', settings, permissions = {}, mine, trigger;
   var generation = 0, activeCategory = null, editing, createRequest, baseline = '', busy = false, switching = false, saved = false, queue;
   var root = $('<div>').addClass('emcore-ui mh-root').attr({id:'mh-root',dir:'rtl'}).appendTo(document.body);
+  var assetVersion='20261105-2',styleReady;
+  function viewerStyles() {
+    if(global.getComputedStyle(root[0]).getPropertyValue('--mh-asset-version').trim()===assetVersion)return $.Deferred().resolve().promise();
+    if(styleReady && styleReady.state()==='pending')return styleReady.promise();
+    styleReady=$.Deferred();var pending=styleReady,link=document.createElement('link');
+    link.rel='stylesheet';link.href='/emcore_assets/mine-history.css?v='+assetVersion+'&reload='+Date.now();
+    var timer=global.setTimeout(fail,15000);
+    function fail(){if(pending.state()!=='pending')return;global.clearTimeout(timer);link.remove();styleReady=null;pending.reject({responseJSON:{error:'فایل ظاهر سوابق با نسخهٔ برنامه هماهنگ نیست یا بارگذاری نشده است. فایل mine-history.css نسخهٔ جدید را روی سرور جایگزین کنید و دوباره تلاش کنید.'}});}
+    link.onload=function(){global.clearTimeout(timer);if(global.getComputedStyle(root[0]).getPropertyValue('--mh-asset-version').trim()===assetVersion)pending.resolve();else fail();};
+    link.onerror=fail;document.head.appendChild(link);return pending.promise();
+  }
   function button(text, fn, primary) { return $('<button>').attr('type','button').addClass('ec-btn' + (primary ? ' ec-primary' : '')).text(text).on('click', fn); }
   function icon(name) {
     var ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg');
-    $(svg).attr({viewBox:'0 0 24 24',fill:'none',stroke:'currentColor','stroke-width':'1.7','stroke-linecap':'round','stroke-linejoin':'round','aria-hidden':'true',focusable:'false'});
+    // ProcessMaker's older jQuery lowercases SVG attribute names, including viewBox.
+    var attributes={viewBox:'0 0 24 24',width:'18',height:'18',fill:'none',stroke:'currentColor','stroke-width':'1.7','stroke-linecap':'round','stroke-linejoin':'round','aria-hidden':'true',focusable:'false'};
+    Object.keys(attributes).forEach(function(name){svg.setAttribute(name,attributes[name]);});
     var paths={edit:['M16 3a2.1 2.1 0 0 1 3 3L8 17l-4 1 1-4Z','m14 5 3 3','M20 14v6H3V4h7'],
       delete:['M3 6h18','M9 6V3h6v3','m5 6 1 15h12l1-15','M10 10v7','M14 10v7'],file:['M14 2H5v20h14V7Z','M14 2v6h5','M8 13h8','M8 17h5']};
     (paths[name]||paths.file).forEach(function(d){var path=document.createElementNS(ns,'path');path.setAttribute('d',d);svg.appendChild(path);});return svg;
@@ -268,7 +281,7 @@
   toolbar.on('click',function(){if(busy)return;busy=true;lookups().done(function(){managerRows();message(managerMessage,'');manager.modal.open(toolbar[0]);}).fail(function(x){global.alert(error(x));}).always(function(){busy=false;});});
   $(document).on('click','.mh-history-trigger',function(){
     if(busy)return;var element=this,id=Number($(this).attr('data-mine-id'));busy=true;
-    lookups().done(function(){mine={id:id,mine_name:''};trigger=element;activeCategory=null;showViewer();}).fail(function(x){global.alert(error(x));}).always(function(){busy=false;});
+    $.when(lookups(),viewerStyles()).done(function(){mine={id:id,mine_name:''};trigger=element;activeCategory=null;showViewer();}).fail(function(x){global.alert(error(x));}).always(function(){busy=false;});
   });
   lookups().done(function(){toolbar.toggle(allowed('read'));}).fail(function(){toolbar.hide();});
   global.EmcoreMineHistory={version:'1.0.0'};

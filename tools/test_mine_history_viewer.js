@@ -19,10 +19,21 @@ const server=http.createServer((req,res)=>{
  const channel=process.env.EMCORE_TEST_BROWSER_CHANNEL||(process.platform==='win32'&&!fs.existsSync(playwright.chromium.executablePath())?'chrome':undefined);
  const browser=await playwright.chromium.launch({headless:true,channel});
  try{
- for(const mode of ['desktop','mobile','reader','many-desktop','many-mobile']){
+ for(const mode of ['desktop','mobile','reader','many-desktop','many-mobile','stale-css','missing-css','failed-css']){
   const many=mode.startsWith('many-'),fileCount=many?10:3;
   const context=await browser.newContext({viewport:mode.endsWith('mobile')?{width:390,height:844}:{width:1440,height:1000},timezoneId:mode==='desktop'?'America/Los_Angeles':'Asia/Tehran'});
-  const page=await context.newPage(),errors=[],calls=[];page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());
+  const page=await context.newPage(),errors=[],calls=[],alerts=[];page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>{alerts.push(d.message());return d.accept();});
+  let cssUnavailable=mode==='failed-css';
+  if(mode.endsWith('css')){
+   // Existing deployed panels retain unversioned links; don't rely on replacing
+   // their markup to recover a stale or missing stylesheet.
+   await page.route('**/panel',route=>route.fulfill({contentType:'text/html',body:fs.readFileSync(path.join(repo,'panels/emcore_mines_panel.html'),'utf8').replace('<script>','<script src="/jquery.js"></script><script>').replace(/mine-history\.(css|js)\?v=[^"\s]+/g,'mine-history.$1')}));
+   await page.route('**/emcore_assets/mine-history.css*',route=>{
+    const versioned=route.request().url().includes('?v=');
+    if(cssUnavailable || !versioned)return route.fulfill({status:mode==='missing-css'&&!versioned?404:200,contentType:'text/css',body:'.mh-root .mh-meta{display:flex;gap:8px}'});
+    return route.continue();
+   });
+  }
   const caps={can_read:1,can_create:mode==='reader'?0:1,can_update:mode==='reader'?0:1,can_delete:mode==='reader'?0:1};
   const record={id:1,mine_id:1,category_id:1,lock_version:1,executed_on_fa:'1405/08/14',created_at:'2026-11-05 11:18:44',creator_name:'خدیجه حشمتی',edited_at:'2026-11-05 11:20:00',description:'اصل آنالیزهای گمانه‌ها برای آقای ایمانی خانی ارسال شد.',files:[
    {id:11,original_filename:'Au sample of White Zone.xlsx',file_size:11059},
@@ -41,7 +52,16 @@ const server=http.createServer((req,res)=>{
    else if(action==='download')return route.fulfill({status:200,contentType:'application/pdf',body:'%PDF-1.4\n%%EOF'});
    return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(data)});
   });
-  await page.goto(base+'/panel');await page.locator('.mh-history-trigger').click();await page.locator('.mh-entry').first().waitFor();
+  await page.goto(base+'/panel');await page.locator('.mh-history-trigger').click();
+  if(mode==='failed-css'){
+   await assert.doesNotReject(async()=>{for(let i=0;i<100&&!alerts.length;i++)await page.waitForTimeout(30);assert.ok(alerts.length);});
+   check(alerts[0].includes('فایل ظاهر سوابق'),'old CSS on the server produces a clear deployment error');
+   check(await page.locator('#mh-view').isHidden(),'mismatched assets never open a broken viewer');
+   cssUnavailable=false;await page.locator('.mh-history-trigger').click();
+  }
+  await page.locator('.mh-entry').first().waitFor();
+  check(await page.locator('#mh-root').evaluate(e=>getComputedStyle(e).getPropertyValue('--mh-asset-version').trim()==='20261105-2'),'viewer verifies stylesheet revision');
+  check(await page.locator('#mh-view svg').evaluateAll(es=>es.every(e=>e.getAttribute('viewBox')==='0 0 24 24'&&e.getAttribute('width')==='18'&&e.getAttribute('height')==='18')),'SVG attributes keep case and explicit dimensions with legacy jQuery');
   const entry=page.locator('.mh-entry').first();
   check((await entry.locator('.mh-meta').innerText()).includes('۱۴۰۵/۰۸/۱۴، ساعت ۱۱:۱۸:۴۴'),'registration date converted without timezone shift in '+mode);
   check((await page.locator('.mh-entry').nth(2).locator('.mh-meta').innerText()).includes('۱۴۰۳/۱۲/۳۰'),'leap-day registration conversion');
