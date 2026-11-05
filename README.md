@@ -6,6 +6,7 @@ ProcessMaker provides authentication, sessions, Dynaforms, and routed workflows.
 
 ## Start here
 
+- [Mine follow-up history](docs/MINE_HISTORY_MODULE.md) — per-mine categorized records, shared category management, Jalali dates, private attachments, permissions, migration, and deployment.
 - [Project architecture and onboarding guide](docs/PROJECT_ONBOARDING.md) — business objectives, data model, module workflows, package inventory, setup, maintenance, and related-project history, with source references pinned to the reviewed commits.
 - [Developer and module authoring guide](docs/DEVELOPER_GUIDE.md) — canonical architecture, security, API/panel contracts, and end-to-end module instructions.
 - [Roadmap](docs/ROADMAP.md) — current implementation status and planned phases.

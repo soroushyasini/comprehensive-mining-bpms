@@ -2,6 +2,8 @@
 <html dir="rtl" lang="fa">
 <head>
   <meta charset="UTF-8">
+  <link rel="stylesheet" href="/emcore_assets/emcore-ui.css">
+  <link rel="stylesheet" href="/emcore_assets/mine-history.css">
   <style>
     * { box-sizing: border-box; }
 
@@ -475,6 +477,7 @@ var EMCORE_CSRF_TOKEN = ''; var EMCORE_PERMISSIONS = {can_create:0,can_read:0,ca
           + '<td>' + escapeHtml(row.cadastre_code || '—') + '</td>'
           + '<td>' + (row.annual_extraction_tons ? Number(row.annual_extraction_tons).toLocaleString('fa-IR') : '—') + '</td>'
           + '<td><div class="actions">'
+          + '<button type="button" class="btn mh-history-trigger" data-mine-id="' + Number(row.id) + '">سوابق</button>'
           + '<button type="button" class="btn btn-warning" onclick="openEdit(' + row.id + ')">ویرایش</button>'
           + '<button type="button" class="btn btn-danger"  onclick="goDelete(' + row.id + ', \'' + escapeHtml(safeStr(row.mine_name)) + '\')">حذف</button>'
           + '</div></td>'
@@ -656,5 +659,7 @@ var EMCORE_CSRF_TOKEN = ''; var EMCORE_PERMISSIONS = {can_create:0,can_read:0,ca
       if (e.target === this) closeModal();
     });
   </script>
+<script src="/emcore_assets/emcore-ui.js"></script>
+<script src="/emcore_assets/mine-history.js"></script>
 </body>
 </html>

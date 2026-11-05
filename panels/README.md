@@ -19,6 +19,8 @@ These are the deployable Panel WebControl files corresponding to the secured API
 
 ## Security integration
 
+The mines panel also loads `emcore-ui.css`, `emcore-ui.js`, `mine-history.css`, and `mine-history.js` from `/emcore_assets`. Its per-row history and category manager call `/emcore_api/emcore_mine_history.php` with the existing `mines` permissions. Apply migration `019` and deploy the new API/storage helpers before replacing the panel and mines API. See `docs/MINE_HISTORY_MODULE.md`.
+
 The business-card panel loads same-origin `emcore_assets/emcore-ui.css`, `emcore-ui.js`, `business-cards.css`, and `business-cards.js`. Deploy these assets before installing the panel. It uses ProcessMaker's existing jQuery, one optional image per record, and a shared modal for authorized Blob image previews. See `docs/BUSINESS_CARDS_DEPLOYMENT.md`.
 
 Each panel:

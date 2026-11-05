@@ -15,6 +15,8 @@ return [
     'minutes_max_upload_bytes' => 52428800,
     'business_cards_storage_root' => 'C:\\pmlearning\\emcore-private\\business-cards',
     'business_cards_max_upload_bytes' => 10485760,
+    'mine_history_storage_root' => 'C:\\pmlearning\\emcore-private\\mine-history',
+    'mine_history_max_upload_bytes' => 20971520,
     // In-panel review/follow-up. Apply 012 and 017, then initialize participants.
     // Authentication still uses the existing session; no native process is needed.
     'procurement_workflow_enabled' => false,

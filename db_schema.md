@@ -1,5 +1,8 @@
 
 # EMCORE — Developer Reference
+
+**Mine-history extension:** migration `019_emcore_mine_history.sql` adds `emcore_mine_history_categories`, `emcore_mine_history`, `emcore_mine_history_files`, and `emcore_mine_history_download_log`. Records reference the existing `emcore_mines.id` (`INT UNSIGNED`), categories are shared, and private files use the existing `mines` CRUD permissions. See [the module and deployment contract](docs/MINE_HISTORY_MODULE.md). No baseline tables are recreated.
+
 **comprehensive-mining-bpms**  
 Stack: ProcessMaker 3.8 · MySQL · PHP/JS (Panel WebControl)
 

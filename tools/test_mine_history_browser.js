@@ -1,0 +1,83 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),{createRequire}=require('node:module');
+let playwright;try{playwright=require('playwright');}catch{playwright=createRequire(path.join(process.env.EMCORE_TEST_NODE_MODULES||path.join(process.env.USERPROFILE,'.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules'),'package.json'))('playwright');}
+let checks=0;function check(value,message){assert.ok(value,message);checks++;}
+(async()=>{
+ const channel=process.env.EMCORE_TEST_BROWSER_CHANNEL||(process.platform==='win32'&&!fs.existsSync(playwright.chromium.executablePath())?'chrome':undefined);
+ const browser=await playwright.chromium.launch({headless:true,channel});
+ try{
+  const context=await browser.newContext({viewport:{width:1440,height:1000},extraHTTPHeaders:{'X-MH-Fixture-Actor':'admin'},acceptDownloads:true});
+  const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());
+  await page.goto('http://127.0.0.1:33388/panel');await page.locator('.mh-history-trigger[data-mine-id="1"]').waitFor();
+  await page.evaluate(()=>{const host=document.createElement('form');host.id='pm-case-form';document.body.prepend(host);for(const node of [...document.body.children])if(node!==host)host.append(node);window.__submits=0;host.addEventListener('submit',e=>{e.preventDefault();window.__submits++;});});
+  await page.locator('.mh-history-trigger[data-mine-id="1"]').click();await page.locator('.mh-entry').first().waitFor();
+  check((await page.locator('#mh-view-title').textContent()).includes('تپه سیاه شمالی'),'viewer identifies mine');
+  check(await page.locator('.mh-entry').count()===25,'first category paginates at 25');
+  check(await page.locator('.mh-description img').count()===0,'history text does not create injected markup');
+  await page.getByRole('button',{name:'نمایش بیشتر',exact:true}).click();await page.waitForFunction(()=>document.querySelectorAll('.mh-entry').length>25);
+  await page.getByRole('button',{name:'ثبت سابقه جدید',exact:true}).click();await page.locator('#mh-editor').waitFor({state:'visible'});
+  check(await page.locator('#mh-view').isHidden(),'viewer hidden while editing');
+  await page.locator('#mh-editor .ec-date-trigger').click();await page.locator('#mh-editor .ec-calendar').waitFor({state:'visible'});
+  await page.keyboard.press('Escape');check(await page.locator('#mh-editor').isVisible()&&await page.locator('#mh-editor .ec-calendar').isHidden(),'calendar escape does not close editor');
+  await page.locator('#mh-category-search').fill('لاگ');await page.locator('#mh-category').selectOption('3');
+  await page.locator('#mh-date').fill('۱۴۰۵/۰۷/۱۲');await page.locator('#mh-description').fill('پیگیری مرورگر <img src=x onerror=alert(1)>');
+  const pdf=Buffer.from('%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF');
+  await page.locator('#mh-files').setInputFiles([{name:'success.pdf',mimeType:'application/pdf',buffer:pdf},{name:'retry.pdf',mimeType:'application/pdf',buffer:pdf}]);
+  let failOnce=true;await page.route('**/emcore_api/emcore_mine_history.php',async route=>{
+   const body=route.request().postData()||'';
+   if(failOnce && body.includes('filename="retry.pdf"')){failOnce=false;return route.fulfill({status:500,contentType:'application/json',body:JSON.stringify({success:false,error:'خطای آزمایشی اتصال'})});}return route.continue();
+  });
+  await page.getByRole('button',{name:'ذخیره',exact:true}).click();await page.getByRole('button',{name:'تلاش مجدد پیوست‌های باقی‌مانده'}).waitFor();
+  await page.locator('#mh-editor [role="alert"]').waitFor();
+  check(await page.locator('#mh-description').isDisabled(),'saved content locked while partial uploads remain');
+  check(await page.locator('#mh-editor .ec-file').count()===1,'successful attachment retained after second fails');
+  await page.getByRole('button',{name:'تلاش مجدد پیوست‌های باقی‌مانده'}).click();await page.locator('#mh-editor').waitFor({state:'hidden'});
+  const entry=page.locator('.mh-entry').filter({hasText:'پیگیری مرورگر'});await entry.waitFor();
+  check(await entry.locator('img,script').count()===0,'newly saved markup is rendered as literal text');
+  check(await entry.getByRole('button',{name:/\.pdf/}).count()===2,'retry adds only missing file');
+  const downloadEvent=page.waitForEvent('download');await entry.getByRole('button',{name:/success.pdf/}).click();const download=await downloadEvent;check(download.suggestedFilename()==='success.pdf','authorized download uses original filename');
+  await entry.getByRole('button',{name:'ویرایش',exact:true}).click();await page.locator('#mh-editor').waitFor({state:'visible'});
+  check((await page.locator('#mh-description').inputValue()).includes('پیگیری مرورگر'),'editor fetched existing record');
+  await page.locator('#mh-description').fill('پیگیری مرورگر اصلاح شد');await page.getByRole('button',{name:'ذخیره',exact:true}).click();
+  await page.locator('#mh-editor').waitFor({state:'hidden'});await page.locator('.mh-entry').filter({hasText:'پیگیری مرورگر اصلاح شد'}).waitFor();
+  check(await page.getByText('ویرایش‌شده',{exact:true}).count()>0,'edited marker displayed');
+  await page.locator('#mh-view').getByRole('button',{name:'بستن',exact:true}).click();
+  check(await page.locator('.mh-history-trigger[data-mine-id="1"]').evaluate(e=>e===document.activeElement),'focus returns to mine row');
+  await page.locator('#mh-category-toolbar').click();await page.locator('#mh-manager').waitFor({state:'visible'});
+  const categoryRow=page.locator('.mh-category-row').last();await categoryRow.locator('input[type="text"]').first().fill('دستهٔ آزمون مرورگر');
+  await categoryRow.getByRole('button',{name:'افزودن',exact:true}).click();await page.getByText('دسته‌بندی ذخیره شد.',{exact:true}).waitFor();
+  check(await page.locator('#mh-manager input').evaluateAll(inputs=>inputs.some(x=>x.value==='دستهٔ آزمون مرورگر')),'new category appears in management list');
+  await page.locator('#mh-manager').getByRole('button',{name:'بستن',exact:true}).click();
+  await page.locator('.mh-history-trigger[data-mine-id="2"]').click();await page.getByText('هنوز سابقه‌ای برای این معدن ثبت نشده است.',{exact:true}).waitFor();
+  check(await page.locator('#mh-view .mh-entry').count()===0,'second mine does not show first mine history');
+  await page.locator('#mh-view').getByRole('button',{name:'بستن',exact:true}).click();
+  // Existing mine editor remains functional after adding the new assets.
+  await page.locator('#tableContainer tr').filter({hasText:'تپه سیاه شمالی'}).getByRole('button',{name:'ویرایش',exact:true}).click();
+  await page.locator('#modalOverlay').waitFor({state:'visible'});check(await page.locator('#f_mine_name').inputValue()==='تپه سیاه شمالی','existing mine edit still loads');await page.getByRole('button',{name:'انصراف',exact:true}).click();
+  check(await page.evaluate(()=>window.__submits===0),'all controls avoid submitting host ProcessMaker form');
+  const readerContext=await browser.newContext({viewport:{width:390,height:844},extraHTTPHeaders:{'X-MH-Fixture-Actor':'reader'}}),mobile=await readerContext.newPage();mobile.on('pageerror',e=>errors.push(e.message));
+  await mobile.goto('http://127.0.0.1:33388/panel');await mobile.locator('.mh-history-trigger[data-mine-id="1"]').click();await mobile.locator('.mh-entry').first().waitFor();
+  check(await mobile.getByRole('button',{name:'ثبت سابقه جدید',exact:true}).isHidden(),'reader cannot create');
+  check(await mobile.locator('#mh-view').getByRole('button',{name:'ویرایش',exact:true}).count()===0 && await mobile.locator('#mh-view').getByRole('button',{name:'حذف',exact:true}).count()===0,'reader sees no mutation actions');
+  check(await mobile.locator('#mh-view .ec-dialog').evaluate(e=>e.getBoundingClientRect().right<=innerWidth && e.getBoundingClientRect().left>=0),'mobile modal fits viewport');
+  await mobile.keyboard.press('Tab');check(await mobile.locator('#mh-view').evaluate(e=>e.contains(document.activeElement)),'keyboard focus trapped in modal');
+  const creatorContext=await browser.newContext({extraHTTPHeaders:{'X-MH-Fixture-Actor':'creator'}}),creatorPage=await creatorContext.newPage();creatorPage.on('pageerror',e=>errors.push(e.message));
+  await creatorPage.goto('http://127.0.0.1:33388/panel');await creatorPage.locator('.mh-history-trigger[data-mine-id="2"]').click();
+  await creatorPage.getByRole('button',{name:'ثبت سابقه جدید',exact:true}).click();await creatorPage.locator('#mh-editor').waitFor({state:'visible'});
+  await creatorPage.locator('#mh-category').selectOption('2');await creatorPage.locator('#mh-description').fill('سابقهٔ کاربر ثبت‌کننده');
+  await creatorPage.locator('#mh-date').fill('۱۴۰۴/۱۲/۳۰');await creatorPage.getByRole('button',{name:'ذخیره',exact:true}).click();
+  await creatorPage.locator('#mh-editor [role="alert"]').waitFor();check(await creatorPage.locator('#mh-editor').isVisible(),'invalid leap date rejected in UI');
+  await creatorPage.locator('#mh-date').fill('۱۴۰۵/۰۷/۱۲');await creatorPage.locator('#mh-files').setInputFiles({name:'creator.pdf',mimeType:'application/pdf',buffer:pdf});
+  await creatorPage.getByRole('button',{name:'ذخیره',exact:true}).click();await creatorPage.locator('#mh-editor').waitFor({state:'hidden'});await creatorPage.locator('.mh-entry').waitFor();
+  check(await creatorPage.locator('#mh-view').getByRole('button',{name:'ویرایش',exact:true}).count()===0,'create-only user saves record and attachment without edit access');
+  const deleterContext=await browser.newContext({extraHTTPHeaders:{'X-MH-Fixture-Actor':'deleter'}}),deleterPage=await deleterContext.newPage();deleterPage.on('dialog',d=>d.accept());deleterPage.on('pageerror',e=>errors.push(e.message));
+  await deleterPage.goto('http://127.0.0.1:33388/panel');await deleterPage.locator('.mh-history-trigger[data-mine-id="2"]').click();await deleterPage.locator('.mh-entry').waitFor();
+  check(await deleterPage.locator('#mh-view').getByRole('button',{name:'ویرایش',exact:true}).count()===0,'delete-only user has no edit action');
+  await deleterPage.getByRole('button',{name:'حذف پیوست',exact:true}).click();await deleterPage.getByRole('button',{name:'حذف پیوست',exact:true}).waitFor({state:'detached'});
+  check(await deleterPage.locator('.mh-entry .ec-file').count()===0,'delete-only user deletes attachments directly from viewer');
+  await deleterPage.locator('#mh-view').getByRole('button',{name:'حذف',exact:true}).click();await deleterPage.getByText('هنوز سابقه‌ای برای این معدن ثبت نشده است.',{exact:true}).waitFor();
+  fs.mkdirSync('.codex-build/mine-history-runtime',{recursive:true});await page.locator('.mh-history-trigger[data-mine-id="1"]').click();await page.locator('.mh-entry').first().waitFor();
+  await page.screenshot({path:'.codex-build/mine-history-runtime/history-desktop.png',fullPage:true});await mobile.screenshot({path:'.codex-build/mine-history-runtime/history-mobile.png',fullPage:true});
+  check(errors.length===0,'no browser runtime errors: '+errors.join('; '));console.log(`Mine history browser: ${checks} checks passed (desktop, mobile, real API and partial upload retry).`);
+ }finally{await browser.close();}
+})().catch(e=>{console.error(e);process.exitCode=1;});

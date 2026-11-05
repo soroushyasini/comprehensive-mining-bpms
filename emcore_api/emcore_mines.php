@@ -96,6 +96,11 @@ if ($action === 'delete') {
         if (!$before) {
             throw new EmcoreHttpException(404, 'معدن یافت نشد');
         }
+        $history = $db->prepare('SELECT id FROM emcore_mine_history WHERE mine_id = :id AND deleted_at IS NULL LIMIT 1');
+        $history->execute([':id' => $id]);
+        if ($history->fetch()) {
+            throw new EmcoreHttpException(409, 'این معدن دارای سابقهٔ پیگیری است و قابل حذف نیست');
+        }
         $activeManager = $db->prepare(
             'SELECT id FROM emcore_mine_technical_managers WHERE mine_id = :id AND deleted_at IS NULL LIMIT 1'
         );
