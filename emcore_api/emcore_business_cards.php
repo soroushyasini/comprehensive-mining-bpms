@@ -5,9 +5,18 @@ $reads=['lookups','list','get','duplicate_candidates','preview_image','download_
 $cap=in_array($action,$reads,true)?'read':($action==='create'?'create':(in_array($action,['delete','delete_image'],true)?'delete':'update'));
 $actor=emcore_require_permission('business_cards',$cap)['USR_UID'];$db=emcore_db();
 
+function emcore_bc_collections_ready($db) {
+    return (int)$db->query("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE()
+        AND TABLE_NAME IN ('emcore_business_card_collections','emcore_business_card_exhibitions','emcore_business_card_collectors')")->fetchColumn()===3;
+}
+
 if ($action==='lookups') {
+    $collectionsReady=emcore_bc_collections_ready($db);
+    $exhibitions=$collectionsReady?$db->query('SELECT code,title FROM emcore_business_card_exhibitions ORDER BY title,code')->fetchAll():[];
+    $collectors=$collectionsReady?$db->query('SELECT code,display_name FROM emcore_business_card_collectors ORDER BY display_name,code')->fetchAll():[];
     emcore_json(['success'=>true,'data'=>['countries'=>$db->query('SELECT code,name_fa,name_en FROM emcore_business_card_countries ORDER BY sort_order,name_fa')->fetchAll(),
         'units'=>$db->query("SELECT DISTINCT related_unit FROM emcore_business_cards WHERE deleted_at IS NULL AND related_unit IS NOT NULL ORDER BY related_unit")->fetchAll(PDO::FETCH_COLUMN),
+        'collections_ready'=>$collectionsReady,'exhibitions'=>$exhibitions,'collectors'=>$collectors,
         'storage_ready'=>emcore_bc_storage_ready(),'max_upload_bytes'=>emcore_bc_storage_settings()['max_bytes']],
         'permissions'=>emcore_module_permissions('business_cards'),'csrf_token'=>emcore_csrf_token()]);
 }
@@ -15,10 +24,32 @@ if ($action==='preview_image' || $action==='download_image') {
     emcore_bc_enum($_POST['variant']??'original',['original']);
     emcore_bc_serve_image(emcore_bc_int($_POST['id']??null),$action==='download_image');
 }
-if ($action==='get') emcore_json(['success'=>true,'data'=>emcore_bc_get(emcore_bc_int($_POST['id']??null))]);
+if ($action==='get') {
+    $card=emcore_bc_get(emcore_bc_int($_POST['id']??null));$card['collections']=[];
+    if (emcore_bc_collections_ready($db)) {
+        $s=$db->prepare('SELECT a.exhibition_code,e.title AS exhibition_title,a.collector_code,p.display_name AS collector_name
+            FROM emcore_business_card_collections a
+            JOIN emcore_business_card_exhibitions e ON e.code=a.exhibition_code
+            JOIN emcore_business_card_collectors p ON p.code=a.collector_code
+            WHERE a.card_id=? ORDER BY e.title,a.exhibition_code,p.display_name,a.collector_code');
+        $s->execute([$card['id']]);$card['collections']=$s->fetchAll();
+    }
+    emcore_json(['success'=>true,'data'=>$card]);
+}
 
 if ($action==='list') {
     $where=['c.deleted_at IS NULL'];$params=[];
+    $collectionFilters=[];
+    foreach (['exhibition_code','collector_code'] as $key) {
+        if (!isset($_POST[$key]) || $_POST[$key]==='') continue;
+        $code=emcore_bc_text($_POST[$key],64);
+        if ($code===null || !preg_match('/^[a-z0-9][a-z0-9_-]*$/D',$code)) throw new EmcoreHttpException(422,'فیلتر نمایشگاه یا گردآورنده نامعتبر است');
+        $collectionFilters[]='a.'.$key.'=?';$params[]=$code;
+    }
+    if ($collectionFilters) {
+        if (!emcore_bc_collections_ready($db)) throw new EmcoreHttpException(422,'فیلتر نمایشگاه و گردآورنده در این نصب در دسترس نیست');
+        $where[]='EXISTS(SELECT 1 FROM emcore_business_card_collections a WHERE a.card_id=c.id AND '.implode(' AND ',$collectionFilters).')';
+    }
     foreach(['business_country_code','related_unit','review_status','record_origin'] as $key) if (isset($_POST[$key]) && $_POST[$key]!=='') {
         $v=$key==='business_country_code'?emcore_bc_country($_POST[$key]):($key==='review_status'?emcore_bc_enum($_POST[$key],['needs_review','reviewed']):($key==='record_origin'?emcore_bc_enum($_POST[$key],['imported','manual']):emcore_bc_text($_POST[$key],255)));
         $where[]='c.'.$key.'=?';$params[]=$v;

@@ -8,6 +8,8 @@
   <div id="bc-message" role="status" aria-live="polite" hidden></div>
   <section class="ec-card" aria-label="فیلتر آرشیو"><div id="bc-filters" class="bc-filters">
     <label>جست‌وجو<input id="bc-search" placeholder="نام، سازمان، شماره یا نشانی"></label>
+    <label id="bc-exhibition-filter" hidden>نمایشگاه<select id="bc-exhibition"><option value="">همهٔ نمایشگاه‌ها</option></select></label>
+    <label id="bc-collector-filter" hidden>گردآورنده<select id="bc-collector"><option value="">همهٔ گردآورنده‌ها</option></select></label>
     <label>کشور تجاری<select id="bc-country"><option value="">همه کشورها</option></select></label>
     <label>کشور محل نشانی<select id="bc-location-country"><option value="">همه کشورها</option></select></label>
     <label>شهر<input id="bc-city"></label>
@@ -26,6 +28,10 @@
   <div id="bc-editor-overlay" class="ec-modal" hidden><section class="ec-dialog bc-editor" role="dialog" aria-modal="true" aria-labelledby="bc-editor-title">
     <div class="bc-heading"><h2 id="bc-editor-title">ثبت کارت ویزیت</h2><button type="button" id="bc-editor-close" class="ec-btn">بستن</button></div>
     <div id="bc-editor-message" role="status" aria-live="polite" hidden></div>
+    <section id="bc-collections" aria-labelledby="bc-collections-title" hidden>
+      <h3 id="bc-collections-title">نمایشگاه و گردآورندگان</h3>
+      <div id="bc-collection-details"></div>
+    </section>
     <div id="bc-editor-form"><div class="ec-grid">
       <label>نام مخاطب<input id="bc-contact-name" maxlength="500"></label><label>نام سازمان / شرکت<input id="bc-organization-name" maxlength="500"></label>
       <label>سمت<input id="bc-job-title" maxlength="500"></label><label>کشور ارتباط تجاری<select id="bc-business-country"><option value="">نامشخص</option></select></label>
@@ -52,4 +58,4 @@
     <p id="bc-image-message" role="status" aria-live="polite">در حال بارگذاری تصویر…</p><img id="bc-full-image" alt="تصویر کارت ویزیت" hidden>
     <button type="button" id="bc-download" class="ec-btn ec-primary" disabled>دانلود تصویر اصلی</button>
   </section></div>
-</main><script src="/emcore_assets/emcore-ui.js"></script><script src="/emcore_assets/business-cards.js?v=20261007-3"></script></body></html>
+</main><script src="/emcore_assets/emcore-ui.js"></script><script src="/emcore_assets/business-cards.js?v=20261114-1"></script></body></html>

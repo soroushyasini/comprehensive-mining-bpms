@@ -56,7 +56,7 @@
       picker.set(value || '');
     }
     function collectFilters() {
-      return { search: $(el('search')).val(), business_country_code: $(el('country')).val(), location_country: $(el('location-country')).val(), city: $(el('city')).val(), related_unit: $(el('unit')).val(), has_image: $(el('has-image')).val(), has_coordinates: $(el('has-geo')).val(), review_status: $(el('review')).val(), record_origin: $(el('origin')).val(), page: page, page_size: $(el('size')).val(), sort_by: sort, sort_order: order };
+      return { search: $(el('search')).val(), business_country_code: $(el('country')).val(), location_country: $(el('location-country')).val(), city: $(el('city')).val(), related_unit: $(el('unit')).val(), has_image: $(el('has-image')).val(), has_coordinates: $(el('has-geo')).val(), review_status: $(el('review')).val(), record_origin: $(el('origin')).val(), exhibition_code: $(el('exhibition')).val() || '', collector_code: $(el('collector')).val() || '', page: page, page_size: $(el('size')).val(), sort_by: sort, sort_order: order };
     }
     // Native XHR avoids old jQuery's JSON/text conversions of image responses.
     function binary(action, id, fileId, variant, success, failure) {
@@ -168,8 +168,21 @@
       $(el('duplicates-button')).prop('disabled', busy);
     }
     function markDirty() { dirty = true; controls(); }
+    function renderCollections(collections) {
+      var details = $(el('collection-details')).empty(), groups = Object.create(null);
+      (collections || []).forEach(function (entry) {
+        if (!groups[entry.exhibition_code]) {
+          groups[entry.exhibition_code] = $('<span>').addClass('ec-actions');
+          details.append($('<p>').append($('<strong>').append($('<bdi>').text(entry.exhibition_title)), groups[entry.exhibition_code]));
+        }
+        groups[entry.exhibition_code].append($('<span>').addClass('ec-badge').append($('<bdi>').text(entry.collector_name)));
+      });
+      $(el('collections')).prop('hidden', !details.children().length);
+    }
     function fillCard(data) {
+      if (!data.collections && card && data.id === card.id) data.collections = card.collections;
       card = data; dirty = false; uploadRequest = UI.requestId(); uploadPending = null; $(el('image-file')).val('');
+      renderCollections(card.collections);
       [['contact-name', 'contact_name'], ['organization-name', 'organization_name'], ['job-title', 'job_title'], ['business-country', 'business_country_code'], ['related-unit', 'related_unit'], ['source-category', 'source_category'], ['review-status', 'review_status'], ['activity', 'activity'], ['notes', 'notes']].forEach(function (pair) { $(el(pair[0])).val(card[pair[1]] || ''); });
       countryOptions(el('business-country'), card.business_country_code);
       $(el('contact-points')).empty(); card.contact_points.forEach(addPoint); $(el('locations')).empty(); card.locations.forEach(addLocation);
@@ -264,6 +277,11 @@
       token = r.csrf_token; permissions = r.permissions; countries = r.data.countries; storageReady = r.data.storage_ready; maxBytes = r.data.max_upload_bytes;
       countryOptions(el('country'), '', 'همه کشورها'); countryOptions(el('location-country'), '', 'همه کشورها'); countryOptions(el('business-country'));
       r.data.units.forEach(function (unit) { $(el('unit')).append($('<option>').val(unit).text(unit)); });
+      if (r.data.collections_ready) {
+        (r.data.exhibitions || []).forEach(function (entry) { $(el('exhibition')).append($('<option>').val(entry.code).text(entry.title)); });
+        (r.data.collectors || []).forEach(function (entry) { $(el('collector')).append($('<option>').val(entry.code).text(entry.display_name)); });
+        $(el('exhibition-filter')).add(el('collector-filter')).prop('hidden', false);
+      }
       $(el('image-limit')).text('JPEG یا PNG، حداکثر ' + number(Math.round(maxBytes / 1048576)) + ' مگابایت'); loadList();
     }).fail(function (xhr) { message('message', error(xhr), true); });
   }
