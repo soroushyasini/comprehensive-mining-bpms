@@ -8,7 +8,7 @@
 .emcore-ui.bc-root #bc-table{direction:rtl}.emcore-ui.bc-root #bc-table th,.emcore-ui.bc-root #bc-table td{text-align:right}
 .emcore-ui.bc-root #bc-table .bc-identity{min-width:140px}
 .emcore-ui.bc-root .bc-identity small{margin-block-start:3px}
-.emcore-ui.bc-root .bc-review-actions{display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-block-start:5px}
+.emcore-ui.bc-root .bc-review-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px 10px;margin-block-start:8px}
 .emcore-ui.bc-root .bc-review-button{min-height:28px;padding:2px 7px}
 .emcore-ui.bc-root .bc-follow-up-label{font-weight:600}
 .emcore-ui.bc-root .bc-id{font-variant-numeric:tabular-nums;color:var(--ec-ink)}
