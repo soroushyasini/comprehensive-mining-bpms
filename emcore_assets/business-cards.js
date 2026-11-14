@@ -10,7 +10,8 @@
     }
     var $ = window.jQuery, UI = window.EmcoreUI, API = '/emcore_api/emcore_business_cards.php';
     var token = '', permissions = {}, countries = [], storageReady = false, maxBytes = 10485760;
-    var page = 1, pages = 0, sort = 'id', order = 'desc', listRequest, listGeneration = 0;
+    var unitOptions = [], quickReviewReady = false, followUpReady = false, followUpOptions = {};
+    var page = 1, pages = 0, sort = 'id', order = 'desc', listRequest, listGeneration = 0, appliedFilters;
     var card = null, busy = false, dirty = false, pauseEditor = false;
     var createRequest = UI.requestId(), uploadRequest = UI.requestId(), uploadPending = null;
     var imageXhr = null, imageUrl = null, imageGeneration = 0, imageCard = null, restoreAfterImage = null;
@@ -57,7 +58,7 @@
       picker.set(value || '');
     }
     function collectFilters() {
-      return { search: $(el('search')).val(), business_country_code: $(el('country')).val(), location_country: $(el('location-country')).val(), city: $(el('city')).val(), related_unit: $(el('unit')).val(), has_image: $(el('has-image')).val(), has_coordinates: $(el('has-geo')).val(), review_status: $(el('review')).val(), record_origin: $(el('origin')).val(), exhibition_code: $(el('exhibition')).val() || '', collector_code: $(el('collector')).val() || '', page: page, page_size: $(el('size')).val(), sort_by: sort, sort_order: order };
+      return { search: $(el('search')).val(), business_country_code: $(el('country')).val(), location_country: $(el('location-country')).val(), city: $(el('city')).val(), related_unit: $(el('unit')).val(), has_image: $(el('has-image')).val(), has_coordinates: $(el('has-geo')).val(), review_status: $(el('review')).val(), follow_up_status: followUpReady ? $(el('follow-up')).val() : '', record_origin: $(el('origin')).val(), exhibition_code: $(el('exhibition')).val() || '', collector_code: $(el('collector')).val() || '', page: page, page_size: $(el('size')).val(), sort_by: sort, sort_order: order };
     }
     // Native XHR avoids old jQuery's JSON/text conversions of image responses.
     function binary(action, id, fileId, variant, success, failure) {
@@ -105,6 +106,19 @@
       if (row.business_country_name) return 'کشور تجاری: ' + row.business_country_name;
       return row.primary_address ? 'نشانی در پیش‌نمایش' : '—';
     }
+    function reviewBadge(status) {
+      return $('<span>').addClass('ec-badge ' + (status === 'reviewed' ? 'good' : 'warning')).text(status === 'reviewed' ? 'بررسی‌شده' : 'نیازمند بررسی');
+    }
+    function markReviewed(row, trigger) {
+      var button = $(trigger).prop('disabled', true).text('در حال ثبت…');
+      api('mark_reviewed', { id: row.id, lock_version: row.lock_version }).done(function () {
+        loadList(appliedFilters, 'وضعیت کارت ' + number(row.id) + ' به «بررسی‌شده» تغییر کرد.');
+      }).fail(function (xhr) {
+        if (xhr.status === 409) { loadList(appliedFilters, error(xhr), true); return; }
+        message('message', error(xhr), true);
+        button.prop('disabled', false).text('ثبت بررسی');
+      });
+    }
     function render(data, exhibitionSelected) {
       var body = $(el('rows')).empty();
       $(el('collector-column')).prop('hidden', !exhibitionSelected);
@@ -118,6 +132,12 @@
         var identity = $('<td>').addClass('bc-identity').append($('<strong>').append($('<bdi>').text(row.contact_name || row.organization_name || 'مخاطب نامشخص')));
         if (row.job_title) identity.append($('<small>').text(row.job_title));
         identity.append($('<small>').append($('<bdi>').attr('dir', 'ltr').addClass('bc-id').text('#' + row.id)));
+        var review = $('<div>').addClass('bc-review-actions').append(reviewBadge(row.review_status));
+        if (quickReviewReady && allowed('update') && row.review_status !== 'reviewed') {
+          review.append(smallButton('ثبت بررسی').addClass('bc-review-button').attr('aria-label', 'ثبت بررسی کارت ' + number(row.id)).on('click', function () { markReviewed(row, this); }));
+        }
+        identity.append(review);
+        if (followUpReady && followUpOptions[row.follow_up_status]) identity.append($('<small>').addClass('bc-follow-up-label').text('پیگیری: ' + followUpOptions[row.follow_up_status]));
         tr.append(identity, $('<td>').text(row.contact_name && row.organization_name ? row.organization_name : '—'), contacts, $('<td>').text(geography(row)));
         if (exhibitionSelected) {
           tr.append($('<td>').text((row.exhibition_collectors || []).join('، ') || '—'));
@@ -129,21 +149,23 @@
         body.append(tr.append($('<td>').append(ops)));
       });
     }
-    function loadList() {
+    function loadList(reloadFilters, notice, isError) {
       var generation = ++listGeneration; if (listRequest) listRequest.abort();
       message('message', 'در حال دریافت آرشیو…');
-      var filters = collectFilters();
+      var filters = reloadFilters || collectFilters(); appliedFilters = filters;
       listRequest = api('list', filters).done(function (r) {
         if (generation !== listGeneration) return;
         token = r.csrf_token || token; permissions = r.permissions || permissions;
+        pages = r.pagination.total_pages;
+        if (page > Math.max(1, pages)) { page = Math.max(1, pages); filters.page = page; loadList(filters, notice, isError); return; }
         $(el('new')).prop('hidden', !allowed('create')); render(r.data, !!filters.exhibition_code);
-        pages = r.pagination.total_pages; $(el('page')).text(pages ? 'صفحهٔ ' + number(page) + ' از ' + number(pages) : 'بدون نتیجه');
+        $(el('page')).text(pages ? 'صفحهٔ ' + number(page) + ' از ' + number(pages) : 'بدون نتیجه');
         $(el('prev')).prop('disabled', page <= 1); $(el('next')).prop('disabled', page >= pages);
         $(el('summary')).empty();
         [['total', 'کارت'], ['with_image', 'دارای تصویر'], ['without_image', 'بدون تصویر'], ['with_coordinates', 'دارای موقعیت'], ['needs_review', 'نیازمند بررسی']].forEach(function (pair) {
           $(el('summary')).append($('<p>').text(number(r.summary[pair[0]]) + ' ' + pair[1]));
         });
-        message('message', storageReady ? '' : 'مخزن تصویر آماده نیست؛ ثبت و مشاهدهٔ اطلاعات همچنان در دسترس است.', !storageReady);
+        message('message', notice || (storageReady ? '' : 'مخزن تصویر آماده نیست؛ ثبت و مشاهدهٔ اطلاعات همچنان در دسترس است.'), notice ? !!isError : !storageReady);
       }).fail(function (xhr, status) { if (status !== 'abort' && generation === listGeneration) { $(el('rows')).empty(); $(el('summary')).empty(); message('message', error(xhr), true); } });
     }
     function blankCard() { return { contact_points: [], locations: [], sources: [], image: null, review_status: 'needs_review' }; }
@@ -192,6 +214,8 @@
       if (data.contact_name) field(identity, 'شرکت', data.organization_name);
       field(identity, 'سمت', data.job_title); field(identity, 'کشور تجاری', countryName(data.business_country_code));
       field(identity, 'واحد مرتبط', data.related_unit);
+      field(identity, 'وضعیت بررسی', data.review_status === 'reviewed' ? 'بررسی‌شده' : 'نیازمند بررسی');
+      if (followUpReady) field(identity, 'وضعیت پیگیری', followUpOptions[data.follow_up_status] || 'ثبت نشده');
       var contacts = block('راه‌های ارتباطی').attr('id', 'bc-preview-contacts');
       var points = (data.contact_points || []).filter(function (point) { return Object.prototype.hasOwnProperty.call(contactLabels, point.kind); });
       if (!points.length) contacts.append($('<p>').text('راه ارتباطی ثبت نشده است.'));
@@ -208,8 +232,9 @@
         });
       }
       if ((data.collections || []).length) appendCollections(block('نمایشگاه و گردآورندگان'), data.collections);
-      if (data.activity || data.notes || (data.sources || []).length) {
+      if (data.source_category || data.activity || data.notes || (data.sources || []).length) {
         var more = $('<details>').append($('<summary>').text('توضیحات و سابقهٔ منبع')).appendTo(body);
+        field(more, 'دستهٔ منبع اولیه', data.source_category);
         field(more, 'شرح فعالیت', data.activity); field(more, 'توضیحات', data.notes);
         (data.sources || []).forEach(function (source) { more.append($('<pre>').addClass('bc-source-block').text(source.raw_text)); });
       }
@@ -282,7 +307,10 @@
       if (!data.collections && card && data.id === card.id) data.collections = card.collections;
       card = data; dirty = false; uploadRequest = UI.requestId(); uploadPending = null; $(el('image-file')).val('');
       renderCollections(card.collections);
-      [['contact-name', 'contact_name'], ['organization-name', 'organization_name'], ['job-title', 'job_title'], ['business-country', 'business_country_code'], ['related-unit', 'related_unit'], ['source-category', 'source_category'], ['review-status', 'review_status'], ['activity', 'activity'], ['notes', 'notes']].forEach(function (pair) { $(el(pair[0])).val(card[pair[1]] || ''); });
+      [['contact-name', 'contact_name'], ['organization-name', 'organization_name'], ['job-title', 'job_title'], ['business-country', 'business_country_code'], ['review-status', 'review_status'], ['activity', 'activity'], ['notes', 'notes']].forEach(function (pair) { $(el(pair[0])).val(card[pair[1]] || ''); });
+      var unit = $(el('related-unit')); unit.find('[data-legacy-unit]').remove();
+      if (card.related_unit && unitOptions.indexOf(card.related_unit) === -1) unit.append($('<option>').attr('data-legacy-unit', 'true').val(card.related_unit).text(card.related_unit + ' (مقدار قبلی)'));
+      unit.val(card.related_unit || ''); $(el('editor-follow-up')).val(card.follow_up_status || '');
       countryOptions(el('business-country'), card.business_country_code);
       $(el('contact-points')).empty(); card.contact_points.forEach(addPoint); $(el('locations')).empty(); card.locations.forEach(addLocation);
       $(el('source-text')).empty(); (card.sources || []).forEach(function (s) { $(el('source-text')).append($('<pre>').addClass('bc-source-block').text(s.raw_text)); });
@@ -296,7 +324,8 @@
     }
     function payload() {
       var data = {};
-      [['contact-name', 'contact_name'], ['organization-name', 'organization_name'], ['job-title', 'job_title'], ['business-country', 'business_country_code'], ['related-unit', 'related_unit'], ['source-category', 'source_category'], ['review-status', 'review_status'], ['activity', 'activity'], ['notes', 'notes']].forEach(function (pair) { data[pair[1]] = $(el(pair[0])).val(); });
+      [['contact-name', 'contact_name'], ['organization-name', 'organization_name'], ['job-title', 'job_title'], ['business-country', 'business_country_code'], ['related-unit', 'related_unit'], ['review-status', 'review_status'], ['activity', 'activity'], ['notes', 'notes']].forEach(function (pair) { data[pair[1]] = $(el(pair[0])).val(); });
+      if (followUpReady) data.follow_up_status = $(el('editor-follow-up')).val();
       var points = []; $(el('contact-points')).children().each(function () { points.push({ kind: $(this).find('.bc-point-kind').val(), label: $(this).find('.bc-point-label').val(), raw_value: $(this).find('.bc-point-value').val() }); }); data.contact_points = JSON.stringify(points);
       var locations = []; $(el('locations')).children().each(function () {
         var root = $(this), loc = {}, original = root.data('source');
@@ -388,6 +417,15 @@
       token = r.csrf_token; permissions = r.permissions; countries = r.data.countries; storageReady = r.data.storage_ready; maxBytes = r.data.max_upload_bytes;
       countryOptions(el('country'), '', 'همه کشورها'); countryOptions(el('location-country'), '', 'همه کشورها'); countryOptions(el('business-country'));
       r.data.units.forEach(function (unit) { $(el('unit')).append($('<option>').val(unit).text(unit)); });
+      unitOptions = r.data.unit_options || [];
+      unitOptions.forEach(function (unit) { $(el('related-unit')).append($('<option>').val(unit).text(unit)); });
+      quickReviewReady = !!r.data.quick_review_ready; followUpReady = !!r.data.follow_up_ready; followUpOptions = r.data.follow_up_options || {};
+      if (followUpReady) {
+        Object.keys(followUpOptions).forEach(function (code) {
+          $(el('follow-up')).add(el('editor-follow-up')).append($('<option>').val(code).text(followUpOptions[code]));
+        });
+        $(el('follow-up-filter')).add(el('editor-follow-up-field')).prop('hidden', false);
+      }
       if (r.data.collections_ready) {
         (r.data.exhibitions || []).forEach(function (entry) { $(el('exhibition')).append($('<option>').val(entry.code).text(entry.title)); });
         (r.data.collectors || []).forEach(function (entry) { $(el('collector')).append($('<option>').val(entry.code).text(entry.display_name)); });

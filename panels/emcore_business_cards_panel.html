@@ -2,7 +2,7 @@
 <html lang="fa" dir="rtl">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="/emcore_assets/emcore-ui.css">
-<link rel="stylesheet" href="/emcore_assets/business-cards.css?v=20261114-2"></head>
+<link rel="stylesheet" href="/emcore_assets/business-cards.css?v=20261114-3"></head>
 <body><main class="emcore-ui bc-root" id="bc-root">
   <header class="bc-heading"><div><h1>کارت‌های ویزیت</h1><p>آرشیو ارتباطات تجاری شرکت</p></div><button type="button" id="bc-new" class="ec-btn ec-primary" hidden>ثبت کارت جدید</button></header>
   <div id="bc-message" role="status" aria-live="polite" hidden></div>
@@ -17,6 +17,7 @@
     <label>تصویر<select id="bc-has-image"><option value="">همه</option><option value="1">دارای تصویر</option><option value="0">بدون تصویر</option></select></label>
     <label>مختصات<select id="bc-has-geo"><option value="">همه</option><option value="1">دارای مختصات</option><option value="0">بدون مختصات</option></select></label>
     <label>بررسی اطلاعات<select id="bc-review"><option value="">همه</option><option value="needs_review">نیازمند بررسی</option><option value="reviewed">بررسی‌شده</option></select></label>
+    <label id="bc-follow-up-filter" hidden>وضعیت پیگیری<select id="bc-follow-up"><option value="">همهٔ وضعیت‌ها</option><option value="unrecorded">ثبت نشده</option></select></label>
     <label>منشأ ثبت<select id="bc-origin"><option value="">همه</option><option value="imported">ورود اولیه</option><option value="manual">ثبت دستی</option></select></label>
     <div class="ec-actions"><button class="ec-btn ec-primary" type="button" id="bc-apply">اعمال فیلتر</button><button class="ec-btn" type="button" id="bc-reset">پاک‌کردن فیلترها</button></div>
   </div></section>
@@ -36,8 +37,9 @@
     <div id="bc-editor-form"><div class="ec-grid">
       <label>نام مخاطب<input id="bc-contact-name" maxlength="500"></label><label>نام سازمان / شرکت<input id="bc-organization-name" maxlength="500"></label>
       <label>سمت<input id="bc-job-title" maxlength="500"></label><label>کشور ارتباط تجاری<select id="bc-business-country"><option value="">نامشخص</option></select></label>
-      <label>واحد مرتبط<input id="bc-related-unit" maxlength="255"></label><label>دستهٔ اولیه<input id="bc-source-category" maxlength="255"></label>
+      <label>واحد مرتبط<select id="bc-related-unit"><option value="">انتخاب نشده</option></select></label>
       <label>وضعیت بررسی<select id="bc-review-status"><option value="needs_review">نیازمند بررسی</option><option value="reviewed">بررسی‌شده</option></select></label>
+      <label id="bc-editor-follow-up-field" hidden>وضعیت پیگیری<select id="bc-editor-follow-up"><option value="">ثبت نشده</option></select><small>نتیجهٔ ارتباط با مخاطب، مستقل از بررسی اطلاعات کارت.</small></label>
       <label>شرح فعالیت<textarea id="bc-activity" maxlength="10000"></textarea></label>
       <label class="ec-wide">توضیحات<textarea id="bc-notes" maxlength="20000"></textarea></label>
     </div>
@@ -69,4 +71,4 @@
     <p id="bc-image-message" role="status" aria-live="polite">در حال بارگذاری تصویر…</p><img id="bc-full-image" alt="تصویر کارت ویزیت" hidden>
     <button type="button" id="bc-download" class="ec-btn ec-primary" disabled>دانلود تصویر اصلی</button>
   </section></div>
-</main><script src="/emcore_assets/emcore-ui.js"></script><script src="/emcore_assets/business-cards.js?v=20261114-2"></script></body></html>
+</main><script src="/emcore_assets/emcore-ui.js"></script><script src="/emcore_assets/business-cards.js?v=20261114-3"></script></body></html>

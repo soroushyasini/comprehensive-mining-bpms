@@ -17,7 +17,7 @@ class Client {
  }
 }
 const request=()=>crypto.randomBytes(16).toString('hex');
-function payload(row={}){return {contact_name:row.contact_name||'آزمایش کارت',organization_name:row.organization_name||'سازمان آزمایشی',job_title:row.job_title||'',business_country_code:row.business_country_code||'IR',related_unit:row.related_unit||'آزمون',source_category:row.source_category||'',activity:row.activity||'',notes:row.notes||'',review_status:row.review_status||'needs_review',contact_points:row.contact_points||[],locations:row.locations||[]};}
+function payload(row={}){return {contact_name:row.contact_name||'آزمایش کارت',organization_name:row.organization_name||'سازمان آزمایشی',job_title:row.job_title||'',business_country_code:row.business_country_code||'IR',related_unit:row.related_unit||'IT',source_category:row.source_category||'',activity:row.activity||'',notes:row.notes||'',review_status:row.review_status||'needs_review',contact_points:row.contact_points||[],locations:row.locations||[]};}
 (async()=>{
  const admin=new Client('admin'), reader=new Client('reader'),creator=new Client('creator'),editor=new Client('editor'),deleter=new Client('deleter');
  check((await new Client('anonymous').call('list')).status===401,'anonymous');
@@ -70,7 +70,7 @@ function payload(row={}){return {contact_name:row.contact_name||'آزمایش ک
  await reader.call('download_image',{id:card.id});check(Number(sql('SELECT COUNT(*) FROM emcore_business_card_download_log'))===1,'download logged');
  check(Number(sql('SELECT COUNT(*) FROM emcore_audit_log'))===beforeAudit,'preview/download do not mutate card');
  await admin.call('create',{...p,request_id:request()});check((await admin.call('duplicate_candidates',{id:card.id})).body.data.length>=1,'duplicate warning');
- const filter=await admin.call('list',{has_image:1,related_unit:'آزمون'});check(filter.body.summary.total===1&&filter.body.data.length===1,'shared filter counts and no child-join duplication');
+ const filter=await admin.call('list',{has_image:1,related_unit:'IT',search:'آزمایش کارت'});check(filter.body.summary.total===1&&filter.body.data.length===1,'shared filter counts and no child-join duplication');
  let removed=await deleter.call('delete_image',{id:card.id,lock_version:card.lock_version});check(removed.status===200&&!removed.body.data.image,'delete image creates image-less card');card=removed.body.data;
  const other=new Client('admin');await other.call('lookups');const parallel=await Promise.all([admin.call('upload_image',{id:card.id,lock_version:card.lock_version,request_id:request()},file),other.call('upload_image',{id:card.id,lock_version:card.lock_version,request_id:request()},file)]);
  check(parallel.filter(x=>x.status===201).length===1&&parallel.filter(x=>x.status===409).length===1,'concurrent uploads serialize');card=(await admin.call('get',{id:card.id})).body.data;
@@ -84,7 +84,7 @@ function payload(row={}){return {contact_name:row.contact_name||'آزمایش ک
  check(storedFileCount()===oldStoredFiles,'audit rollback removes newly staged original');
  const sourceCardId=Number(sql('SELECT card_id FROM emcore_business_card_source_records ORDER BY id LIMIT 1'));
  let sourceCard=(await admin.call('get',{id:sourceCardId})).body.data;
- const sourceEdit=await admin.call('update',{...payload(sourceCard),notes:'USER EDIT MUST SURVIVE REIMPORT',id:sourceCardId,lock_version:sourceCard.lock_version});check(sourceEdit.status===200,'historical values can be preserved during an unrelated edit');
+ const sourceEdit=await admin.call('update',{...payload(sourceCard),related_unit:sourceCard.related_unit||'',notes:'USER EDIT MUST SURVIVE REIMPORT',id:sourceCardId,lock_version:sourceCard.lock_version});check(sourceEdit.status===200,'historical values can be preserved during an unrelated edit');
  execFileSync('docker',['exec','emcore-bc-test-api','php','-d','memory_limit=512M','tools/import_business_cards.php','--manifest=dataset/business_cards_manifest.json','--source-root=cart','--actor=00000000000000000000000000000001','--commit'],{stdio:['ignore','pipe','pipe']});
  check((await admin.call('get',{id:sourceCardId})).body.data.notes==='USER EDIT MUST SURVIVE REIMPORT','seed retry preserves user edits');
  const deleted=await deleter.call('delete',{id:card.id,lock_version:card.lock_version});check(deleted.status===200,'soft delete');check((await reader.call('get',{id:card.id})).status===404,'deleted card hidden');check((await reader.call('preview_image',{id:card.id})).status===404,'deleted card image hidden');

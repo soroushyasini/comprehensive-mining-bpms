@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__.'/_business_cards_storage.php';
-$action=emcore_action(['lookups','list','get','duplicate_candidates','preview_image','download_image','create','update','upload_image','replace_image','delete_image','delete']);
+$action=emcore_action(['lookups','list','get','duplicate_candidates','preview_image','download_image','create','update','mark_reviewed','upload_image','replace_image','delete_image','delete']);
 $reads=['lookups','list','get','duplicate_candidates','preview_image','download_image'];
 $cap=in_array($action,$reads,true)?'read':($action==='create'?'create':(in_array($action,['delete','delete_image'],true)?'delete':'update'));
 $actor=emcore_require_permission('business_cards',$cap)['USR_UID'];$db=emcore_db();
@@ -46,7 +46,9 @@ if ($action==='lookups') {
     $exhibitions=$collectionsReady?$db->query('SELECT code,title FROM emcore_business_card_exhibitions ORDER BY title,code')->fetchAll():[];
     $collectors=$collectionsReady?$db->query('SELECT code,display_name FROM emcore_business_card_collectors ORDER BY display_name,code')->fetchAll():[];
     emcore_json(['success'=>true,'data'=>['countries'=>$db->query('SELECT code,name_fa,name_en FROM emcore_business_card_countries ORDER BY sort_order,name_fa')->fetchAll(),
-        'units'=>$db->query("SELECT DISTINCT related_unit FROM emcore_business_cards WHERE deleted_at IS NULL AND related_unit IS NOT NULL ORDER BY related_unit")->fetchAll(PDO::FETCH_COLUMN),
+        'unit_options'=>emcore_bc_units(),
+        'units'=>array_values(array_unique(array_merge(emcore_bc_units(),$db->query("SELECT DISTINCT related_unit FROM emcore_business_cards WHERE deleted_at IS NULL AND related_unit IS NOT NULL ORDER BY related_unit")->fetchAll(PDO::FETCH_COLUMN)))),
+        'quick_review_ready'=>true,'follow_up_ready'=>emcore_bc_follow_up_ready(),'follow_up_options'=>emcore_bc_follow_up_labels(),
         'collections_ready'=>$collectionsReady,'exhibitions'=>$exhibitions,'collectors'=>$collectors,
         'storage_ready'=>emcore_bc_storage_ready(),'max_upload_bytes'=>emcore_bc_storage_settings()['max_bytes']],
         'permissions'=>emcore_module_permissions('business_cards'),'csrf_token'=>emcore_csrf_token()]);
@@ -70,6 +72,13 @@ if ($action==='get') {
 
 if ($action==='list') {
     $where=['c.deleted_at IS NULL'];$params=[];$exhibitionCode=null;
+    $followUpReady=emcore_bc_follow_up_ready();
+    if (isset($_POST['follow_up_status']) && $_POST['follow_up_status']!=='') {
+        if (!$followUpReady) throw new EmcoreHttpException(422,'فیلتر پیگیری هنوز در این نصب فعال نیست');
+        $status=emcore_bc_enum($_POST['follow_up_status'],array_merge(['unrecorded'],array_keys(emcore_bc_follow_up_labels())));
+        if ($status==='unrecorded') $where[]='c.follow_up_status IS NULL';
+        else {$where[]='c.follow_up_status=?';$params[]=$status;}
+    }
     $collectionFilters=[];
     foreach (['exhibition_code','collector_code'] as $key) {
         if (!isset($_POST[$key]) || $_POST[$key]==='') continue;
@@ -109,7 +118,7 @@ if ($action==='list') {
     $sorts=['id'=>'c.id','contact_name'=>'c.contact_name','organization_name'=>'c.organization_name','business_country_code'=>'c.business_country_code','related_unit'=>'c.related_unit','created_at'=>'c.created_at'];
     $sort=emcore_bc_enum($_POST['sort_by']??'id',array_keys($sorts));$direction=emcore_bc_enum($_POST['sort_order']??'desc',['asc','desc']);
     $page=emcore_bc_int($_POST['page']??1,1000000);$size=emcore_bc_int($_POST['page_size']??25,100);$offset=($page-1)*$size;
-    $s=$db->prepare("SELECT c.id,c.contact_name,c.organization_name,c.job_title,c.business_country_code,c.related_unit,c.review_status,c.record_origin,c.lock_version,c.created_at,
+    $s=$db->prepare("SELECT c.id,c.contact_name,c.organization_name,c.job_title,c.business_country_code,c.related_unit,c.review_status,c.record_origin,c.lock_version,c.created_at,".($followUpReady?'c.follow_up_status':'NULL AS follow_up_status').",
         bc.name_fa business_country_name,f.id image_id,
         (SELECT l.city FROM emcore_business_card_locations l WHERE l.card_id=c.id ORDER BY l.sort_order,l.id LIMIT 1) city,
         (SELECT country.name_fa FROM emcore_business_card_locations l LEFT JOIN emcore_business_card_countries country ON country.code=l.country_code WHERE l.card_id=c.id ORDER BY l.sort_order,l.id LIMIT 1) location_country_name,
@@ -171,6 +180,18 @@ try {
         $db->commit();emcore_json(['success'=>true,'data'=>$after],201);
     }
     $id=emcore_bc_int($_POST['id']??null);$before=emcore_bc_get($id,true);
+    if ($action==='mark_reviewed') {
+        emcore_bc_version($before);
+        $previous=['review_status'=>$before['review_status'],'lock_version'=>(int)$before['lock_version']];
+        $result=$previous;
+        if ($previous['review_status']!=='reviewed') {
+            $db->prepare("UPDATE emcore_business_cards SET review_status='reviewed' WHERE id=?")->execute([$id]);
+            emcore_bc_touch($id,$actor);
+            $result=['review_status'=>'reviewed','lock_version'=>$previous['lock_version']+1];
+            emcore_audit('business_cards','update','business_card',$id,$previous,$result,['operation'=>'mark_reviewed']);
+        }
+        $db->commit();$committed=true;emcore_json(['success'=>true,'data'=>$result]);
+    }
     if (in_array($action,['upload_image','replace_image'],true)) {
         $request=emcore_bc_request($_POST['request_id']??null);$upload=$_FILES['file']??null;
         if (!is_array($upload) || is_array($upload['error']??null) || ($upload['error']??-1)!==UPLOAD_ERR_OK || !is_uploaded_file($upload['tmp_name']??'')) throw new EmcoreHttpException(422,'بارگذاری تصویر کامل نشد');

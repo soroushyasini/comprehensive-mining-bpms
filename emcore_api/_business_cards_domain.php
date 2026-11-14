@@ -52,10 +52,34 @@ function emcore_bc_point_normalized($kind,$value) {
     }
     return $kind==='messenger' ? $v : null;
 }
+function emcore_bc_units() {
+    return ['بازرگانی','سرمایه‌گذاری و سرمایه‌پذیری','اکتشاف و حفاری','استخراج','روابط عمومی','IT','سایر موارد'];
+}
+function emcore_bc_follow_up_labels() {
+    return ['not_started'=>'هنوز پیگیری نشده','contacted'=>'تماس گرفته شد','in_progress'=>'در حال پیگیری',
+        'positive_outcome'=>'نتیجهٔ مثبت','closed_no_result'=>'بسته شد؛ بدون نتیجه'];
+}
+function emcore_bc_follow_up_ready() {
+    static $ready;
+    if ($ready===null) $ready=(bool)emcore_db()->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE()
+        AND TABLE_NAME='emcore_business_cards' AND COLUMN_NAME='follow_up_status'")->fetchColumn();
+    return $ready;
+}
 function emcore_bc_payload($input,$import=false,$before=null) {
     $out=[];
     foreach (['contact_name'=>500,'organization_name'=>500,'job_title'=>500,'source_category'=>255,'related_unit'=>255,'activity'=>10000,'notes'=>20000] as $key=>$max)
         $out[$key]=emcore_bc_text($input[$key]??null,$max);
+    if (!$import) {
+        $out['source_category']=$before['source_category']??null;
+        if (!array_key_exists('related_unit',$input)) $out['related_unit']=$before['related_unit']??null;
+        if ($out['related_unit']!==null && $out['related_unit']!==($before['related_unit']??null) && !in_array($out['related_unit'],emcore_bc_units(),true))
+            throw new EmcoreHttpException(422,'واحد مرتبط را از فهرست انتخاب کنید');
+        if (array_key_exists('follow_up_status',$input)) {
+            if (!emcore_bc_follow_up_ready()) throw new EmcoreHttpException(422,'وضعیت پیگیری هنوز در این نصب فعال نیست');
+            $value=$input['follow_up_status'];
+            $out['follow_up_status']=$value==='' || $value===null ? null : emcore_bc_enum($value,array_keys(emcore_bc_follow_up_labels()));
+        }
+    }
     if (!$out['contact_name'] && !$out['organization_name'] && !$import && !($before && !$before['contact_name'] && !$before['organization_name'])) throw new EmcoreHttpException(422,'نام مخاطب یا سازمان الزامی است');
     $out['business_country_code']=emcore_bc_country($input['business_country_code']??null);
     $out['review_status']=emcore_bc_enum($input['review_status']??'needs_review',['needs_review','reviewed']);

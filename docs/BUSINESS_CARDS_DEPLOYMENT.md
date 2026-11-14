@@ -7,6 +7,12 @@ parser و importer روی سرور لازم نیستند. فقط اصل تصاو
 
 ## پیش‌نیاز و ترتیب
 
+برای نسخهٔ بررسی سریع و پیگیری، migration `021_emcore_business_card_follow_up.sql`
+را روی همان workspace اجرا کنید؛ وضعیت پیگیری کارت‌های قبلی خالی باقی می‌ماند.
+سپس `emcore_business_cards.php` و `_business_cards_domain.php`، فایل‌های
+`business-cards.js` و `business-cards.css` و محتوای HTML پنل را با هم به‌روز کنید.
+بدون migration 021، ثبت بررسی سریع کار می‌کند و فقط کنترل‌های پیگیری پنهان می‌مانند.
+
 نسخهٔ اول روی قرارداد جاری PHP/PDO EMCORE اجرا می‌شود. GD با JPEG/PNG، Fileinfo،
 mbstring و PDO MySQL لازم‌اند. آزمون مستقل با PHP 8.2 و MySQL 8.4 انجام شده است؛
 PHP نصب ProcessMaker باید جداگانه lint و پذیرفته شود. Migration به 001 و 002 وابسته
