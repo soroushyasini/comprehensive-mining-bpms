@@ -16,18 +16,25 @@ let checks=0;function check(value,message){assert.ok(value,message);checks++;}
    host.id='pm-case-form';host.action='/cases_NextStep';root.before(host);host.append(root);
    window.__bcHostSubmits=0;host.addEventListener('submit',event=>{window.__bcHostSubmits++;event.preventDefault();});
   });
-  await page.locator('#bc-rows').getByRole('button',{name:'جزئیات و ویرایش'}).first().click();await page.locator('#bc-editor-overlay').waitFor({state:'visible'});
+  async function editFirst() {
+   await page.locator('#bc-rows').getByRole('button',{name:'پیش‌نمایش',exact:true}).first().click();
+   await page.locator('#bc-preview-edit').click();await page.locator('#bc-editor-overlay').waitFor({state:'visible'});
+  }
+  await editFirst();
   check(await page.evaluate(()=>window.__bcHostSubmits===0),'editing a card never submits the ProcessMaker case form');
   await page.locator('#bc-editor-close').click();
   check(await page.locator('#bc-root form').count()===0,'panel contains no nested forms inside the case form');
-  const listedId=await page.locator('#bc-rows tr').first().locator('td').first().textContent();
-  check(/^\d+$/.test(listedId)&&await page.locator('#bc-table th').first().textContent()==='شناسه','first table column displays the database card ID');
-  await page.locator('#bc-rows').getByRole('button',{name:'جزئیات و ویرایش'}).first().click();await page.locator('#bc-editor-overlay').waitFor({state:'visible'});
+  const listedId=(await page.locator('#bc-rows .bc-id').first().textContent()).slice(1);
+  check(/^\d+$/.test(listedId)&&await page.locator('#bc-table th').first().textContent()==='مخاطب','contact column displays the database card ID');
+  await editFirst();
   check(await page.locator('#bc-editor-title').textContent()==='کارت ویزیت '+listedId.replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[Number(d)]),'table ID identifies the same record opened for editing');
   await page.locator('#bc-contact-name').press('Enter');await page.locator('#bc-editor-close').click();
-  await page.locator('#bc-table th[data-sort="id"] button').click();
-  await page.waitForResponse(r=>r.url().endsWith('emcore_business_cards.php')&&(r.request().postData()||'').includes('sort_order=asc'));
-  check(await page.locator('#bc-rows tr').first().locator('td').first().textContent()==='1','card ID sorts by its database value');
+  await page.locator('#bc-search').fill('#1');await page.locator('#bc-apply').click();
+  await page.waitForFunction(()=>document.querySelectorAll('#bc-rows tr').length===1 && document.querySelector('#bc-rows .bc-id').textContent==='#1');
+  check(await page.locator('#bc-rows .bc-quick-contact').count()>0,'ID search shows contact information without opening the record');
+  await page.locator('#bc-reset').click();await page.waitForFunction(()=>document.querySelectorAll('#bc-rows tr').length===25);
+  await Promise.all([page.waitForResponse(r=>r.url().endsWith('emcore_business_cards.php')&&(r.request().postData()||'').includes('sort_by=contact_name')),page.locator('#bc-table th[data-sort="contact_name"] button').click()]);
+  check(await page.locator('#bc-table th[data-sort="contact_name"]').getAttribute('aria-sort')==='ascending','contact name can be sorted');
   await page.locator('#bc-next').click();await page.locator('#bc-page').filter({hasText:'صفحهٔ ۲'}).waitFor();
   await page.locator('#bc-prev').click();await page.locator('#bc-page').filter({hasText:'صفحهٔ ۱'}).waitFor();
   await page.locator('#bc-search').press('Enter');await page.waitForResponse(r=>r.url().endsWith('emcore_business_cards.php')&&(r.request().postData()||'').includes('action=list'));
@@ -61,6 +68,11 @@ let checks=0;function check(value,message){assert.ok(value,message);checks++;}
   await page.keyboard.press('Escape');check(await page.locator('#bc-image-overlay').isHidden(),'escape closes image popup');
   check(await button.evaluate(e=>e===document.activeElement),'focus returns to table button');
   check(await page.evaluate(url=>window.__bcRevoked.includes(url),originalUrl),'closed image Blob revoked');
+  await page.locator('#bc-rows').getByRole('button',{name:'پیش‌نمایش',exact:true}).first().click();
+  await page.locator('#bc-preview-image').click();await page.waitForFunction(()=>!document.querySelector('#bc-full-image').hidden&&document.querySelector('#bc-full-image').naturalWidth>0);
+  await page.keyboard.press('Escape');await page.locator('#bc-preview-overlay').waitFor({state:'visible'});
+  check(await page.locator('#bc-preview-image').evaluate(e=>e===document.activeElement),'closing image restores the read-only preview and focus');
+  await page.locator('#bc-preview-close').click();
   await page.locator('#bc-rows').getByRole('button',{name:'نمایش کارت ویزیت'}).nth(1).click();
   await page.waitForFunction(()=>!document.querySelector('#bc-full-image').hidden&&document.querySelector('#bc-full-image').naturalWidth>0);
   const nextUrl=await page.locator('#bc-full-image').getAttribute('src');
@@ -77,7 +89,7 @@ let checks=0;function check(value,message){assert.ok(value,message);checks++;}
   check(await page.locator('#bc-download').isDisabled(),'failed preview keeps download disabled');
   await page.keyboard.press('Escape');await page.unroute('**/emcore_business_cards.php');
   check(await page.evaluate(()=>window.__bcAborts>0),'closing image popup aborts its request');
-  await page.locator('#bc-rows').getByRole('button',{name:'جزئیات و ویرایش'}).first().click();await page.locator('#bc-editor-overlay').waitFor({state:'visible'});
+  await editFirst();
   await page.locator('#bc-editor-preview').click();await page.locator('#bc-image-overlay').waitFor({state:'visible'});
   check(await page.locator('#bc-editor-overlay').isHidden(),'editor is paused while image popup is open');
   await page.keyboard.press('Escape');await page.locator('#bc-editor-overlay').waitFor({state:'visible'});check(await page.locator('#bc-editor-preview').evaluate(e=>e===document.activeElement),'focus restored to editor image button');
@@ -101,7 +113,7 @@ let checks=0;function check(value,message){assert.ok(value,message);checks++;}
   await page.locator('#bc-editor-preview').click();await page.waitForFunction(()=>!document.querySelector('#bc-full-image').hidden&&document.querySelector('#bc-full-image').naturalWidth>0);await page.locator('#bc-image-close').click();await page.locator('#bc-editor-overlay').waitFor({state:'visible'});
   await page.locator('#bc-editor-close').click();await page.locator('#bc-reset').click();await page.locator('#bc-rows').filter({hasText:'<img src=x onerror=alert(1)>'}).waitFor();
   check(await page.locator('#bc-rows img[src="x"]').count()===0,'stored XSS remains text');
-  await page.locator('#bc-has-image').selectOption('0');await page.locator('#bc-filters').getByRole('button',{name:'اعمال فیلتر'}).click();await page.waitForFunction(()=>document.querySelector('#bc-rows button')&&document.querySelector('#bc-rows button').disabled);
+  await page.locator('#bc-has-image').selectOption('0');await page.locator('#bc-filters').getByRole('button',{name:'اعمال فیلتر'}).click();await page.waitForFunction(()=>document.querySelector('#bc-rows .bc-row-actions button:disabled'));
   check(await page.locator('#bc-rows').getByRole('button',{name:'نمایش کارت ویزیت'}).first().isDisabled(),'image-less table action disabled');
   await page.setViewportSize({width:375,height:812});check(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1),'mobile document does not overflow');
   await page.locator('#bc-new').click();check(await page.locator('#bc-editor-overlay').isVisible(),'mobile form opens');await page.keyboard.press('Escape');
@@ -115,9 +127,9 @@ let checks=0;function check(value,message){assert.ok(value,message);checks++;}
   });
   await readPage.goto('http://127.0.0.1:33383/panel');await readPage.locator('#bc-summary p').first().waitFor();check(await readPage.locator('#bc-new').isHidden(),'read-only create hidden');
   check(await readPage.locator('#pm-parsed-case #bc-root').count()===1&&await readPage.locator('#bc-root form').count()===0,'panel survives initial HTML parsing inside a ProcessMaker case form');
-  await readPage.locator('#bc-rows').getByRole('button',{name:'جزئیات',exact:true}).first().click();await readPage.locator('#bc-editor-overlay').waitFor({state:'visible'});
-  check(await readPage.locator('#bc-contact-name').isDisabled()&&await readPage.locator('#bc-save').isHidden(),'read-only detail disabled');
-  check(await readPage.locator('#bc-business-country + .bc-country-picker input').isDisabled(),'read-only country suggestion disabled');
+  await readPage.locator('#bc-rows').getByRole('button',{name:'پیش‌نمایش',exact:true}).first().click();await readPage.locator('#bc-preview-contacts').waitFor();
+  check(await readPage.locator('#bc-preview-edit').isHidden()&&await readPage.locator('#bc-editor-overlay').isHidden(),'read-only preview has no edit action');
+  check(await readPage.locator('#bc-preview-body').locator('input,select,textarea').count()===0,'preview does not display editable fields');
   check(errors.length===0,'no browser script errors: '+errors.join(';'));
   console.log(`Business-card browser passed: ${checks} checks, popup, Blob cleanup, keyboard, one-image form, XSS, mobile and read-only.`);
  }finally{await browser.close();}

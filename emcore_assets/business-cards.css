@@ -5,8 +5,17 @@
 .emcore-ui.bc-root th,.emcore-ui.bc-root td{padding:12px;text-align:start;border-bottom:1px solid var(--ec-line);vertical-align:top}.emcore-ui.bc-root th{background:#edf2e5;font-weight:600;white-space:nowrap}
 .emcore-ui.bc-root th button{border:0;background:transparent;color:var(--ec-ink);padding:4px;font-weight:600}.emcore-ui.bc-root td{min-width:100px;max-width:280px;overflow-wrap:anywhere}.emcore-ui.bc-root .bc-ltr{direction:ltr;text-align:left;unicode-bidi:plaintext}
 .emcore-ui.bc-root .bc-row-actions{display:flex;flex-direction:column;gap:8px;min-width:160px}
-.emcore-ui.bc-root #bc-table th:first-child,.emcore-ui.bc-root #bc-table td:first-child:not([colspan]){width:64px;min-width:64px;white-space:nowrap;font-variant-numeric:tabular-nums}
-.emcore-ui.bc-root #bc-table{direction:rtl}.emcore-ui.bc-root #bc-table th,.emcore-ui.bc-root #bc-table td{text-align:right}.emcore-ui.bc-root #bc-table .bc-id{direction:ltr}
+.emcore-ui.bc-root #bc-table{direction:rtl}.emcore-ui.bc-root #bc-table th,.emcore-ui.bc-root #bc-table td{text-align:right}
+.emcore-ui.bc-root #bc-table .bc-identity{min-width:140px}
+.emcore-ui.bc-root .bc-identity small{margin-block-start:3px}
+.emcore-ui.bc-root .bc-id{font-variant-numeric:tabular-nums;color:var(--ec-ink)}
+.emcore-ui.bc-root #bc-table .bc-contact-cell{min-width:205px}
+.emcore-ui.bc-root .bc-quick-contact{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-block-end:6px;position:relative;overflow-wrap:anywhere}
+.emcore-ui.bc-root .bc-quick-contact bdi{min-width:0;max-width:100%;font-variant-numeric:tabular-nums}
+.emcore-ui.bc-root .bc-copy-buffer{position:absolute;inline-size:1px;block-size:1px;min-height:0;opacity:0;padding:0;pointer-events:none}
+.emcore-ui.bc-root .bc-preview-dialog{width:660px;max-width:calc(100vw - 32px);max-height:90vh;overflow:auto;overflow-wrap:anywhere}
+.emcore-ui.bc-root .bc-preview-location + .bc-preview-location{border-block-start:1px solid var(--ec-line);margin-block-start:12px}
+.emcore-ui.bc-root .bc-preview-dialog details p{white-space:pre-wrap}
 .emcore-ui.bc-root #bc-table tbody tr:hover{background:var(--ec-bg)}
 .emcore-ui.bc-root .bc-pagination{display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;padding:16px}.emcore-ui.bc-root .bc-pagination label{display:flex;align-items:center;gap:8px;margin:0}.emcore-ui.bc-root .bc-pagination select{width:auto}
 .emcore-ui.bc-root .bc-editor{width:960px;max-width:calc(100vw - 32px);max-height:90vh;overflow:auto}.emcore-ui.bc-root .bc-child-section{border-top:1px solid var(--ec-line);margin-top:24px;padding-top:16px}

@@ -2,12 +2,12 @@
 <html lang="fa" dir="rtl">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="/emcore_assets/emcore-ui.css">
-<link rel="stylesheet" href="/emcore_assets/business-cards.css?v=20261007-3"></head>
+<link rel="stylesheet" href="/emcore_assets/business-cards.css?v=20261114-2"></head>
 <body><main class="emcore-ui bc-root" id="bc-root">
   <header class="bc-heading"><div><h1>کارت‌های ویزیت</h1><p>آرشیو ارتباطات تجاری شرکت</p></div><button type="button" id="bc-new" class="ec-btn ec-primary" hidden>ثبت کارت جدید</button></header>
   <div id="bc-message" role="status" aria-live="polite" hidden></div>
   <section class="ec-card" aria-label="فیلتر آرشیو"><div id="bc-filters" class="bc-filters">
-    <label>جست‌وجو<input id="bc-search" placeholder="نام، سازمان، شماره یا نشانی"></label>
+    <label>جست‌وجو<input id="bc-search" placeholder="نام، شرکت، شماره، ایمیل یا #شناسه"></label>
     <label id="bc-exhibition-filter" hidden>نمایشگاه<select id="bc-exhibition"><option value="">همهٔ نمایشگاه‌ها</option></select></label>
     <label id="bc-collector-filter" hidden>گردآورنده<select id="bc-collector"><option value="">همهٔ گردآورنده‌ها</option></select></label>
     <label>کشور تجاری<select id="bc-country"><option value="">همه کشورها</option></select></label>
@@ -21,8 +21,9 @@
     <div class="ec-actions"><button class="ec-btn ec-primary" type="button" id="bc-apply">اعمال فیلتر</button><button class="ec-btn" type="button" id="bc-reset">پاک‌کردن فیلترها</button></div>
   </div></section>
   <div id="bc-summary" class="bc-summary" aria-label="خلاصهٔ نتایج"></div>
+  <div id="bc-copy-status" class="bc-sr" role="status" aria-live="polite"></div>
   <section class="ec-card bc-table-card" aria-label="جدول کارت‌ها"><div class="bc-table-scroll"><table id="bc-table"><caption class="bc-sr">فهرست کارت‌های ویزیت مطابق فیلترهای انتخاب‌شده</caption>
-    <thead><tr><th scope="col" data-sort="id"><button type="button">شناسه</button></th><th scope="col" data-sort="contact_name"><button type="button">مخاطب</button></th><th scope="col" data-sort="organization_name"><button type="button">شرکت</button></th><th scope="col">سمت</th><th scope="col" data-sort="business_country_code"><button type="button">کشور تجاری</button></th><th scope="col">محل استقرار</th><th scope="col">عملیات</th></tr></thead><tbody id="bc-rows"></tbody>
+    <thead><tr><th scope="col" data-sort="contact_name"><button type="button">مخاطب</button></th><th scope="col" data-sort="organization_name"><button type="button">شرکت</button></th><th scope="col">راه ارتباطی</th><th scope="col">شهر و کشور نشانی</th><th id="bc-collector-column" scope="col" hidden>گردآورنده</th><th scope="col">عملیات</th></tr></thead><tbody id="bc-rows"></tbody>
   </table></div><nav class="bc-pagination" aria-label="صفحه‌بندی"><button type="button" id="bc-prev" class="ec-btn">صفحهٔ قبل</button><span id="bc-page" aria-live="polite"></span><button type="button" id="bc-next" class="ec-btn">صفحهٔ بعد</button><label>تعداد در صفحه<select id="bc-size"><option>25</option><option>50</option><option>100</option></select></label></nav></section>
 
   <div id="bc-editor-overlay" class="ec-modal" hidden><section class="ec-dialog bc-editor" role="dialog" aria-modal="true" aria-labelledby="bc-editor-title">
@@ -53,9 +54,19 @@
     <details id="bc-sources"><summary>سابقهٔ منبع</summary><div id="bc-source-text"></div></details>
   </section></div>
 
+  <div id="bc-preview-overlay" class="ec-modal" hidden><section class="ec-dialog bc-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="bc-preview-title">
+    <div class="bc-heading"><h2 id="bc-preview-title">پیش‌نمایش کارت ویزیت</h2><button type="button" id="bc-preview-close" class="ec-btn">بستن</button></div>
+    <p id="bc-preview-status" role="status" aria-live="polite" hidden></p>
+    <div id="bc-preview-body"></div>
+    <div class="ec-actions bc-child-section">
+      <button type="button" id="bc-preview-image" class="ec-btn ec-primary" hidden>نمایش کارت ویزیت</button>
+      <button type="button" id="bc-preview-edit" class="ec-btn" hidden>ویرایش کارت</button>
+    </div>
+  </section></div>
+
   <div id="bc-image-overlay" class="ec-modal" hidden><section class="ec-dialog bc-image-dialog" role="dialog" aria-modal="true" aria-labelledby="bc-image-title">
     <div class="bc-heading"><h2 id="bc-image-title">کارت ویزیت</h2><button type="button" id="bc-image-close" class="ec-btn">بستن</button></div>
     <p id="bc-image-message" role="status" aria-live="polite">در حال بارگذاری تصویر…</p><img id="bc-full-image" alt="تصویر کارت ویزیت" hidden>
     <button type="button" id="bc-download" class="ec-btn ec-primary" disabled>دانلود تصویر اصلی</button>
   </section></div>
-</main><script src="/emcore_assets/emcore-ui.js"></script><script src="/emcore_assets/business-cards.js?v=20261114-1"></script></body></html>
+</main><script src="/emcore_assets/emcore-ui.js"></script><script src="/emcore_assets/business-cards.js?v=20261114-2"></script></body></html>

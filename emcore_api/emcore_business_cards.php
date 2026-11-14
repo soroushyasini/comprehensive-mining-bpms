@@ -10,6 +10,37 @@ function emcore_bc_collections_ready($db) {
         AND TABLE_NAME IN ('emcore_business_card_collections','emcore_business_card_exhibitions','emcore_business_card_collectors')")->fetchColumn()===3;
 }
 
+function emcore_bc_list_contact_summary($db, $cards) {
+    $ids=array_column($cards,'id');
+    if (!$ids) return [];
+    $s=$db->prepare("SELECT card_id,kind,label,raw_value FROM emcore_business_card_contact_points
+        WHERE card_id IN (".implode(',',array_fill(0,count($ids),'?')).") AND kind<>'other' ORDER BY card_id,sort_order,id");
+    $s->execute($ids);$byCard=[];
+    while ($p=$s->fetch()) {
+        $kind=$p['kind'];$value=$p['raw_value'];
+        $uncertain=preg_match('/ناخوانا|نامطمئن|نامشخص|نیازمند\s+(?:تأیید|تایید|بررسی)|خوانش\s+مشکوک|با\s+اطمینان\s+متوسط|حدوداً/u',($p['label']??'').' '.$value);
+        $normalized=emcore_bc_point_normalized($kind,$value);
+        $usable=!$uncertain && $normalized!==null;
+        if (in_array($kind,['phone','mobile'],true) && $normalized && preg_match('/^989[0-9]{9}$/D',$normalized)) $normalized='0'.substr($normalized,2);
+        $key=(in_array($kind,['phone','mobile'],true)?'phone':$kind).':'.($normalized??emcore_bc_normalize($value));
+        $entry=['kind'=>$kind,'raw_value'=>$value,'copyable'=>$usable];
+        $old=$byCard[$p['card_id']][$key]??null;
+        if (!$old || (!$old['copyable'] && $usable) || ($old['copyable']===$usable && $kind==='mobile' && $old['kind']==='phone')) $byCard[$p['card_id']][$key]=$entry;
+    }
+    $result=[];
+    foreach ($byCard as $id=>$points) {
+        $phone=null;$email=null;
+        foreach ($points as $p) {
+            if ($p['kind']==='email' && (!$email || (!$email['copyable'] && $p['copyable']))) $email=$p;
+            if (in_array($p['kind'],['phone','mobile'],true) && (!$phone || (!$phone['copyable'] && $p['copyable'])
+                || ($phone['copyable']===$p['copyable'] && $phone['kind']==='phone' && $p['kind']==='mobile'))) $phone=$p;
+        }
+        $visible=array_values(array_filter([$phone,$email]));
+        $result[$id]=['items'=>$visible,'more'=>count($points)-count($visible)];
+    }
+    return $result;
+}
+
 if ($action==='lookups') {
     $collectionsReady=emcore_bc_collections_ready($db);
     $exhibitions=$collectionsReady?$db->query('SELECT code,title FROM emcore_business_card_exhibitions ORDER BY title,code')->fetchAll():[];
@@ -38,12 +69,13 @@ if ($action==='get') {
 }
 
 if ($action==='list') {
-    $where=['c.deleted_at IS NULL'];$params=[];
+    $where=['c.deleted_at IS NULL'];$params=[];$exhibitionCode=null;
     $collectionFilters=[];
     foreach (['exhibition_code','collector_code'] as $key) {
         if (!isset($_POST[$key]) || $_POST[$key]==='') continue;
         $code=emcore_bc_text($_POST[$key],64);
         if ($code===null || !preg_match('/^[a-z0-9][a-z0-9_-]*$/D',$code)) throw new EmcoreHttpException(422,'فیلتر نمایشگاه یا گردآورنده نامعتبر است');
+        if ($key==='exhibition_code') $exhibitionCode=$code;
         $collectionFilters[]='a.'.$key.'=?';$params[]=$code;
     }
     if ($collectionFilters) {
@@ -63,8 +95,11 @@ if ($action==='list') {
     }
     if (isset($_POST['search']) && $_POST['search']!=='') {
         $search=emcore_bc_text($_POST['search'],500);$normalized=emcore_bc_normalize($search);
-        $where[]="(c.contact_key LIKE ? OR c.organization_key LIKE ? OR c.job_title LIKE ? OR c.notes LIKE ? OR EXISTS(SELECT 1 FROM emcore_business_card_contact_points cp WHERE cp.card_id=c.id AND (cp.raw_value LIKE ? OR cp.normalized_value LIKE ?)) OR EXISTS(SELECT 1 FROM emcore_business_card_locations l WHERE l.card_id=c.id AND (l.address LIKE ? OR l.city LIKE ?)))";
-        $params=array_merge($params,['%'.$normalized.'%','%'.$normalized.'%','%'.$search.'%','%'.$search.'%','%'.$search.'%','%'.$normalized.'%','%'.$search.'%','%'.$search.'%']);
+        if (preg_match('/^#([1-9][0-9]{0,17})$/D',$normalized,$match)) {$where[]='c.id=?';$params[]=$match[1];}
+        else {
+            $where[]="(c.contact_key LIKE ? OR c.organization_key LIKE ? OR c.job_title LIKE ? OR c.notes LIKE ? OR EXISTS(SELECT 1 FROM emcore_business_card_contact_points cp WHERE cp.card_id=c.id AND (cp.raw_value LIKE ? OR cp.normalized_value LIKE ?)) OR EXISTS(SELECT 1 FROM emcore_business_card_locations l WHERE l.card_id=c.id AND (l.address LIKE ? OR l.city LIKE ?)))";
+            $params=array_merge($params,['%'.$normalized.'%','%'.$normalized.'%','%'.$search.'%','%'.$search.'%','%'.$search.'%','%'.$normalized.'%','%'.$search.'%','%'.$search.'%']);
+        }
     }
     $scope=implode(' AND ',$where);
     $sql="SELECT COUNT(*) total,COALESCE(SUM(EXISTS(SELECT 1 FROM emcore_business_card_files f WHERE f.current_card_id=c.id)),0) with_image,
@@ -83,7 +118,21 @@ if ($action==='list') {
         (SELECT GROUP_CONCAT(cp.raw_value SEPARATOR '؛ ') FROM emcore_business_card_contact_points cp WHERE cp.card_id=c.id AND cp.kind='email') emails
         FROM emcore_business_cards c LEFT JOIN emcore_business_card_countries bc ON bc.code=c.business_country_code
         LEFT JOIN emcore_business_card_files f ON f.current_card_id=c.id WHERE ".$scope.' ORDER BY '.$sorts[$sort].' '.$direction.',c.id '.$direction.' LIMIT '.$size.' OFFSET '.$offset);
-    $s->execute($params);emcore_json(['success'=>true,'data'=>$s->fetchAll(),'summary'=>$summary,'pagination'=>['page'=>$page,'page_size'=>$size,'total'=>$summary['total'],'total_pages'=>(int)ceil($summary['total']/$size)],'csrf_token'=>emcore_csrf_token(),'permissions'=>emcore_module_permissions('business_cards')]);
+    $s->execute($params);$cards=$s->fetchAll();$contacts=emcore_bc_list_contact_summary($db,$cards);$collectors=[];
+    if ($exhibitionCode!==null && $cards) {
+        $ids=array_column($cards,'id');
+        $s=$db->prepare('SELECT a.card_id,p.display_name FROM emcore_business_card_collections a
+            JOIN emcore_business_card_collectors p ON p.code=a.collector_code WHERE a.exhibition_code=? AND a.card_id IN ('
+            .implode(',',array_fill(0,count($ids),'?')).') ORDER BY p.display_name,p.code');
+        $s->execute(array_merge([$exhibitionCode],$ids));
+        while ($entry=$s->fetch()) $collectors[$entry['card_id']][]=$entry['display_name'];
+    }
+    foreach ($cards as &$row) {
+        $row['quick_contacts']=$contacts[$row['id']]??['items'=>[],'more'=>0];
+        $row['exhibition_collectors']=$collectors[$row['id']]??[];
+    }
+    unset($row);
+    emcore_json(['success'=>true,'data'=>$cards,'summary'=>$summary,'pagination'=>['page'=>$page,'page_size'=>$size,'total'=>$summary['total'],'total_pages'=>(int)ceil($summary['total']/$size)],'csrf_token'=>emcore_csrf_token(),'permissions'=>emcore_module_permissions('business_cards')]);
 }
 
 if ($action==='duplicate_candidates') {

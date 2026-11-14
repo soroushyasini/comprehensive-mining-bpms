@@ -10,10 +10,11 @@
     }
     var $ = window.jQuery, UI = window.EmcoreUI, API = '/emcore_api/emcore_business_cards.php';
     var token = '', permissions = {}, countries = [], storageReady = false, maxBytes = 10485760;
-    var page = 1, pages = 0, sort = 'id', order = 'desc', rows = {}, listRequest, listGeneration = 0;
+    var page = 1, pages = 0, sort = 'id', order = 'desc', listRequest, listGeneration = 0;
     var card = null, busy = false, dirty = false, pauseEditor = false;
     var createRequest = UI.requestId(), uploadRequest = UI.requestId(), uploadPending = null;
-    var imageXhr = null, imageUrl = null, imageGeneration = 0, imageCard = null, returnEditor = false;
+    var imageXhr = null, imageUrl = null, imageGeneration = 0, imageCard = null, restoreAfterImage = null;
+    var previewRequest, previewCard, previewTrigger;
     function el(id) { return document.getElementById('bc-' + id); }
     function allowed(key) { return Number(permissions['can_' + key]) === 1; }
     function number(value) { return UI.persianDigits(String(value)); }
@@ -74,29 +75,68 @@
       xhr.send('action=' + encodeURIComponent(action) + '&id=' + encodeURIComponent(id) + (fileId ? '&file_id=' + encodeURIComponent(fileId) : '') + '&variant=' + encodeURIComponent(variant || 'original'));
       return xhr;
     }
-    function render(data, generation) {
-      rows = {}; $(el('rows')).empty();
-      if (!data.length) $(el('rows')).append($('<tr>').append($('<td>').attr('colspan', 7).text('کارت ویزیتی با این فیلترها پیدا نشد.')));
+    function smallButton(label) { return $('<button>').attr('type', 'button').addClass('ec-btn ec-small').text(label); }
+    function copyValue(value, trigger) {
+      function report(ok) {
+        var text = ok ? 'کپی شد' : 'کپی نشد';
+        $(trigger).text(text);
+        $(el('copy-status')).text(ok ? 'مقدار کپی شد.' : 'کپی انجام نشد؛ می‌توانید متن را انتخاب و دستی کپی کنید.');
+      }
+      function fallback() {
+        var field = $('<textarea>').attr({readonly: true, form: 'bc-local-fields', 'aria-label': 'متن برای کپی'}).addClass('bc-copy-buffer').val(value);
+        $(trigger).parent().append(field); field.get(0).select();
+        var ok = false; try { ok = document.execCommand('copy'); } catch (ignore) {}
+        field.remove(); trigger.focus(); report(ok);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(value).then(function () { report(true); }, fallback);
+      else fallback();
+    }
+    var contactLabels = { mobile: 'همراه', phone: 'تلفن', email: 'ایمیل', website: 'وب‌سایت', fax: 'فکس', messenger: 'پیام‌رسان' };
+    function contactLine(point) {
+      var label = contactLabels[point.kind] || 'راه ارتباطی', value = point.raw_value;
+      var line = $('<div>').addClass('bc-quick-contact').append($('<small>').text(label), $('<bdi>').attr('dir', 'ltr').text(value));
+      if (point.copyable) line.append(smallButton('کپی').attr('aria-label', 'کپی ' + label).on('click', function () { copyValue(value, this); }));
+      else line.append($('<small>').addClass('ec-badge warning').text('نیازمند بررسی'));
+      return line;
+    }
+    function geography(row) {
+      var location = [row.city, row.location_country_name].filter(Boolean).join('، ');
+      if (location) return location;
+      if (row.business_country_name) return 'کشور تجاری: ' + row.business_country_name;
+      return row.primary_address ? 'نشانی در پیش‌نمایش' : '—';
+    }
+    function render(data, exhibitionSelected) {
+      var body = $(el('rows')).empty();
+      $(el('collector-column')).prop('hidden', !exhibitionSelected);
+      if (!data.length) body.append($('<tr>').append($('<td>').attr('colspan', exhibitionSelected ? 6 : 5).text('کارت ویزیتی با این فیلترها پیدا نشد.')));
       data.forEach(function (row) {
-        rows[row.id] = row;
-        var tr = $('<tr>'), ops = $('<div>').addClass('bc-row-actions');
-        tr.append($('<td>').addClass('bc-id').text(row.id));
-        row.primary_location = [row.city, row.location_country_name].filter(Boolean).join('، ') || row.primary_address;
-        ['contact_name', 'organization_name', 'job_title', 'business_country_name', 'primary_location'].forEach(function (key) {
-          tr.append($('<td>').text(row[key] || 'نامشخص'));
-        });
-        ops.append($('<button>').attr('type', 'button').addClass('ec-btn ec-primary ec-small').text('نمایش کارت ویزیت').prop('disabled', !row.image_id).attr('title', row.image_id ? 'نمایش تصویر اصلی کارت' : 'برای این کارت تصویری ثبت نشده است').on('click', function () { showImage(row, this, false); }));
-        ops.append($('<button>').attr('type', 'button').addClass('ec-btn ec-small').text(allowed('update') ? 'جزئیات و ویرایش' : 'جزئیات').on('click', function () { openCard(row.id, this); }));
-        tr.append($('<td>').append(ops)); $(el('rows')).append(tr);
+        var tr = $('<tr>'), ops = $('<div>').addClass('bc-row-actions'), contacts = $('<td>').addClass('bc-contact-cell');
+        var quick = row.quick_contacts || { items: [], more: 0 };
+        quick.items.forEach(function (point) { contacts.append(contactLine(point)); });
+        if (!quick.items.length && !quick.more) contacts.text('—');
+        if (quick.more) contacts.append(smallButton(quick.items.length ? number(quick.more) + ' راه دیگر' : number(quick.more) + ' راه ارتباطی').on('click', function () { openPreview(row, this, true); }));
+        var identity = $('<td>').addClass('bc-identity').append($('<strong>').append($('<bdi>').text(row.contact_name || row.organization_name || 'مخاطب نامشخص')));
+        if (row.job_title) identity.append($('<small>').text(row.job_title));
+        identity.append($('<small>').append($('<bdi>').attr('dir', 'ltr').addClass('bc-id').text('#' + row.id)));
+        tr.append(identity, $('<td>').text(row.contact_name && row.organization_name ? row.organization_name : '—'), contacts, $('<td>').text(geography(row)));
+        if (exhibitionSelected) {
+          tr.append($('<td>').text((row.exhibition_collectors || []).join('، ') || '—'));
+        }
+        ops.append(smallButton('نمایش کارت ویزیت').addClass('ec-primary').prop('disabled', !row.image_id).attr('title', row.image_id ? 'نمایش تصویر اصلی کارت' : 'برای این کارت تصویری ثبت نشده است').on('click', function () {
+          showImage(row, this);
+        }));
+        ops.append(smallButton('پیش‌نمایش').on('click', function () { openPreview(row, this); }));
+        body.append(tr.append($('<td>').append(ops)));
       });
     }
     function loadList() {
       var generation = ++listGeneration; if (listRequest) listRequest.abort();
       message('message', 'در حال دریافت آرشیو…');
-      listRequest = api('list', collectFilters()).done(function (r) {
+      var filters = collectFilters();
+      listRequest = api('list', filters).done(function (r) {
         if (generation !== listGeneration) return;
         token = r.csrf_token || token; permissions = r.permissions || permissions;
-        $(el('new')).prop('hidden', !allowed('create')); render(r.data, generation);
+        $(el('new')).prop('hidden', !allowed('create')); render(r.data, !!filters.exhibition_code);
         pages = r.pagination.total_pages; $(el('page')).text(pages ? 'صفحهٔ ' + number(page) + ' از ' + number(pages) : 'بدون نتیجه');
         $(el('prev')).prop('disabled', page <= 1); $(el('next')).prop('disabled', page >= pages);
         $(el('summary')).empty();
@@ -104,7 +144,7 @@
           $(el('summary')).append($('<p>').text(number(r.summary[pair[0]]) + ' ' + pair[1]));
         });
         message('message', storageReady ? '' : 'مخزن تصویر آماده نیست؛ ثبت و مشاهدهٔ اطلاعات همچنان در دسترس است.', !storageReady);
-      }).fail(function (xhr, status) { if (status !== 'abort' && generation === listGeneration) { rows = {}; $(el('rows')).empty(); $(el('summary')).empty(); message('message', error(xhr), true); } });
+      }).fail(function (xhr, status) { if (status !== 'abort' && generation === listGeneration) { $(el('rows')).empty(); $(el('summary')).empty(); message('message', error(xhr), true); } });
     }
     function blankCard() { return { contact_points: [], locations: [], sources: [], image: null, review_status: 'needs_review' }; }
     var editor = new UI.Modal(el('editor-overlay'), { beforeClose: function () {
@@ -118,11 +158,10 @@
       $(el('download')).prop('disabled', true);
     }
     var imageModal = new UI.Modal(el('image-overlay'), { beforeClose: function () {
-      clearImage(); if (returnEditor) { returnEditor = false; window.setTimeout(function () { editor.open(el('editor-preview')); el('editor-preview').focus(); }, 0); } return true;
+      clearImage(); if (restoreAfterImage) { window.setTimeout(restoreAfterImage, 0); restoreAfterImage = null; } return true;
     } });
-    function showImage(row, trigger, fromEditor) {
-      clearImage(); imageCard = row; returnEditor = fromEditor;
-      if (fromEditor) { pauseEditor = true; editor.close(); pauseEditor = false; }
+    function showImage(row, trigger, restore) {
+      clearImage(); imageCard = row; restoreAfterImage = restore || null;
       $(el('image-title')).text([row.contact_name, row.organization_name].filter(Boolean).join(' / ') || 'کارت ویزیت ' + number(row.id));
       $(el('image-message')).text('در حال بارگذاری تصویر…').prop('hidden', false);
       imageModal.open(trigger); var generation = imageGeneration;
@@ -131,6 +170,63 @@
         imageUrl = URL.createObjectURL(blob); $(el('full-image')).attr('src', imageUrl).prop('hidden', false);
         $(el('image-message')).prop('hidden', true); $(el('download')).prop('disabled', false);
       }, function (text) { if (generation === imageGeneration && imageModal.isOpen()) $(el('image-message')).text(text).prop('hidden', false); });
+    }
+    var preview = new UI.Modal(el('preview-overlay'), { beforeClose: function () {
+      if (previewRequest) previewRequest.abort(); previewRequest = null;
+      return true;
+    } });
+    function countryName(code) {
+      var match = countries.filter(function (item) { return item.code === code; })[0];
+      return match ? match.name_fa : code;
+    }
+    function showPreview(data) {
+      previewCard = data;
+      var body = $(el('preview-body')).empty();
+      function block(title) { var section = $('<section>').addClass('bc-child-section').append($('<h3>').text(title)); body.append(section); return section; }
+      function field(section, title, value) {
+        if (value) section.append($('<p>').append($('<strong>').text(title + ': '), $('<bdi>').text(value)));
+      }
+      $(el('preview-title')).text(data.contact_name || data.organization_name || 'کارت ویزیت ' + number(data.id));
+      var identity = $('<section>').appendTo(body);
+      field(identity, 'شناسه', '#' + data.id);
+      if (data.contact_name) field(identity, 'شرکت', data.organization_name);
+      field(identity, 'سمت', data.job_title); field(identity, 'کشور تجاری', countryName(data.business_country_code));
+      field(identity, 'واحد مرتبط', data.related_unit);
+      var contacts = block('راه‌های ارتباطی').attr('id', 'bc-preview-contacts');
+      var points = (data.contact_points || []).filter(function (point) { return Object.prototype.hasOwnProperty.call(contactLabels, point.kind); });
+      if (!points.length) contacts.append($('<p>').text('راه ارتباطی ثبت نشده است.'));
+      points.forEach(function (p) {
+        var uncertain = /ناخوانا|نامطمئن|نامشخص|نیازمند\s+(?:تأیید|تایید|بررسی)|خوانش\s+مشکوک|با\s+اطمینان\s+متوسط|حدوداً/.test((p.label || '') + ' ' + p.raw_value);
+        contacts.append(contactLine({ kind: p.kind, raw_value: p.raw_value, copyable: !!p.normalized_value && !uncertain }));
+      });
+      if ((data.locations || []).length) {
+        var locations = block('نشانی‌ها');
+        data.locations.forEach(function (loc) {
+          var item = $('<div>').addClass('bc-preview-location').appendTo(locations);
+          field(item, loc.label || 'نشانی', [loc.address, loc.city && (!loc.address || loc.address.indexOf(loc.city) < 0) ? loc.city : null, countryName(loc.country_code)].filter(Boolean).join('، '));
+          field(item, 'کدپستی', loc.postal_code);
+        });
+      }
+      if ((data.collections || []).length) appendCollections(block('نمایشگاه و گردآورندگان'), data.collections);
+      if (data.activity || data.notes || (data.sources || []).length) {
+        var more = $('<details>').append($('<summary>').text('توضیحات و سابقهٔ منبع')).appendTo(body);
+        field(more, 'شرح فعالیت', data.activity); field(more, 'توضیحات', data.notes);
+        (data.sources || []).forEach(function (source) { more.append($('<pre>').addClass('bc-source-block').text(source.raw_text)); });
+      }
+      $(el('preview-image')).prop('hidden', !data.image);
+      $(el('preview-edit')).text(allowed('update') ? 'ویرایش کارت' : 'مدیریت کارت').prop('hidden', !allowed('update') && !allowed('delete'));
+    }
+    function openPreview(row, trigger, focusContacts) {
+      previewTrigger = trigger; previewCard = null;
+      $(el('preview-title')).text('پیش‌نمایش کارت ویزیت'); $(el('preview-body')).empty();
+      $(el('preview-image')).add(el('preview-edit')).prop('hidden', true);
+      message('preview-status', 'در حال دریافت پیش‌نمایش…'); preview.open(trigger);
+      var request = api('get', { id: row.id }); previewRequest = request;
+      request.done(function (r) {
+        if (previewRequest !== request || !preview.isOpen()) return;
+        showPreview(r.data); message('preview-status', '');
+        if (focusContacts) el('preview-contacts').scrollIntoView({ block: 'nearest' });
+      }).fail(function (xhr, status) { if (status !== 'abort' && previewRequest === request) message('preview-status', error(xhr), true); });
     }
     function addPoint(p) {
       p = p || { kind: 'phone', raw_value: '', label: '' };
@@ -168,8 +264,8 @@
       $(el('duplicates-button')).prop('disabled', busy);
     }
     function markDirty() { dirty = true; controls(); }
-    function renderCollections(collections) {
-      var details = $(el('collection-details')).empty(), groups = Object.create(null);
+    function appendCollections(details, collections) {
+      var groups = Object.create(null);
       (collections || []).forEach(function (entry) {
         if (!groups[entry.exhibition_code]) {
           groups[entry.exhibition_code] = $('<span>').addClass('ec-actions');
@@ -177,6 +273,9 @@
         }
         groups[entry.exhibition_code].append($('<span>').addClass('ec-badge').append($('<bdi>').text(entry.collector_name)));
       });
+    }
+    function renderCollections(collections) {
+      var details = $(el('collection-details')).empty(); appendCollections(details, collections);
       $(el('collections')).prop('hidden', !details.children().length);
     }
     function fillCard(data) {
@@ -253,7 +352,19 @@
     $(el('delete')).on('click', function () { remove('delete'); }); $(el('delete-image')).on('click', function () { remove('delete_image'); });
     $(el('add-contact')).on('click', function () { addPoint(); markDirty(); }); $(el('add-location')).on('click', function () { addLocation(); markDirty(); });
     $(el('duplicates-button')).on('click', checkDuplicates); $(el('editor-close')).on('click', function () { editor.close(); });
-    $(el('editor-preview')).on('click', function () { showImage(card, this, true); }); $(el('image-close')).on('click', function () { imageModal.close(); });
+    $(el('editor-preview')).on('click', function () {
+      var trigger = this; pauseEditor = true; editor.close(); pauseEditor = false;
+      showImage(card, trigger, function () { editor.open(trigger); trigger.focus(); });
+    });
+    $(el('preview-close')).on('click', function () { preview.close(); });
+    $(el('preview-edit')).on('click', function () {
+      var data = previewCard; preview.close(); fillCard(data); message('editor-message', ''); editor.open(previewTrigger); checkDuplicates();
+    });
+    $(el('preview-image')).on('click', function () {
+      var trigger = this, row = previewCard; preview.close();
+      showImage(row, previewTrigger, function () { preview.open(previewTrigger); trigger.focus(); });
+    });
+    $(el('image-close')).on('click', function () { imageModal.close(); });
     $(el('download')).on('click', function () {
       var generation = imageGeneration; $(el('download')).prop('disabled', true);
       imageXhr = binary('download_image', imageCard.id, imageCard.image_id || (imageCard.image && imageCard.image.id), 'original', function (blob) {
