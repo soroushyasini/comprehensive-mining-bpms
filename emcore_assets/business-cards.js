@@ -24,7 +24,22 @@
     function api(action, data) { return $.ajax({ url: API, type: 'POST', dataType: 'json', data: $.extend({}, data || {}, { action: action }), headers: token ? { 'X-CSRF-Token': token } : {} }); }
     // An explicit unbound form owner keeps local fields out of case validation/submission.
     function localFields(root) { $(root).find('input,textarea,select').attr('form', 'bc-local-fields'); }
-    localFields(el('root'));
+    // A saved ProcessMaker WebControl can still contain the previous editor markup.
+    function prepareEditorFields() {
+      var unit = $(el('related-unit'));
+      if (unit.is('input')) {
+        unit.replaceWith($('<select>').attr('id', 'bc-related-unit').append($('<option>').val('').text('انتخاب نشده')));
+      }
+      $(el('source-category')).closest('label').remove();
+      if (!el('editor-follow-up')) {
+        $('<label>').attr({ id: 'bc-editor-follow-up-field', hidden: true }).text('وضعیت پیگیری').append(
+          $('<select>').attr('id', 'bc-editor-follow-up').append($('<option>').val('').text('ثبت نشده')),
+          $('<small>').text('نتیجهٔ ارتباط با مخاطب، مستقل از بررسی اطلاعات کارت.')
+        ).insertAfter($(el('review-status')).closest('label'));
+      }
+      localFields(el('root'));
+    }
+    prepareEditorFields();
     function countryOptions(select, value, empty) {
       var code = $(select), picker = code.data('country-picker');
       if (!picker) {
