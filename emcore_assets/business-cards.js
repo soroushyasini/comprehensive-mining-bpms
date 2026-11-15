@@ -11,6 +11,7 @@
     var $ = window.jQuery, UI = window.EmcoreUI, API = '/emcore_api/emcore_business_cards.php';
     var token = '', permissions = {}, countries = [], storageReady = false, maxBytes = 10485760;
     var unitOptions = [], quickReviewReady = false, followUpReady = false, followUpOptions = {};
+    var manualCollectionsReady = false, exhibitions = [], collectors = [];
     var page = 1, pages = 0, sort = 'id', order = 'desc', listRequest, listGeneration = 0, appliedFilters;
     var card = null, busy = false, dirty = false, pauseEditor = false;
     var createRequest = UI.requestId(), uploadRequest = UI.requestId(), uploadPending = null;
@@ -295,6 +296,7 @@
       $(el('editor-form')).find('input,textarea,select').prop('disabled', busy || !write);
       $(el('save')).prop('hidden', !write).prop('disabled', busy || !dirty);
       $(el('add-contact')).add(el('add-location')).prop('hidden', !write).prop('disabled', busy);
+      $(el('add-collection')).prop('hidden', !write).prop('disabled', busy);
       $(el('editor-form')).find('.bc-remove').prop('hidden', !write).prop('disabled', busy);
       $(el('delete')).prop('hidden', !card || !card.id || !allowed('delete')).prop('disabled', busy);
       $(el('image-file')).prop('disabled', busy || !card || !card.id || !allowed('update') || !storageReady);
@@ -315,13 +317,37 @@
       });
     }
     function renderCollections(collections) {
-      var details = $(el('collection-details')).empty(); appendCollections(details, collections);
+      var imported = (collections || []).filter(function (entry) { return !manualCollectionsReady || !Number(entry.is_manual); });
+      var details = $(el('collection-details')).empty(); appendCollections(details, imported);
       $(el('collections')).prop('hidden', !details.children().length);
+    }
+    function addCollection(entry) {
+      var row = $('<div>').addClass('bc-collection-row');
+      var event = $('<select>').addClass('bc-collection-event').append($('<option>').val('').text('انتخاب نشده'));
+      var person = $('<select>').addClass('bc-collection-person').append($('<option>').val('').text('انتخاب نشده'));
+      exhibitions.forEach(function (item) { event.append($('<option>').val(item.code).text(item.title)); });
+      collectors.forEach(function (item) { person.append($('<option>').val(item.code).text(item.display_name)); });
+      event.val(entry.exhibition_code || ''); person.val(entry.collector_code || '');
+      event.add(person).on('change', function () {
+        event.get(0).setCustomValidity(!event.val() && person.val() ? 'نمایشگاه را انتخاب کنید.' : '');
+        person.get(0).setCustomValidity(event.val() && !person.val() ? 'گردآورنده را انتخاب کنید.' : '');
+      });
+      var remove = $('<button>').attr('type', 'button').addClass('ec-btn ec-small ec-danger bc-remove').text('حذف انتساب');
+      remove.on('click', function () { row.remove(); markDirty(); el('add-collection').focus(); });
+      row.append($('<label>').text('نمایشگاه').append(event), $('<label>').text('گردآورنده').append(person), remove);
+      localFields(row); $(el('collection-fields')).append(row);
+      return event;
     }
     function fillCard(data) {
       if (!data.collections && card && data.id === card.id) data.collections = card.collections;
       card = data; dirty = false; uploadRequest = UI.requestId(); uploadPending = null; $(el('image-file')).val('');
       renderCollections(card.collections);
+      $(el('collection-fields')).empty();
+      if (manualCollectionsReady) {
+        var entries = (card.collections || []).filter(function (entry) { return Number(entry.is_manual); });
+        entries.forEach(addCollection);
+        if (!card.id) addCollection({});
+      }
       [['contact-name', 'contact_name'], ['organization-name', 'organization_name'], ['job-title', 'job_title'], ['business-country', 'business_country_code'], ['review-status', 'review_status'], ['activity', 'activity'], ['notes', 'notes']].forEach(function (pair) { $(el(pair[0])).val(card[pair[1]] || ''); });
       var unit = $(el('related-unit')); unit.find('[data-legacy-unit]').remove();
       if (card.related_unit && unitOptions.indexOf(card.related_unit) === -1) unit.append($('<option>').attr('data-legacy-unit', 'true').val(card.related_unit).text(card.related_unit + ' (مقدار قبلی)'));
@@ -368,8 +394,17 @@
     }
     // No nested forms: ProcessMaker owns the case form and its submit behavior.
     $(el('editor-form')).on('input change', 'input,textarea,select', markDirty);
+    $(el('add-collection')).on('click', function () { addCollection({}).focus(); });
     $(el('save')).on('click', function () {
       if (busy || !validFields(el('editor-form'))) return; var data = payload(), isNew = !card.id;
+      if (manualCollectionsReady) {
+        var entries = [];
+        $(el('collection-fields')).children().each(function () {
+          var row = $(this), event = row.find('.bc-collection-event').val(), person = row.find('.bc-collection-person').val();
+          if (event && person) entries.push({ exhibition_code: event, collector_code: person });
+        });
+        data.manual_collections = JSON.stringify(entries);
+      }
       if (isNew) data.request_id = createRequest; else { data.id = card.id; data.lock_version = card.lock_version; }
       busy = true; controls(); api(isNew ? 'create' : 'update', data).done(function (r) {
         busy = false; fillCard(r.data); message('editor-message', 'اطلاعات ذخیره شد.'); loadList(); checkDuplicates();
@@ -442,9 +477,12 @@
         $(el('follow-up-filter')).add(el('editor-follow-up-field')).prop('hidden', false);
       }
       if (r.data.collections_ready) {
-        (r.data.exhibitions || []).forEach(function (entry) { $(el('exhibition')).append($('<option>').val(entry.code).text(entry.title)); });
-        (r.data.collectors || []).forEach(function (entry) { $(el('collector')).append($('<option>').val(entry.code).text(entry.display_name)); });
+        exhibitions = r.data.exhibitions || []; collectors = r.data.collectors || [];
+        exhibitions.forEach(function (entry) { $(el('exhibition')).append($('<option>').val(entry.code).text(entry.title)); });
+        collectors.forEach(function (entry) { $(el('collector')).append($('<option>').val(entry.code).text(entry.display_name)); });
         $(el('exhibition-filter')).add(el('collector-filter')).prop('hidden', false);
+        manualCollectionsReady = !!(r.data.manual_collections_ready && el('manual-collections') && exhibitions.length && collectors.length);
+        $(el('manual-collections')).prop('hidden', !manualCollectionsReady);
       }
       $(el('image-limit')).text('JPEG یا PNG، حداکثر ' + number(Math.round(maxBytes / 1048576)) + ' مگابایت'); loadList();
     }).fail(function (xhr) { message('message', error(xhr), true); });

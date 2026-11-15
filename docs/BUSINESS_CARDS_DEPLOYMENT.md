@@ -7,6 +7,12 @@ parser و importer روی سرور لازم نیستند. فقط اصل تصاو
 
 ## پیش‌نیاز و ترتیب
 
+برای انتخاب نمایشگاه و گردآورنده در فرم کارت، migration
+`022_emcore_business_card_manual_collections.sql` را پس از `020` در همان workspace
+اجرا کنید. سپس `emcore_business_cards.php`، `business-cards.js`، `business-cards.css`
+و HTML پنل را منتشر کنید. گزینه‌های فرم از همان فهرست نمایشگاه و گردآورندهٔ فیلترها
+خوانده می‌شوند.
+
 برای نسخهٔ بررسی سریع و پیگیری، migration `021_emcore_business_card_follow_up.sql`
 را روی همان workspace اجرا کنید؛ وضعیت پیگیری کارت‌های قبلی خالی باقی می‌ماند.
 سپس `emcore_business_cards.php` و `_business_cards_domain.php`، فایل‌های

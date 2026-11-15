@@ -6,8 +6,60 @@ $cap=in_array($action,$reads,true)?'read':($action==='create'?'create':(in_array
 $actor=emcore_require_permission('business_cards',$cap)['USR_UID'];$db=emcore_db();
 
 function emcore_bc_collections_ready($db) {
-    return (int)$db->query("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE()
+    static $ready;
+    if ($ready===null) $ready=(int)$db->query("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE()
         AND TABLE_NAME IN ('emcore_business_card_collections','emcore_business_card_exhibitions','emcore_business_card_collectors')")->fetchColumn()===3;
+    return $ready;
+}
+
+function emcore_bc_manual_collections_ready($db) {
+    return emcore_bc_collections_ready($db) && (bool)$db->query("SELECT 1 FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='emcore_business_card_collections'
+          AND COLUMN_NAME='batch_id' AND IS_NULLABLE='YES'")->fetchColumn();
+}
+
+function emcore_bc_with_collections($db,$card) {
+    $card['collections']=[];
+    if (!emcore_bc_collections_ready($db)) return $card;
+    $s=$db->prepare('SELECT a.exhibition_code,e.title AS exhibition_title,a.collector_code,p.display_name AS collector_name,a.batch_id IS NULL AS is_manual
+        FROM emcore_business_card_collections a
+        JOIN emcore_business_card_exhibitions e ON e.code=a.exhibition_code
+        JOIN emcore_business_card_collectors p ON p.code=a.collector_code
+        WHERE a.card_id=? ORDER BY e.title,a.exhibition_code,p.display_name,a.collector_code');
+    $s->execute([$card['id']]);$card['collections']=$s->fetchAll();
+    return $card;
+}
+
+function emcore_bc_manual_collections($db,$input) {
+    if (!array_key_exists('manual_collections',$input)) return null;
+    if (!emcore_bc_manual_collections_ready($db)) throw new EmcoreHttpException(422,'ثبت دستی نمایشگاه و گردآورنده فعال نیست');
+    $entries=emcore_bc_array($input['manual_collections']);
+    $exhibitions=$db->query('SELECT code FROM emcore_business_card_exhibitions')->fetchAll(PDO::FETCH_COLUMN);
+    $collectors=$db->query('SELECT code FROM emcore_business_card_collectors')->fetchAll(PDO::FETCH_COLUMN);
+    $pairs=[];
+    foreach ($entries as $entry) {
+        if (!is_array($entry)) throw new EmcoreHttpException(422,'انتساب نمایشگاه و گردآورنده نامعتبر است');
+        $event=emcore_bc_enum($entry['exhibition_code']??null,$exhibitions);
+        $person=emcore_bc_enum($entry['collector_code']??null,$collectors);
+        $pairs[emcore_bc_collection_key($event,$person)]=[$event,$person];
+    }
+    ksort($pairs,SORT_STRING);
+    return $pairs;
+}
+
+function emcore_bc_collection_key($event,$person) { return emcore_audit_json([$event,$person]); }
+
+function emcore_bc_save_manual_collections($db,$id,$actor,$pairs,$previous=[]) {
+    if ($pairs===null) return;
+    $remove=$db->prepare('DELETE FROM emcore_business_card_collections WHERE card_id=? AND exhibition_code=? AND collector_code=? AND batch_id IS NULL');
+    foreach ($previous as $entry) {
+        $event=$entry['exhibition_code'];$person=$entry['collector_code'];
+        $key=emcore_bc_collection_key($event,$person);
+        if ($entry['is_manual'] && !isset($pairs[$key])) $remove->execute([$id,$event,$person]);
+        unset($pairs[$key]);
+    }
+    $insert=$db->prepare('INSERT INTO emcore_business_card_collections(card_id,exhibition_code,collector_code,batch_id,created_by_usr_uid) VALUES (?,?,?,NULL,?)');
+    foreach ($pairs as [$event,$person]) $insert->execute([$id,$event,$person,$actor]);
 }
 
 function emcore_bc_list_contact_summary($db, $cards) {
@@ -49,7 +101,7 @@ if ($action==='lookups') {
         'unit_options'=>emcore_bc_units(),
         'units'=>array_values(array_unique(array_merge(emcore_bc_units(),$db->query("SELECT DISTINCT related_unit FROM emcore_business_cards WHERE deleted_at IS NULL AND related_unit IS NOT NULL ORDER BY related_unit")->fetchAll(PDO::FETCH_COLUMN)))),
         'quick_review_ready'=>true,'follow_up_ready'=>emcore_bc_follow_up_ready(),'follow_up_options'=>emcore_bc_follow_up_labels(),
-        'collections_ready'=>$collectionsReady,'exhibitions'=>$exhibitions,'collectors'=>$collectors,
+        'collections_ready'=>$collectionsReady,'manual_collections_ready'=>emcore_bc_manual_collections_ready($db),'exhibitions'=>$exhibitions,'collectors'=>$collectors,
         'storage_ready'=>emcore_bc_storage_ready(),'max_upload_bytes'=>emcore_bc_storage_settings()['max_bytes']],
         'permissions'=>emcore_module_permissions('business_cards'),'csrf_token'=>emcore_csrf_token()]);
 }
@@ -58,16 +110,7 @@ if ($action==='preview_image' || $action==='download_image') {
     emcore_bc_serve_image(emcore_bc_int($_POST['id']??null),$action==='download_image');
 }
 if ($action==='get') {
-    $card=emcore_bc_get(emcore_bc_int($_POST['id']??null));$card['collections']=[];
-    if (emcore_bc_collections_ready($db)) {
-        $s=$db->prepare('SELECT a.exhibition_code,e.title AS exhibition_title,a.collector_code,p.display_name AS collector_name
-            FROM emcore_business_card_collections a
-            JOIN emcore_business_card_exhibitions e ON e.code=a.exhibition_code
-            JOIN emcore_business_card_collectors p ON p.code=a.collector_code
-            WHERE a.card_id=? ORDER BY e.title,a.exhibition_code,p.display_name,a.collector_code');
-        $s->execute([$card['id']]);$card['collections']=$s->fetchAll();
-    }
-    emcore_json(['success'=>true,'data'=>$card]);
+    emcore_json(['success'=>true,'data'=>emcore_bc_with_collections($db,emcore_bc_get(emcore_bc_int($_POST['id']??null)))]);
 }
 
 if ($action==='list') {
@@ -170,13 +213,17 @@ emcore_require_csrf();$stored=null;$committed=false;
 try {
     $db->beginTransaction();
     if ($action==='create') {
-        $payload=emcore_bc_payload($_POST);$request=emcore_bc_request($_POST['request_id']??null);$hash=emcore_bc_hash($payload);
+        $payload=emcore_bc_payload($_POST);$request=emcore_bc_request($_POST['request_id']??null);
+        $pairs=emcore_bc_manual_collections($db,$_POST);
+        $hash=emcore_bc_hash($pairs ? array_merge($payload,['manual_collections'=>array_values($pairs)]) : $payload);
         $s=$db->prepare('SELECT id,create_payload_hash,deleted_at FROM emcore_business_cards WHERE created_by_usr_uid=? AND create_request_id=?');$s->execute([$actor,$request]);$old=$s->fetch();
         if ($old) {
             if ($old['deleted_at'] || !hash_equals($old['create_payload_hash'],$hash)) throw new EmcoreHttpException(409,'شناسه درخواست قبلاً برای داده دیگری استفاده شده است');
-            $row=emcore_bc_get($old['id']);$db->commit();emcore_json(['success'=>true,'data'=>$row]);
+            $row=emcore_bc_with_collections($db,emcore_bc_get($old['id']));$db->commit();emcore_json(['success'=>true,'data'=>$row]);
         }
-        $id=emcore_bc_create($payload,$actor,'manual',$request,$hash);$after=emcore_bc_get($id);emcore_audit('business_cards','create','business_card',$id,null,$after);
+        $id=emcore_bc_create($payload,$actor,'manual',$request,$hash);
+        emcore_bc_save_manual_collections($db,$id,$actor,$pairs);
+        $after=emcore_bc_with_collections($db,emcore_bc_get($id));emcore_audit('business_cards','create','business_card',$id,null,$after);
         $db->commit();emcore_json(['success'=>true,'data'=>$after],201);
     }
     $id=emcore_bc_int($_POST['id']??null);$before=emcore_bc_get($id,true);
@@ -211,8 +258,11 @@ try {
     } else {
         emcore_bc_version($before);
         if ($action==='update') {
+            $before=emcore_bc_with_collections($db,$before);
+            $pairs=emcore_bc_manual_collections($db,$_POST);
             $payload=emcore_bc_payload($_POST,false,$before);$values=$payload;unset($values['contact_points'],$values['locations']);
             $s=$db->prepare('UPDATE emcore_business_cards SET '.implode(',',array_map(function($k){return $k.'=?';},array_keys($values))).' WHERE id=?');$s->execute(array_merge(array_values($values),[$id]));emcore_bc_children($id,$payload);emcore_bc_touch($id,$actor);
+            emcore_bc_save_manual_collections($db,$id,$actor,$pairs,$before['collections']);
         } elseif ($action==='delete_image') {
             $current=emcore_bc_current_file($id);if (!$current) throw new EmcoreHttpException(404,'تصویر کارت موجود نیست');
             $db->prepare('UPDATE emcore_business_card_files SET deleted_at=NOW() WHERE id=?')->execute([$current['id']]);emcore_bc_touch($id,$actor);
@@ -221,6 +271,7 @@ try {
         }
     }
     $after=$action==='delete'?array_merge($before,['deleted'=>true,'lock_version'=>(int)$before['lock_version']+1]):emcore_bc_get($id);
+    if ($action==='update') $after=emcore_bc_with_collections($db,$after);
     emcore_audit('business_cards',$action==='delete'?'delete':'update','business_card',$id,$before,$after,['operation'=>$action]);
     $db->commit();$committed=true;emcore_json(['success'=>true,'data'=>$after],in_array($action,['upload_image','replace_image'],true)?201:200);
 } catch(Throwable $e) {
@@ -231,7 +282,7 @@ try {
         $s=$db->prepare('SELECT id,create_payload_hash,deleted_at FROM emcore_business_cards WHERE created_by_usr_uid=? AND create_request_id=?');$s->execute([$actor,$request]);$old=$s->fetch();
         if ($old) {
             if ($old['deleted_at'] || !hash_equals($old['create_payload_hash'],$hash)) throw new EmcoreHttpException(409,'شناسه درخواست قبلاً برای داده دیگری استفاده شده است');
-            emcore_json(['success'=>true,'data'=>emcore_bc_get($old['id'])]);
+            emcore_json(['success'=>true,'data'=>emcore_bc_with_collections($db,emcore_bc_get($old['id']))]);
         }
     }
     throw $e;

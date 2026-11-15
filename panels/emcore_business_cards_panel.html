@@ -2,7 +2,7 @@
 <html lang="fa" dir="rtl">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="/emcore_assets/emcore-ui.css">
-<link rel="stylesheet" href="/emcore_assets/business-cards.css?v=20261114-4"></head>
+<link rel="stylesheet" href="/emcore_assets/business-cards.css?v=20261115-1"></head>
 <body><main class="emcore-ui bc-root" id="bc-root">
   <header class="bc-heading"><div><h1>کارت‌های ویزیت</h1><p>آرشیو ارتباطات تجاری شرکت</p></div><button type="button" id="bc-new" class="ec-btn ec-primary" hidden>ثبت کارت جدید</button></header>
   <div id="bc-message" role="status" aria-live="polite" hidden></div>
@@ -43,6 +43,10 @@
       <label>شرح فعالیت<textarea id="bc-activity" maxlength="10000"></textarea></label>
       <label class="ec-wide">توضیحات<textarea id="bc-notes" maxlength="20000"></textarea></label>
     </div>
+    <section id="bc-manual-collections" class="bc-child-section" aria-labelledby="bc-manual-collections-title" hidden>
+      <div class="bc-heading"><h3 id="bc-manual-collections-title">محل جمع‌آوری کارت</h3><button type="button" id="bc-add-collection" class="ec-btn ec-small">افزودن نمایشگاه و گردآورنده</button></div>
+      <div id="bc-collection-fields"></div>
+    </section>
     <section class="bc-child-section"><div class="bc-heading"><h3>راه‌های ارتباطی</h3><button type="button" class="ec-btn" id="bc-add-contact">افزودن راه ارتباطی</button></div><div id="bc-contact-points"></div></section>
     <section class="bc-child-section"><div class="bc-heading"><h3>نشانی‌ها و موقعیت‌ها</h3><button type="button" class="ec-btn" id="bc-add-location">افزودن نشانی</button></div><div id="bc-locations"></div></section>
     <div class="ec-actions"><button type="button" id="bc-save" class="ec-btn ec-primary">ذخیره اطلاعات</button><button type="button" id="bc-duplicates-button" class="ec-btn">بررسی موارد مشابه</button><button type="button" id="bc-delete" class="ec-btn ec-danger" hidden>حذف کارت</button></div>
@@ -71,4 +75,4 @@
     <p id="bc-image-message" role="status" aria-live="polite">در حال بارگذاری تصویر…</p><img id="bc-full-image" alt="تصویر کارت ویزیت" hidden>
     <button type="button" id="bc-download" class="ec-btn ec-primary" disabled>دانلود تصویر اصلی</button>
   </section></div>
-</main><script src="/emcore_assets/emcore-ui.js"></script><script src="/emcore_assets/business-cards.js?v=20261114-5"></script></body></html>
+</main><script src="/emcore_assets/emcore-ui.js"></script><script src="/emcore_assets/business-cards.js?v=20261115-1"></script></body></html>
