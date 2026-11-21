@@ -11,12 +11,21 @@ class Client {
   else body=new URLSearchParams(Object.entries({...data,action}).map(([k,v])=>[k,typeof v==='object'?JSON.stringify(v):String(v)]));
   const response=await fetch(url,{method:'POST',headers:{'X-BC-Fixture-Actor':this.actor,...(this.cookie?{Cookie:this.cookie}:{}),...(this.token?{'X-CSRF-Token':this.token}:{})},body});
   const cookie=response.headers.get('set-cookie');if(cookie)this.cookie=cookie.split(';')[0];
-  const binary=(response.headers.get('content-type')||'').startsWith('image/');
+  const binary=/^(image\/|application\/pdf)/.test(response.headers.get('content-type')||'');
   const content=binary?Buffer.from(await response.arrayBuffer()):await response.json();if(content.csrf_token)this.token=content.csrf_token;
   return {status:response.status,body:content,headers:response.headers};
  }
 }
 const request=()=>crypto.randomBytes(16).toString('hex');
+function pdfFixture(){
+ const objects=['<< /Type /Catalog /Pages 2 0 R >>','<< /Type /Pages /Kids [3 0 R] /Count 1 >>','<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 180] >>'];
+ let text='%PDF-1.4\n';const offsets=[];
+ objects.forEach((body,index)=>{offsets.push(Buffer.byteLength(text));text+=(index+1)+' 0 obj\n'+body+'\nendobj\n';});
+ const xref=Buffer.byteLength(text);text+='xref\n0 4\n0000000000 65535 f \n';
+ offsets.forEach(offset=>{text+=String(offset).padStart(10,'0')+' 00000 n \n';});
+ text+='trailer\n<< /Size 4 /Root 1 0 R >>\nstartxref\n'+xref+'\n%%EOF\n';
+ return Buffer.from(text);
+}
 function payload(row={}){return {contact_name:row.contact_name||'آزمایش کارت',organization_name:row.organization_name||'سازمان آزمایشی',job_title:row.job_title||'',business_country_code:row.business_country_code||'IR',related_unit:row.related_unit||'IT',source_category:row.source_category||'',activity:row.activity||'',notes:row.notes||'',review_status:row.review_status||'needs_review',contact_points:row.contact_points||[],locations:row.locations||[]};}
 (async()=>{
  const admin=new Client('admin'), reader=new Client('reader'),creator=new Client('creator'),editor=new Client('editor'),deleter=new Client('deleter');
@@ -82,6 +91,25 @@ function payload(row={}){return {contact_name:row.contact_name||'آزمایش ک
  sql('UPDATE fixture_flags SET fail_audit=0 WHERE id=1');card=(await admin.call('get',{id:card.id})).body.data;
  check(card.lock_version===oldVersion&&Number(sql('SELECT COUNT(*) FROM emcore_business_card_files'))===oldFiles,'audit rollback retains old image and version');
  check(storedFileCount()===oldStoredFiles,'audit rollback removes newly staged original');
+ const pdf={bytes:pdfFixture(),name:'کارت.pdf',type:'application/pdf'};
+ let pdfSaved=await admin.call('replace_image',{id:card.id,lock_version:card.lock_version,request_id:request()},pdf);
+ check(pdfSaved.status===201&&pdfSaved.body.data.image.mime_type==='application/pdf','PDF replaces current image');card=pdfSaved.body.data;
+ check(card.image.width===null&&card.image.height===null,'PDF stores no raster dimensions');
+ const pdfPreview=await reader.call('preview_image',{id:card.id});
+ check(pdfPreview.body.equals(pdf.bytes)&&pdfPreview.headers.get('content-type')==='application/pdf','PDF preview returns original bytes and MIME');
+ const pdfDownload=await reader.call('download_image',{id:card.id});
+ check(pdfDownload.body.equals(pdf.bytes)&&pdfDownload.headers.get('content-disposition').includes('.pdf'),'PDF download keeps its extension');
+ check((await admin.call('upload_image',{id:card.id,lock_version:card.lock_version,request_id:request()},pdf)).status===409,'PDF still respects the one-file rule');
+ check((await admin.call('replace_image',{id:card.id,lock_version:card.lock_version,request_id:request()},{...pdf,bytes:Buffer.from('not a PDF')})).status===422,'fake PDF rejected');
+ check((await admin.call('replace_image',{id:card.id,lock_version:card.lock_version,request_id:request()},{...pdf,bytes:Buffer.from('%PDF-1.4\ntruncated')})).status===422,'truncated PDF rejected');
+ const pdfVersion=card.lock_version,pdfFileCount=storedFileCount();
+ sql('UPDATE fixture_flags SET fail_audit=1 WHERE id=1');
+ check((await admin.call('replace_image',{id:card.id,lock_version:card.lock_version,request_id:request()},pdf)).status===500,'PDF audit failure rolls back');
+ sql('UPDATE fixture_flags SET fail_audit=0 WHERE id=1');
+ card=(await admin.call('get',{id:card.id})).body.data;
+ check(card.lock_version===pdfVersion&&storedFileCount()===pdfFileCount,'failed PDF replacement cleans new file and retains current version');
+ uploaded=await admin.call('replace_image',{id:card.id,lock_version:card.lock_version,request_id:request()},file);
+ check(uploaded.status===201&&uploaded.body.data.image.mime_type==='image/jpeg','image replaces current PDF');card=uploaded.body.data;
  const sourceCardId=Number(sql('SELECT card_id FROM emcore_business_card_source_records ORDER BY id LIMIT 1'));
  let sourceCard=(await admin.call('get',{id:sourceCardId})).body.data;
  const sourceEdit=await admin.call('update',{...payload(sourceCard),related_unit:sourceCard.related_unit||'',notes:'USER EDIT MUST SURVIVE REIMPORT',id:sourceCardId,lock_version:sourceCard.lock_version});check(sourceEdit.status===200,'historical values can be preserved during an unrelated edit');

@@ -7,7 +7,7 @@ CREATE TABLE fixture_flags(id INT PRIMARY KEY,fail_audit TINYINT DEFAULT 0); INS
 $names=['admin','reader','creator','outsider','inactive','editor','deleter'];
 foreach($names as $i=>$name)$db->prepare('INSERT INTO USERS VALUES(?,?,?,?,?,?)')->execute([$i===0?'00000000000000000000000000000001':str_repeat((string)$i,32),$name,$name,'آزمایشی','OPERATOR',$name==='inactive'?'INACTIVE':'ACTIVE']);
 $repo=dirname(__DIR__,3);
-foreach(['001_emcore_authorization.sql','002_emcore_audit_log.sql','014_emcore_business_cards.sql'] as $file)$db->exec(file_get_contents($repo.'/database/migrations/'.$file));
+foreach(['001_emcore_authorization.sql','002_emcore_audit_log.sql','014_emcore_business_cards.sql','027_emcore_business_card_pdf.sql'] as $file)$db->exec(file_get_contents($repo.'/database/migrations/'.$file));
 foreach(['admin'=>[1,1,1,1],'reader'=>[0,1,0,0],'creator'=>[1,1,0,0],'inactive'=>[1,1,1,1],'editor'=>[0,1,1,0],'deleter'=>[0,1,0,1]] as $name=>$caps){
     $i=array_search($name,$names,true);$uid=$i===0?'00000000000000000000000000000001':str_repeat((string)$i,32);
     $db->prepare("INSERT INTO emcore_user_permissions(usr_uid,module_key,can_create,can_read,can_update,can_delete) VALUES(?,'business_cards',?,?,?,?)")->execute(array_merge([$uid],$caps));}

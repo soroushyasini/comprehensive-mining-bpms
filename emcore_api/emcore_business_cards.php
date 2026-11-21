@@ -203,7 +203,7 @@ if ($action==='duplicate_candidates') {
         $s=$db->prepare("SELECT DISTINCT c.id FROM emcore_business_cards c JOIN emcore_business_card_contact_points p ON p.card_id=c.id WHERE c.deleted_at IS NULL AND c.id<>? AND p.normalized_value=? AND p.kind IN ('phone','mobile','email') LIMIT 50");$s->execute([$id,$v]);foreach($s->fetchAll() as $r) $reasons[$r['id']][]='تلفن یا ایمیل یکسان';
     }
     if ($existing && $existing['image']) {
-        $s=$db->prepare('SELECT DISTINCT c.id FROM emcore_business_cards c JOIN emcore_business_card_files f ON f.current_card_id=c.id WHERE c.deleted_at IS NULL AND c.id<>? AND f.sha256=? LIMIT 50');$s->execute([$id,$existing['image']['sha256']]);foreach($s->fetchAll() as $r) $reasons[$r['id']][]='تصویر یکسان';
+        $s=$db->prepare('SELECT DISTINCT c.id FROM emcore_business_cards c JOIN emcore_business_card_files f ON f.current_card_id=c.id WHERE c.deleted_at IS NULL AND c.id<>? AND f.sha256=? LIMIT 50');$s->execute([$id,$existing['image']['sha256']]);foreach($s->fetchAll() as $r) $reasons[$r['id']][]='فایل یکسان';
     }
     $rows=[];foreach(array_slice($reasons,0,50,true) as $candidate=>$why) {$row=emcore_bc_get($candidate);$rows[]=['id'=>$candidate,'contact_name'=>$row['contact_name'],'organization_name'=>$row['organization_name'],'reasons'=>array_values(array_unique($why))];}
     emcore_json(['success'=>true,'data'=>$rows]);
@@ -241,16 +241,16 @@ try {
     }
     if (in_array($action,['upload_image','replace_image'],true)) {
         $request=emcore_bc_request($_POST['request_id']??null);$upload=$_FILES['file']??null;
-        if (!is_array($upload) || is_array($upload['error']??null) || ($upload['error']??-1)!==UPLOAD_ERR_OK || !is_uploaded_file($upload['tmp_name']??'')) throw new EmcoreHttpException(422,'بارگذاری تصویر کامل نشد');
+        if (!is_array($upload) || is_array($upload['error']??null) || ($upload['error']??-1)!==UPLOAD_ERR_OK || !is_uploaded_file($upload['tmp_name']??'')) throw new EmcoreHttpException(422,'بارگذاری فایل کامل نشد');
         $meta=emcore_bc_inspect_image($upload['tmp_name'],$upload['name']);$hash=emcore_bc_hash([$id,$action,$meta['sha256'],$meta['original_filename']]);
         $s=$db->prepare('SELECT id,card_id,payload_hash,current_card_id FROM emcore_business_card_files WHERE uploaded_by_usr_uid=? AND request_id=?');$s->execute([$actor,$request]);$old=$s->fetch();
         if ($old) {
-            if (!hash_equals($old['payload_hash'],$hash) || !(int)$old['current_card_id']) throw new EmcoreHttpException(409,'شناسه درخواست متفاوت یا تصویر دیگر جاری نیست');
+            if (!hash_equals($old['payload_hash'],$hash) || !(int)$old['current_card_id']) throw new EmcoreHttpException(409,'شناسه درخواست متفاوت یا فایل دیگر جاری نیست');
             $db->commit();emcore_json(['success'=>true,'data'=>$before]);
         }
         emcore_bc_version($before);$current=emcore_bc_current_file($id);
-        if ($action==='upload_image' && $current) throw new EmcoreHttpException(409,'این کارت تصویر دارد؛ از جایگزینی تصویر استفاده کنید');
-        if ($action==='replace_image' && !$current) throw new EmcoreHttpException(409,'این کارت تصویر ندارد؛ از افزودن تصویر استفاده کنید');
+        if ($action==='upload_image' && $current) throw new EmcoreHttpException(409,'این کارت فایل دارد؛ از جایگزینی فایل استفاده کنید');
+        if ($action==='replace_image' && !$current) throw new EmcoreHttpException(409,'این کارت فایل ندارد؛ از افزودن فایل استفاده کنید');
         $stored=emcore_bc_store_image($upload['tmp_name'],$upload['name']);
         if ($current) $db->prepare('UPDATE emcore_business_card_files SET superseded_at=NOW() WHERE id=?')->execute([$current['id']]);
         emcore_bc_insert('emcore_business_card_files',array_merge(['card_id'=>$id],$stored,['request_id'=>$request,'payload_hash'=>$hash,'uploaded_by_usr_uid'=>$actor,'replaces_file_id'=>$current?$current['id']:null]));
@@ -264,7 +264,7 @@ try {
             $s=$db->prepare('UPDATE emcore_business_cards SET '.implode(',',array_map(function($k){return $k.'=?';},array_keys($values))).' WHERE id=?');$s->execute(array_merge(array_values($values),[$id]));emcore_bc_children($id,$payload);emcore_bc_touch($id,$actor);
             emcore_bc_save_manual_collections($db,$id,$actor,$pairs,$before['collections']);
         } elseif ($action==='delete_image') {
-            $current=emcore_bc_current_file($id);if (!$current) throw new EmcoreHttpException(404,'تصویر کارت موجود نیست');
+            $current=emcore_bc_current_file($id);if (!$current) throw new EmcoreHttpException(404,'فایل کارت موجود نیست');
             $db->prepare('UPDATE emcore_business_card_files SET deleted_at=NOW() WHERE id=?')->execute([$current['id']]);emcore_bc_touch($id,$actor);
         } elseif ($action==='delete') {
             $db->prepare('UPDATE emcore_business_cards SET deleted_at=NOW(),updated_at=NOW(),updated_by_usr_uid=?,lock_version=lock_version+1 WHERE id=?')->execute([$actor,$id]);

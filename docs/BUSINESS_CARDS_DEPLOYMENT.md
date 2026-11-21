@@ -7,6 +7,13 @@ parser و importer روی سرور لازم نیستند. فقط اصل تصاو
 
 ## پیش‌نیاز و ترتیب
 
+برای بارگذاری PDF، migration `027_emcore_business_card_pdf.sql` را اجرا کنید تا
+ابعاد پیکسلی فایل‌های PDF مقدار خالی بپذیرند. سپس `_business_cards_storage.php`،
+`emcore_business_cards.php`، `business-cards.js`، `business-cards.css` و HTML پنل را
+با هم به‌روز کنید. JPEG، PNG و PDF تا سقف تنظیم‌شدهٔ فعلی پذیرفته می‌شوند.
+پیش‌نمایش PDF از نمایشگر داخلی مرورگر در همان پنجرهٔ کارت استفاده می‌کند. در
+مرورگرهایی که نمایشگر PDF ندارند، دکمهٔ «دانلود فایل اصلی» قابل استفاده است.
+
 برای انتخاب نمایشگاه و گردآورنده در فرم کارت، migration
 `022_emcore_business_card_manual_collections.sql` را پس از `020` در همان workspace
 اجرا کنید. سپس `emcore_business_cards.php`، `business-cards.js`، `business-cards.css`

@@ -81,11 +81,11 @@
       var xhr = new XMLHttpRequest(); xhr.open('POST', API, true); xhr.responseType = 'blob';
       xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
       xhr.onload = function () {
-        if (xhr.status >= 200 && xhr.status < 300 && /^image\/(jpeg|png)/.test(xhr.getResponseHeader('Content-Type') || '')) success(xhr.response);
+        if (xhr.status >= 200 && xhr.status < 300 && /^(image\/(jpeg|png)|application\/pdf)(?:;|$)/i.test(xhr.getResponseHeader('Content-Type') || '')) success(xhr.response);
         else {
           var reader = new FileReader();
-          reader.onload = function () { var text = 'تصویر دریافت نشد.'; try { text = JSON.parse(reader.result).error || text; } catch (ignore) {} failure(text); };
-          reader.onerror = function () { failure('تصویر دریافت نشد.'); }; reader.readAsText(xhr.response);
+          reader.onload = function () { var text = 'فایل دریافت نشد.'; try { text = JSON.parse(reader.result).error || text; } catch (ignore) {} failure(text); };
+          reader.onerror = function () { failure('فایل دریافت نشد.'); }; reader.readAsText(xhr.response);
         }
       };
       xhr.onerror = function () { failure('ارتباط با سرور برقرار نشد.'); };
@@ -158,7 +158,7 @@
         if (exhibitionSelected) {
           tr.append($('<td>').text((row.exhibition_collectors || []).join('، ') || '—'));
         }
-        ops.append(smallButton('نمایش کارت ویزیت').addClass('ec-primary').prop('disabled', !row.image_id).attr('title', row.image_id ? 'نمایش تصویر اصلی کارت' : 'برای این کارت تصویری ثبت نشده است').on('click', function () {
+        ops.append(smallButton('نمایش کارت ویزیت').addClass('ec-primary').prop('disabled', !row.image_id).attr('title', row.image_id ? 'نمایش فایل اصلی کارت' : 'برای این کارت فایلی ثبت نشده است').on('click', function () {
           showImage(row, this);
         }));
         ops.append(smallButton('پیش‌نمایش').on('click', function () { openPreview(row, this); }));
@@ -178,7 +178,7 @@
         $(el('page')).text(pages ? 'صفحهٔ ' + number(page) + ' از ' + number(pages) : 'بدون نتیجه');
         $(el('prev')).prop('disabled', page <= 1); $(el('next')).prop('disabled', page >= pages);
         $(el('summary')).empty();
-        [['total', 'کارت'], ['with_image', 'دارای تصویر'], ['without_image', 'بدون تصویر'], ['with_coordinates', 'دارای موقعیت'], ['needs_review', 'نیازمند بررسی']].forEach(function (pair) {
+        [['total', 'کارت'], ['with_image', 'دارای فایل'], ['without_image', 'بدون فایل'], ['with_coordinates', 'دارای موقعیت'], ['needs_review', 'نیازمند بررسی']].forEach(function (pair) {
           $(el('summary')).append($('<p>').text(number(r.summary[pair[0]]) + ' ' + pair[1]));
         });
         message('message', notice || (storageReady ? '' : 'مخزن تصویر آماده نیست؛ ثبت و مشاهدهٔ اطلاعات همچنان در دسترس است.'), notice ? !!isError : !storageReady);
@@ -192,7 +192,9 @@
     } });
     function clearImage() {
       imageGeneration += 1; if (imageXhr) imageXhr.abort(); imageXhr = null;
-      $(el('full-image')).removeAttr('src').prop('hidden', true); if (imageUrl) URL.revokeObjectURL(imageUrl); imageUrl = null;
+      $(el('full-image')).removeAttr('src').prop('hidden', true);
+      $(el('full-pdf')).attr('src', 'about:blank').prop('hidden', true); $(el('pdf-help')).prop('hidden', true);
+      if (imageUrl) URL.revokeObjectURL(imageUrl); imageUrl = null;
       $(el('download')).prop('disabled', true);
     }
     var imageModal = new UI.Modal(el('image-overlay'), { beforeClose: function () {
@@ -201,11 +203,14 @@
     function showImage(row, trigger, restore) {
       clearImage(); imageCard = row; restoreAfterImage = restore || null;
       $(el('image-title')).text([row.contact_name, row.organization_name].filter(Boolean).join(' / ') || 'کارت ویزیت ' + number(row.id));
-      $(el('image-message')).text('در حال بارگذاری تصویر…').prop('hidden', false);
+      $(el('image-message')).text('در حال بارگذاری فایل…').prop('hidden', false);
       imageModal.open(trigger); var generation = imageGeneration;
       imageXhr = binary('preview_image', row.id, row.image_id || (row.image && row.image.id), 'original', function (blob) {
         if (generation !== imageGeneration || !imageModal.isOpen()) return;
-        imageUrl = URL.createObjectURL(blob); $(el('full-image')).attr('src', imageUrl).prop('hidden', false);
+        imageUrl = URL.createObjectURL(blob);
+        var pdf = blob.type.split(';')[0].toLowerCase() === 'application/pdf';
+        $(el(pdf ? 'full-pdf' : 'full-image')).attr('src', imageUrl).prop('hidden', false);
+        $(el('pdf-help')).prop('hidden', !pdf);
         $(el('image-message')).prop('hidden', true); $(el('download')).prop('disabled', false);
       }, function (text) { if (generation === imageGeneration && imageModal.isOpen()) $(el('image-message')).text(text).prop('hidden', false); });
     }
@@ -300,7 +305,7 @@
       $(el('editor-form')).find('.bc-remove').prop('hidden', !write).prop('disabled', busy);
       $(el('delete')).prop('hidden', !card || !card.id || !allowed('delete')).prop('disabled', busy);
       $(el('image-file')).prop('disabled', busy || !card || !card.id || !allowed('update') || !storageReady);
-      $(el('upload')).text(card && card.image ? 'جایگزینی تصویر' : 'افزودن تصویر').prop('disabled', busy || dirty || !card || !card.id || !allowed('update') || !storageReady || !el('image-file').files.length);
+      $(el('upload')).text(card && card.image ? 'جایگزینی فایل' : 'افزودن فایل').prop('disabled', busy || dirty || !card || !card.id || !allowed('update') || !storageReady || !el('image-file').files.length);
       $(el('delete-image')).prop('hidden', !card || !card.image || !allowed('delete')).prop('disabled', busy || dirty);
       $(el('editor-preview')).prop('disabled', busy || !card || !card.image);
       $(el('duplicates-button')).prop('disabled', busy);
@@ -356,7 +361,7 @@
       $(el('contact-points')).empty(); card.contact_points.forEach(addPoint); $(el('locations')).empty(); card.locations.forEach(addLocation);
       $(el('source-text')).empty(); (card.sources || []).forEach(function (s) { $(el('source-text')).append($('<pre>').addClass('bc-source-block').text(s.raw_text)); });
       $(el('sources')).prop('hidden', !(card.sources || []).length).prop('open', false);
-      $(el('image-state')).text(card.id ? card.image ? 'تصویر جاری: ' + card.image.original_filename : 'این کارت تصویر ندارد.' : 'برای بارگذاری تصویر، ابتدا اطلاعات کارت را ذخیره کنید.');
+      $(el('image-state')).text(card.id ? card.image ? 'فایل جاری: ' + card.image.original_filename : 'این کارت فایل ندارد.' : 'برای بارگذاری فایل، ابتدا اطلاعات کارت را ذخیره کنید.');
       $(el('duplicates')).empty(); $(el('editor-title')).text(card.id ? 'کارت ویزیت ' + number(card.id) : 'ثبت کارت ویزیت'); controls();
     }
     function openCard(id, trigger) {
@@ -413,14 +418,14 @@
     $(el('image-file')).on('change', function () { uploadRequest = UI.requestId(); uploadPending = null; controls(); });
     $(el('upload')).on('click', function () {
       if (busy || dirty || !card.id || !el('image-file').files.length) return;
-      var file = el('image-file').files[0]; if (file.size > maxBytes) { message('editor-message', 'اندازه تصویر بیش از حد مجاز است.', true); return; }
+      var file = el('image-file').files[0]; if (file.size > maxBytes) { message('editor-message', 'اندازه فایل بیش از حد مجاز است.', true); return; }
       // Stable action/payload survive a lost upload response until selection changes.
       if (!uploadPending) uploadPending = { action: card.image ? 'replace_image' : 'upload_image', version: card.lock_version };
       var data = new FormData(); data.append('action', uploadPending.action); data.append('id', card.id); data.append('lock_version', uploadPending.version); data.append('request_id', uploadRequest); data.append('file', file);
       busy = true; controls(); $(el('upload-progress')).prop('hidden', false).val(0);
       $.ajax({ url: API, type: 'POST', data: data, processData: false, contentType: false, dataType: 'json', headers: { 'X-CSRF-Token': token }, xhr: function () {
         var xhr = $.ajaxSettings.xhr(); if (xhr.upload) xhr.upload.addEventListener('progress', function (e) { if (e.lengthComputable) $(el('upload-progress')).val(e.loaded * 100 / e.total); }); return xhr;
-      } }).done(function (r) { busy = false; fillCard(r.data); message('editor-message', 'تصویر ذخیره شد.'); loadList(); checkDuplicates(); }).fail(function (xhr) { message('editor-message', error(xhr), true); }).always(function () { busy = false; $(el('upload-progress')).prop('hidden', true); controls(); });
+      } }).done(function (r) { busy = false; fillCard(r.data); message('editor-message', 'فایل ذخیره شد.'); loadList(); checkDuplicates(); }).fail(function (xhr) { message('editor-message', error(xhr), true); }).always(function () { busy = false; $(el('upload-progress')).prop('hidden', true); controls(); });
     });
     function remove(action) {
       if (busy || !card.id || !window.confirm(action === 'delete' ? 'این کارت از آرشیو حذف شود؟' : 'تصویر جاری حذف شود؟')) return;
@@ -448,7 +453,8 @@
       var generation = imageGeneration; $(el('download')).prop('disabled', true);
       imageXhr = binary('download_image', imageCard.id, imageCard.image_id || (imageCard.image && imageCard.image.id), 'original', function (blob) {
         if (generation !== imageGeneration) return;
-        var url = URL.createObjectURL(blob), link = document.createElement('a'); link.href = url; link.download = 'card-' + imageCard.id + (blob.type === 'image/png' ? '.png' : '.jpg'); document.body.appendChild(link); link.click(); link.remove(); window.setTimeout(function () { URL.revokeObjectURL(url); }, 1000); $(el('download')).prop('disabled', false);
+        var extensions = { 'image/png': '.png', 'image/jpeg': '.jpg', 'application/pdf': '.pdf' };
+        var url = URL.createObjectURL(blob), link = document.createElement('a'); link.href = url; link.download = 'card-' + imageCard.id + extensions[blob.type.split(';')[0].toLowerCase()]; document.body.appendChild(link); link.click(); link.remove(); window.setTimeout(function () { URL.revokeObjectURL(url); }, 1000); $(el('download')).prop('disabled', false);
       }, function (text) { if (generation === imageGeneration) { $(el('image-message')).text(text).prop('hidden', false); $(el('download')).prop('disabled', false); } });
     });
     $(el('new')).on('click', function () { openCard(null, this); });
@@ -484,7 +490,7 @@
         manualCollectionsReady = !!(r.data.manual_collections_ready && el('manual-collections') && exhibitions.length && collectors.length);
         $(el('manual-collections')).prop('hidden', !manualCollectionsReady);
       }
-      $(el('image-limit')).text('JPEG یا PNG، حداکثر ' + number(Math.round(maxBytes / 1048576)) + ' مگابایت'); loadList();
+      $(el('image-limit')).text('JPEG، PNG یا PDF، حداکثر ' + number(Math.round(maxBytes / 1048576)) + ' مگابایت'); loadList();
     }).fail(function (xhr) { message('message', error(xhr), true); });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();

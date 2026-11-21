@@ -68,6 +68,20 @@ let checks=0;function check(value,message){assert.ok(value,message);checks++;}
   await page.keyboard.press('Escape');check(await page.locator('#bc-image-overlay').isHidden(),'escape closes image popup');
   check(await button.evaluate(e=>e===document.activeElement),'focus returns to table button');
   check(await page.evaluate(url=>window.__bcRevoked.includes(url),originalUrl),'closed image Blob revoked');
+  await page.route('**/emcore_business_cards.php',async route=>{
+   const action=new URLSearchParams(route.request().postData()).get('action');
+   if(action==='preview_image'||action==='download_image')return route.fulfill({contentType:'application/pdf',body:Buffer.from('%PDF-1.4\n%%EOF\n')});
+   await route.continue();
+  });
+  await button.click();await page.locator('#bc-full-pdf').waitFor({state:'visible'});
+  const pdfUrl=await page.locator('#bc-full-pdf').getAttribute('src');
+  check(pdfUrl.startsWith('blob:')&&await page.locator('#bc-full-image').isHidden(),'PDF preview uses authorized Blob in the same modal');
+  const pdfDownload=page.waitForEvent('download');await page.locator('#bc-download').click();
+  const pdfCardId=(await button.locator('xpath=ancestor::tr').locator('.bc-id').textContent()).slice(1);
+  check((await pdfDownload).suggestedFilename()==='card-'+pdfCardId+'.pdf','PDF download retains its extension');
+  await page.locator('#bc-image-close').click();
+  check(await page.locator('#bc-full-pdf').getAttribute('src')==='about:blank'&&await page.evaluate(url=>window.__bcRevoked.includes(url),pdfUrl),'closing PDF clears the viewer and revokes the Blob');
+  await page.unroute('**/emcore_business_cards.php');
   await page.locator('#bc-rows').getByRole('button',{name:'پیش‌نمایش',exact:true}).first().click();
   await page.locator('#bc-preview-image').click();await page.waitForFunction(()=>!document.querySelector('#bc-full-image').hidden&&document.querySelector('#bc-full-image').naturalWidth>0);
   await page.keyboard.press('Escape');await page.locator('#bc-preview-overlay').waitFor({state:'visible'});
@@ -108,8 +122,8 @@ let checks=0;function check(value,message){assert.ok(value,message);checks++;}
   check(await businessSearch.inputValue()==='فرانسه'&&await page.locator('#bc-business-country').inputValue()==='FR','commercial country suggestion survives save and reload');
   check(await page.locator('#bc-image-file').getAttribute('multiple')===null,'exactly one file selectable');
   check(await page.locator('#bc-editor-preview').isDisabled(),'no image means preview disabled');
-  await page.locator('#bc-image-file').setInputFiles('cart/آلمان/1.jpg');await page.locator('#bc-upload').click();await page.locator('#bc-editor-message').filter({hasText:'تصویر ذخیره شد.'}).waitFor();
-  check(await page.locator('#bc-upload').textContent()==='جایگزینی تصویر','single image replacement control');
+  await page.locator('#bc-image-file').setInputFiles('cart/آلمان/1.jpg');await page.locator('#bc-upload').click();await page.locator('#bc-editor-message').filter({hasText:'فایل ذخیره شد.'}).waitFor();
+  check(await page.locator('#bc-upload').textContent()==='جایگزینی فایل','single image replacement control');
   await page.locator('#bc-editor-preview').click();await page.waitForFunction(()=>!document.querySelector('#bc-full-image').hidden&&document.querySelector('#bc-full-image').naturalWidth>0);await page.locator('#bc-image-close').click();await page.locator('#bc-editor-overlay').waitFor({state:'visible'});
   await page.locator('#bc-editor-close').click();await page.locator('#bc-reset').click();await page.locator('#bc-rows').filter({hasText:'<img src=x onerror=alert(1)>'}).waitFor();
   check(await page.locator('#bc-rows img[src="x"]').count()===0,'stored XSS remains text');
