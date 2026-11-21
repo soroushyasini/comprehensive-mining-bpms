@@ -491,16 +491,18 @@
     if (selected) select.val(String(selected));
   }
 
-  function loadLookups() {
+  function loadLookups(formOnly) {
     return api('lookups').done(function (response) {
       lookups = response.data;
       csrfToken = response.csrf_token;
       permissions = response.permissions || permissions;
-      fillMineSelect($('#qMine'), 'همه معادن');
+      if (!formOnly) {
+        fillMineSelect($('#qMine'), 'همه معادن');
+        fillRigSelect($('#qRig'), 'همه دستگاه‌ها');
+        fillBoreholes($('#qBorehole'), '', 'همه گمانه‌ها');
+      }
       fillMineSelect($('#fMine'), 'انتخاب معدن');
-      fillRigSelect($('#qRig'), 'همه دستگاه‌ها');
       fillRigSelect($('#fRig'), 'انتخاب دستگاه');
-      fillBoreholes($('#qBorehole'), '', 'همه گمانه‌ها');
       fillBoreholes($('#fBorehole'), '', 'انتخاب گمانه');
       renderChecklist();
       $('#addBtn').toggle(Number(permissions.can_create) === 1);
@@ -627,7 +629,11 @@
   }
 
   function openCreate() {
-    resetForm(); $('#modalTitle').text('گزارش جدید حفاری'); $('#overlay').addClass('open');
+    var add = $('#addBtn').prop('disabled', true);
+    loadLookups(true).done(function () {
+      if (Number(permissions.can_create) !== 1) return;
+      hideNotice(); resetForm(); $('#modalTitle').text('گزارش جدید حفاری'); $('#overlay').addClass('open');
+    }).always(function () { add.prop('disabled', false); });
   }
 
   function openReport(id, readOnly) {

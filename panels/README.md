@@ -8,6 +8,7 @@ These are the deployable Panel WebControl files corresponding to the secured API
 | `emcore_persons_panel.html` | `/emcore_api/emcore_persons_api.php` | `persons` |
 | `emcore_mines_panel.html` | `/emcore_api/emcore_mines.php` | `mines` |
 | `emcore_mine_technical_managers_panel.html` | `/emcore_api/emcore_mine_technical_managers.php` | `mine_technical_managers` |
+| `emcore_boreholes_panel.html` | `/emcore_api/emcore_boreholes.php` | `boreholes` |
 | `emcore_drilling_reports_panel.html` | `/emcore_api/emcore_drilling_reports.php` | `drilling_daily_reports` |
 | `emcore_drilling_analytics_panel.html` | `/emcore_api/emcore_drilling_analytics.php` | `drilling_daily_reports` |
 | `emcore_visitor_log_panel.html` | `/emcore_api/emcore_visitor_log.php` | `visitor_log` |
@@ -35,6 +36,8 @@ Each panel:
 The APIs remain the enforcement boundary. Hiding a button is only a user-interface improvement and is not treated as authorization.
 
 ## Deployment
+
+For the borehole registry, see [Borehole profiles](../docs/BOREHOLE_PROFILES.md) for migration order, permissions, and read-only legacy comparison.
 
 - Replace the corresponding ProcessMaker WebContent/Panel content with these files.
 - Keep panels and APIs on the same origin so the ProcessMaker PHP session cookie is included.

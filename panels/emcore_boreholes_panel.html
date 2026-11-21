@@ -1,0 +1,278 @@
+<section id="emcore-boreholes" dir="rtl" lang="fa" aria-labelledby="bh-heading">
+  <style>
+    #emcore-boreholes { --bh-ink:#1b3029; --bh-muted:#4b6158; --bh-line:#cbd9d1; --bh-surface:#f4f7f5; --bh-accent:#225c47; --bh-error:#8c302b; color:var(--bh-ink); font-family:Vazirmatn,Tahoma,sans-serif; padding:1.25rem; }
+    #emcore-boreholes *, #emcore-boreholes *::before, #emcore-boreholes *::after { box-sizing:border-box; }
+    #emcore-boreholes [hidden] { display:none !important; }
+    #emcore-boreholes h2, #emcore-boreholes h3, #emcore-boreholes h4, #emcore-boreholes p { margin:0; }
+    #emcore-boreholes .bh-bar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.75rem; }
+    #emcore-boreholes .bh-filters { justify-content:flex-start; align-items:flex-end; margin:1rem 0; }
+    #emcore-boreholes label { display:grid; gap:.3rem; margin:0; font-weight:600; }
+    #emcore-boreholes input:not([type=checkbox]), #emcore-boreholes select, #emcore-boreholes textarea, #emcore-boreholes button { font:inherit; min-height:2.5rem; max-width:100%; padding:.4rem .65rem; border:1px solid var(--bh-line); border-radius:.4rem; color:inherit; background:#fff; }
+    #emcore-boreholes textarea { resize:vertical; width:100%; }
+    #emcore-boreholes button { cursor:pointer; }
+    #emcore-boreholes button:disabled { opacity:.62; cursor:default; }
+    #emcore-boreholes button.bh-primary { background:var(--bh-accent); color:#fff; border-color:var(--bh-accent); }
+    #emcore-boreholes :focus-visible { outline:2px solid var(--bh-accent); outline-offset:2px; }
+    #emcore-boreholes .bh-table { overflow-x:auto; border:1px solid var(--bh-line); border-radius:.5rem; margin:.75rem 0; }
+    #emcore-boreholes table { border-collapse:collapse; width:100%; text-align:start; }
+    #emcore-boreholes th, #emcore-boreholes td { padding:.65rem .8rem; text-align:start; border-bottom:1px solid var(--bh-line); }
+    #emcore-boreholes th { background:var(--bh-surface); white-space:nowrap; }
+    #emcore-boreholes tbody tr:last-child td { border-bottom:0; }
+    #emcore-boreholes .bh-muted { color:var(--bh-muted); }
+    #emcore-boreholes .bh-error { color:var(--bh-error); }
+    #emcore-boreholes dialog { width:min(54rem,calc(100% - 1.5rem)); max-height:calc(100% - 1.5rem); padding:1rem; border:1px solid var(--bh-line); border-radius:.65rem; color:var(--bh-ink); }
+    #emcore-boreholes dialog::backdrop { background:rgba(15,31,24,.52); }
+    #emcore-boreholes fieldset, #emcore-boreholes .bh-source { min-width:0; border:1px solid var(--bh-line); border-radius:.5rem; padding:.85rem; margin:0; }
+    #emcore-boreholes .bh-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,11rem),1fr)); gap:.65rem; }
+    #emcore-boreholes .bh-sources { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),1fr)); gap:.75rem; }
+    #emcore-boreholes .bh-source { background:var(--bh-surface); }
+    #emcore-boreholes .bh-source h4 { margin-block-end:.6rem; }
+    #emcore-boreholes .bh-source dl { margin:0; }
+    #emcore-boreholes .bh-source dl div { display:flex; flex-wrap:wrap; justify-content:space-between; gap:.35rem; padding:.4rem 0; border-bottom:1px solid var(--bh-line); }
+    #emcore-boreholes .bh-source dd { margin:0; font-weight:600; }
+    #emcore-boreholes .bh-confirm { display:flex; align-items:center; gap:.45rem; grid-column:1/-1; }
+    #emcore-boreholes form.bh-detail { display:grid; gap:.75rem; margin-top:.75rem; }
+    #emcore-boreholes .bh-full { grid-column:1/-1; }
+    #emcore-boreholes .bh-status { min-height:1.4rem; }
+  </style>
+
+  <div class="bh-bar">
+    <h2 id="bh-heading">گمانه‌ها</h2>
+    <button type="button" class="bh-primary" data-bh="create" hidden>ثبت گمانه</button>
+  </div>
+  <form class="bh-bar bh-filters" data-bh="filters">
+    <label>معدن<select name="mine_id"><option value="">همهٔ معادن</option></select></label>
+    <label>کد گمانه<input name="search" type="search" maxlength="100" dir="auto"></label>
+    <button type="submit">جست‌وجو</button>
+    <button type="reset">پاک‌کردن فیلترها</button>
+  </form>
+  <p class="bh-status" data-bh="status" role="status" aria-live="polite"></p>
+  <div class="bh-table" data-bh="table" hidden>
+    <table aria-label="فهرست گمانه‌ها">
+      <thead><tr><th scope="col">کد گمانه</th><th scope="col">معدن</th><th scope="col">محدوده یا زون</th><th scope="col">وضعیت حفاری</th><th scope="col">انتخاب در گزارش جدید</th><th scope="col">شناسنامه</th></tr></thead>
+      <tbody data-bh="rows"></tbody>
+    </table>
+  </div>
+  <nav class="bh-bar" data-bh="pages" aria-label="صفحه‌های فهرست گمانه‌ها" hidden>
+    <button type="button" data-bh="previous">صفحهٔ قبل</button>
+    <span data-bh="page"></span>
+    <button type="button" data-bh="next">صفحهٔ بعد</button>
+  </nav>
+
+  <dialog data-bh="dialog" aria-labelledby="bh-dialog-title">
+    <div class="bh-bar">
+      <h3 id="bh-dialog-title" data-bh="dialog-title">شناسنامهٔ گمانه</h3>
+      <button type="button" data-bh="close">بستن</button>
+    </div>
+    <form class="bh-detail" data-bh="detail">
+      <fieldset class="bh-grid" data-bh="identity">
+        <legend>مشخصات گمانه</legend>
+        <label>معدن (اجباری)<select name="mine_id" required></select></label>
+        <label>کد گمانه (اجباری)<input name="borehole_code" maxlength="100" required dir="auto"></label>
+        <p class="bh-muted bh-full" data-bh="mine-locked" hidden>معدن این گمانه به‌دلیل سابقهٔ گزارش حفاری قابل تغییر نیست.</p>
+        <label>محدوده یا زون<input name="area_zone" maxlength="150"></label>
+        <label>انتخاب در گزارش جدید<select name="status"><option value="active">فعال</option><option value="inactive">غیرفعال</option></select></label>
+        <label>مختصات دهانه X<input name="collar_x" inputmode="decimal" dir="ltr" maxlength="17"></label>
+        <label>مختصات دهانه Y<input name="collar_y" inputmode="decimal" dir="ltr" maxlength="17"></label>
+        <label>ارتفاع Z<input name="collar_z" inputmode="decimal" dir="ltr" maxlength="17"></label>
+        <label>سیستم مختصات<input name="coordinate_system" maxlength="100" dir="auto"></label>
+        <label>سمت AZ (درجه)<input name="azimuth_deg" inputmode="decimal" dir="ltr" maxlength="7"></label>
+        <label>شیب DIP (درجه)<input name="dip_deg" inputmode="decimal" dir="ltr" maxlength="8"></label>
+        <label class="bh-full">توضیحات<textarea name="notes" maxlength="5000" rows="2"></textarea></label>
+      </fieldset>
+      <div class="bh-sources">
+        <fieldset class="bh-grid" data-bh="profile">
+          <legend>ثبت‌شده در شناسنامه</legend>
+          <label>عمق ثبت‌شده (متر)<input name="profile_depth_m" inputmode="decimal" dir="ltr" maxlength="13"></label>
+          <label>وضعیت کلی حفاری<select name="profile_drilling_status">
+            <option value="">مشخص نشده</option><option value="not_started">شروع نشده</option><option value="in_progress">در حال حفاری</option>
+            <option value="paused">متوقف</option><option value="completed">تمام‌شده</option><option value="cancelled">لغوشده</option>
+          </select></label>
+          <label>تاریخ شروع (شمسی)<input name="profile_start_date_fa" placeholder="۱۴۰۳/۰۱/۰۱" inputmode="text" dir="ltr" maxlength="10"></label>
+          <label>تاریخ اتمام (شمسی)<input name="profile_completion_date_fa" placeholder="۱۴۰۳/۰۱/۰۱" inputmode="text" dir="ltr" maxlength="10"></label>
+          <label class="bh-confirm" data-bh="confirm-row" hidden><input name="completion_confirmed" value="1" type="checkbox">تاریخ اتمام حفاری را تأیید می‌کنم.</label>
+        </fieldset>
+        <section class="bh-source" data-bh="reports" aria-labelledby="bh-reports-title" hidden>
+          <h4 id="bh-reports-title">مستخرج از گزارش‌های روزانه</h4>
+          <p data-bh="empty-reports" class="bh-muted" hidden>هنوز گزارش روزانه‌ای برای این گمانه ثبت نشده است.</p>
+          <dl data-bh="report-values" hidden>
+            <div><dt>تعداد گزارش‌ها</dt><dd data-bh="report-count"></dd></div>
+            <div><dt>تاریخ اولین گزارش موجود</dt><dd><bdi data-bh="first-report"></bdi></dd></div>
+            <div><dt>تاریخ آخرین گزارش موجود</dt><dd><bdi data-bh="last-report"></bdi></dd></div>
+            <div><dt>عمق پایان در آخرین گزارش (متر)</dt><dd data-bh="last-depth"></dd></div>
+          </dl>
+        </section>
+      </div>
+      <p class="bh-status bh-error" data-bh="form-error" role="alert"></p>
+      <div><button type="submit" class="bh-primary" data-bh="save" hidden>ذخیرهٔ شناسنامه</button></div>
+    </form>
+  </dialog>
+</section>
+<script>
+(function () {
+  'use strict';
+  var app = document.getElementById('emcore-boreholes');
+  var api = '/emcore_api/emcore_boreholes.php';
+  var get = function (key) { return app.querySelector('[data-bh="' + key + '"]'); };
+  var filters = get('filters'), form = get('detail'), dialog = get('dialog');
+  var fields = form.elements;
+  var lookup = { mines: [], permissions: {}, csrf_token: '' };
+  var current = null, page = 1, listVersion = 0, opening = false, busy = false, editing = false;
+  var number = new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 4 });
+  var dateDigits = function (value) {
+    return String(value || '').replace(/[۰-۹٠-٩]/g, function (digit) {
+      return String('۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩'.indexOf(digit) % 10);
+    });
+  };
+
+  function request(action, values) {
+    var body = new URLSearchParams(values || {});
+    body.set('action', action);
+    return fetch(api, { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRF-Token': lookup.csrf_token }, body: body })
+      .then(function (response) {
+        return response.json().then(function (json) {
+          if (!response.ok || !json.success) throw new Error(json.error || 'درخواست انجام نشد.');
+          return json;
+        });
+      });
+  }
+
+  function status(message, error) {
+    get('status').textContent = message;
+    get('status').classList.toggle('bh-error', Boolean(error));
+  }
+
+  function fillMines(select, label) {
+    select.replaceChildren(new Option(label, ''));
+    lookup.mines.forEach(function (mine) { select.add(new Option(mine.mine_name, mine.id)); });
+  }
+
+  function cell(row, value) { row.insertCell().textContent = value == null || value === '' ? '—' : value; }
+
+  function list(targetPage, notice) {
+    var version = ++listVersion;
+    var values = new FormData(filters);
+    values.set('page', targetPage);
+    status('در حال دریافت گمانه‌ها…');
+    get('previous').disabled = get('next').disabled = true;
+    get('table').hidden = get('pages').hidden = true;
+    return request('list', values).then(function (json) {
+      if (version !== listVersion) return;
+      var rows = get('rows');
+      rows.replaceChildren();
+      json.data.forEach(function (record) {
+        var row = rows.insertRow();
+        var code = document.createElement('bdi');
+        code.textContent = record.borehole_code;
+        row.insertCell().appendChild(code);
+        cell(row, record.mine_name);
+        cell(row, record.area_zone);
+        var choice = Array.from(fields.profile_drilling_status.options).find(function (option) { return option.value === record.profile_drilling_status; });
+        cell(row, choice ? choice.textContent : 'مشخص نشده');
+        cell(row, record.status === 'active' ? 'فعال' : 'غیرفعال');
+        var button = document.createElement('button');
+        button.type = 'button'; button.textContent = 'مشاهده';
+        button.setAttribute('aria-label', 'مشاهدهٔ شناسنامهٔ ' + record.borehole_code + '، ' + record.mine_name);
+        button.addEventListener('click', function () { openRecord(record.id); });
+        row.insertCell().appendChild(button);
+      });
+      var pages = Math.max(1, Math.ceil(json.meta.total / json.meta.page_size));
+      page = json.meta.page;
+      get('table').hidden = !json.data.length;
+      get('pages').hidden = pages < 2;
+      get('page').textContent = 'صفحهٔ ' + number.format(page) + ' از ' + number.format(pages);
+      get('previous').disabled = page <= 1;
+      get('next').disabled = page >= pages;
+      status((notice ? notice + ' ' : '') + (json.meta.total ? number.format(json.meta.total) + ' گمانه' : 'گمانه‌ای برای این فیلتر پیدا نشد.'));
+    }).catch(function (error) { if (version === listVersion) status(error.message, true); });
+  }
+
+  function toggleConfirmation() {
+    var date = dateDigits(fields.profile_completion_date_fa.value.trim());
+    var changed = editing && Boolean(date) && date !== (current && current.profile_completion_date_fa);
+    get('confirm-row').hidden = !changed;
+    fields.completion_confirmed.required = changed;
+    if (!changed) fields.completion_confirmed.checked = false;
+  }
+
+  function showRecord(record) {
+    current = record;
+    editing = Number(record ? lookup.permissions.can_update : lookup.permissions.can_create) === 1;
+    form.reset();
+    fillMines(fields.mine_id, 'انتخاب معدن');
+    get('form-error').textContent = '';
+    Array.from(fields.status.options).filter(function (option) { return option.value === ''; }).forEach(function (option) { option.remove(); });
+    if (record && record.status !== 'active' && record.status !== 'inactive') fields.status.add(new Option('غیرفعال (وضعیت قبلی)', ''));
+    Array.from(fields).forEach(function (input) {
+      if (input.name && input.name !== 'completion_confirmed' && record && Object.prototype.hasOwnProperty.call(record, input.name)) {
+        input.value = input.name === 'status' && record.status !== 'active' && record.status !== 'inactive' ? '' : (record[input.name] == null ? '' : record[input.name]);
+      }
+    });
+    if (!record) fields.mine_id.value = filters.elements.mine_id.value;
+    var locked = record && Number(record.mine_locked) === 1;
+    fields.mine_id.disabled = Boolean(locked);
+    get('mine-locked').hidden = !locked;
+    get('identity').disabled = get('profile').disabled = !editing;
+    get('dialog-title').textContent = record ? (editing ? 'ویرایش شناسنامهٔ گمانه' : 'شناسنامهٔ گمانه') : 'ثبت گمانه';
+    get('save').hidden = !editing;
+    var reports = record && record.daily_report_summary;
+    get('reports').hidden = !reports;
+    get('empty-reports').hidden = !reports || reports.report_count > 0;
+    get('report-values').hidden = !reports || reports.report_count === 0;
+    if (reports) {
+      get('report-count').textContent = number.format(reports.report_count);
+      get('first-report').textContent = reports.first_report_date_fa || '—';
+      get('last-report').textContent = reports.last_report_date_fa || '—';
+      get('last-depth').textContent = reports.latest_end_depth == null ? '—' : number.format(reports.latest_end_depth);
+    }
+    toggleConfirmation();
+    dialog.showModal();
+  }
+
+  function openRecord(id) {
+    if (opening) return;
+    opening = true;
+    request('get', { id: id }).then(function (json) { showRecord(json.data); })
+      .catch(function (error) { status(error.message, true); }).finally(function () { opening = false; });
+  }
+
+  filters.addEventListener('submit', function (event) { event.preventDefault(); list(1); });
+  filters.addEventListener('reset', function () { setTimeout(function () { list(1); }, 0); });
+  get('previous').addEventListener('click', function () { list(page - 1); });
+  get('next').addEventListener('click', function () { list(page + 1); });
+  get('create').addEventListener('click', function () { if (!opening) showRecord(null); });
+  get('close').addEventListener('click', function () { if (!busy) dialog.close(); });
+  dialog.addEventListener('cancel', function (event) { if (busy) event.preventDefault(); });
+  fields.profile_completion_date_fa.addEventListener('input', function () {
+    fields.completion_confirmed.checked = false;
+    toggleConfirmation();
+  });
+  form.addEventListener('submit', function (event) {
+    event.preventDefault();
+    if (busy || !editing || !form.reportValidity()) return;
+    var values = new FormData(form);
+    if (current) {
+      values.set('id', current.id);
+      values.set('lock_version', current.lock_version);
+      if (fields.mine_id.disabled) values.set('mine_id', current.mine_id);
+    }
+    busy = true;
+    get('save').disabled = get('close').disabled = true;
+    get('form-error').textContent = '';
+    request(current ? 'update' : 'create', values).then(function () {
+      dialog.close();
+      list(1, 'شناسنامه ذخیره شد.');
+    }).catch(function (error) { get('form-error').textContent = error.message; }).finally(function () {
+      busy = false; get('save').disabled = get('close').disabled = false;
+    });
+  });
+
+  status('در حال دریافت اطلاعات…');
+  request('lookups').then(function (json) {
+    lookup = { mines: json.data.mines, permissions: json.permissions, csrf_token: json.csrf_token };
+    fillMines(filters.elements.mine_id, 'همهٔ معادن');
+    get('create').hidden = Number(lookup.permissions.can_create) !== 1;
+    return list(1);
+  }).catch(function (error) { status(error.message, true); });
+}());
+</script>

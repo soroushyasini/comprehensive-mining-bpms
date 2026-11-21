@@ -122,7 +122,7 @@ function emcore_drilling_assert_references($db, $boreholeId, $rigId, $currentRep
         "SELECT b.id, b.status, b.deleted_at, m.deleted_at AS mine_deleted_at
          FROM emcore_boreholes b
          JOIN emcore_mines m ON m.id = b.mine_id
-         WHERE b.id = :id LIMIT 1"
+         WHERE b.id = :id LIMIT 1 FOR UPDATE OF b"
     );
     $borehole->execute([':id' => $boreholeId]);
     $boreholeRow = $borehole->fetch();

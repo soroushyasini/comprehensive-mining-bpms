@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/_module_permissions.php';
+require_once __DIR__ . '/_drilling_report_summary.php';
 
 const EMCORE_DRILLING_MODULE = 'drilling_daily_reports';
 
@@ -333,22 +334,7 @@ function emcore_drilling_borehole_progression($db)
         WHERE {$reportWhere}";
     $summary = emcore_drilling_analytics_query($db, $summarySql, $progressParams)->fetch();
 
-    $boundaryOrderAsc = "r.report_date_en ASC, COALESCE(r.start_time, r.end_time, '00:00:00') ASC,
-        CASE WHEN r.shift = 'DAY' THEN 1 WHEN r.shift = 'NIGHT' THEN 2 ELSE 3 END ASC, r.id ASC";
-    $boundaryOrderDesc = "r.report_date_en DESC, COALESCE(r.start_time, r.end_time, '00:00:00') DESC,
-        CASE WHEN r.shift = 'DAY' THEN 1 WHEN r.shift = 'NIGHT' THEN 2 ELSE 3 END DESC, r.id DESC";
-    $boundarySelect = "SELECT r.report_date_fa, r.report_date_en, r.drill_start_depth, r.drill_end_depth
-        FROM emcore_drilling_reports r WHERE {$reportWhere}";
-    $firstReport = emcore_drilling_analytics_query(
-        $db,
-        $boundarySelect . " ORDER BY {$boundaryOrderAsc} LIMIT 1",
-        $progressParams
-    )->fetch();
-    $lastReport = emcore_drilling_analytics_query(
-        $db,
-        $boundarySelect . " ORDER BY {$boundaryOrderDesc} LIMIT 1",
-        $progressParams
-    )->fetch();
+    $boundaries = emcore_drilling_report_boundaries($db, $boreholeId);
 
     $dailySql = "SELECT r.report_date_fa, r.report_date_en,
             COALESCE(SUM(CASE WHEN r.shift = 'DAY' THEN r.drill_amount ELSE 0 END), 0) AS day_drilled,
@@ -399,10 +385,10 @@ function emcore_drilling_borehole_progression($db)
         'night_drilled' => (float)$summary['night_drilled'],
         'unclassified_drilled' => (float)$summary['unclassified_drilled'],
         'average_per_active_day' => $activeDays > 0 ? round((float)$summary['total_drilled'] / $activeDays, 3) : null,
-        'first_report_date_fa' => $firstReport ? $firstReport['report_date_fa'] : null,
-        'last_report_date_fa' => $lastReport ? $lastReport['report_date_fa'] : null,
-        'first_start_depth' => $firstReport ? (float)$firstReport['drill_start_depth'] : null,
-        'latest_end_depth' => $lastReport ? (float)$lastReport['drill_end_depth'] : null,
+        'first_report_date_fa' => $boundaries['first_report_date_fa'],
+        'last_report_date_fa' => $boundaries['last_report_date_fa'],
+        'first_start_depth' => $boundaries['first_start_depth'],
+        'latest_end_depth' => $boundaries['latest_end_depth'],
     ];
     $quality = [
         'interval_mismatch_reports' => (int)$summary['interval_mismatch_reports'],
@@ -590,10 +576,11 @@ $dailySql = "SELECT r.report_date_fa, r.report_date_en,
     ORDER BY r.report_date_en";
 $daily = emcore_drilling_analytics_query($db, $dailySql, $params)->fetchAll();
 
+$latestReportOrder = emcore_drilling_report_order(true);
 $boreholeSql = "SELECT b.id AS borehole_id, b.borehole_code, b.mine_id, m.mine_name,
         COUNT(*) AS report_count,
         SUM(r.drill_amount) AS drilled_meters,
-        SUBSTRING_INDEX(GROUP_CONCAT(CAST(r.drill_end_depth AS CHAR) ORDER BY r.report_date_en DESC, r.id DESC), ',', 1) AS latest_end_depth,
+        SUBSTRING_INDEX(GROUP_CONCAT(CAST(r.drill_end_depth AS CHAR) ORDER BY {$latestReportOrder}), ',', 1) AS latest_end_depth,
         SUM(r.water_amount) AS water_amount,
         SUM(r.diesel_amount) AS diesel_amount,
         ROUND(SUM(r.water_amount) / NULLIF(SUM(r.drill_amount), 0), 3) AS water_per_meter,
